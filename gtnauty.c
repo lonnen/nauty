@@ -6,6 +6,7 @@
    Oct 16, 2004 : DEAFULTOPTIONS_GRAPH
    Nov 17, 2005 : Added fcanonise_inv_sg()
    May 11, 2010 : use sorttemplates.c
+   Sep  5, 2013 : Unify format processing and remove 2^22 limit
 
 **************************************************************************/
 
@@ -23,15 +24,127 @@ int gt_numorbits;
 void REFINE(graph*,int*,int*,int,int*,int*,set*,int*,int,int);
 #endif
 
+#define MIN_SCHREIER 33  /* If n is this large, schreier will be
+                            turned on. */
+
 /**************************************************************************/
 
-#define SORT_OF_SORT 1
-#define SORT_NAME lsort
-#define SORT_TYPE1 long
+#define SORT_OF_SORT 3
+#define SORT_NAME sortwt
+#define SORT_TYPE1 int
+#define SORT_TYPE2 int
 #include "sorttemplates.c"
-/* Creates static void lsort(long *x, int n) */
+/* Creates static void sortwt(int *lab, int *wt, int n) */
+
+void
+setlabptn(int *weight, int *lab, int *ptn, int n)
+/* Define (lab,ptn) according to weights. */
+{
+    int i;
+
+    for (i = 0; i < n; ++i) lab[i] = i;
+
+    if (weight)
+    {
+        sortwt(lab,weight,n);
+        for (i = 0; i < n-1; ++i)
+        {
+            if (weight[lab[i]] != weight[lab[i+1]])
+                ptn[i] = 0;
+            else
+                ptn[i] = 1;
+        }
+        ptn[n-1] = 0;
+    }
+    else
+    {
+	for (i = 0; i < n-1; ++i) ptn[i] = 1;
+	ptn[n-1] = 0;
+    }
+}
+
+static int
+setlabptnfmt(char *fmt, int *lab, int *ptn, set *active, int m, int n)
+/* Define (lab,ptn,active) according to format string.
+   Return number of cells */
+{
+    int i,nc;
+#if MAXN
+    int wt[MAXN];
+#else
+    DYNALLSTAT(int,wt,wt_sz);
+
+    DYNALLOC1(int,wt,wt_sz,n,"setlabptnfmt");
+#endif
+
+    EMPTYSET(active,m);
+    ADDELEMENT(active,0);
+    nc = 1;
+
+    if (fmt != NULL && fmt[0] != '\0')
+    {
+#if !MAXN
+        DYNALLOC1(int,wt,wt_sz,n,"fcanonise");
+#endif
+        for (i = 0; i < n && fmt[i] != '\0'; ++i)
+	    wt[i] = (unsigned char)fmt[i];
+	for ( ; i < n; ++i)
+	    wt[i] = 'z';
+
+	setlabptn(wt,lab,ptn,n);
+	for (i = 0; i < n-1; ++i)
+	    if (ptn[i] == 0)
+	    {
+		++nc;
+		ADDELEMENT(active,i+1);
+	    }
+    }
+    else
+    {
+        for (i = 0; i < n; ++i)
+        {
+            lab[i] = i;
+            ptn[i] = 1;
+        }
+        ptn[n-1] = 0;
+    }
+
+    return nc;
+}
 
 /**************************************************************************/
+
+static boolean
+hasloops(graph *g, int m, int n)
+/* Test for loops */
+{
+    int i,nl;
+    set *gi;
+
+    nl = 0;
+    for (i = 0, gi = g; i < n; ++i, gi += m)
+        if (ISELEMENT(gi,i)) return TRUE;
+
+    return FALSE;
+}
+
+static boolean
+hasloops_sg(sparsegraph *sg)
+{
+    size_t *v,vi,j;
+    int *d,*e,n,i;
+
+    n = sg->nv;
+    SG_VDE(sg,v,d,e);
+    for (i = 0; i < n; ++i)
+    {
+	vi = v[i];
+        for (j = vi; j < vi + d[i]; ++j)
+	    if (e[vi] == i) return TRUE;
+    }
+
+    return FALSE;
+}
 
 void
 fcanonise(graph *g, int m, int n, graph *h, char *fmt, boolean digraph)
@@ -42,21 +155,18 @@ fcanonise(graph *g, int m, int n, graph *h, char *fmt, boolean digraph)
 {
 #if MAXN
     int lab[MAXN],ptn[MAXN],orbits[MAXN];
-    long x[MAXN];
     int count[MAXN];
     set active[MAXM];
-    setword workspace[4*MAXM];
+    setword workspace[24*MAXM];
 #else
     DYNALLSTAT(int,lab,lab_sz);
     DYNALLSTAT(int,ptn,ptn_sz);
     DYNALLSTAT(int,orbits,orbits_sz);
-    DYNALLSTAT(long,x,x_sz);
     DYNALLSTAT(int,count,count_sz);
     DYNALLSTAT(set,active,active_sz);
     DYNALLSTAT(setword,workspace,workspace_sz);
 #endif
     int i;
-    boolean endfmt;
     int numcells,code;
     statsblk stats;
     static DEFAULTOPTIONS_GRAPH(options);
@@ -71,55 +181,14 @@ fcanonise(graph *g, int m, int n, graph *h, char *fmt, boolean digraph)
     DYNALLOC1(int,lab,lab_sz,n,"fcanonise");
     DYNALLOC1(int,ptn,ptn_sz,n,"fcanonise");
     DYNALLOC1(int,orbits,orbits_sz,n,"fcanonise");
-    DYNALLOC1(long,x,x_sz,n,"fcanonise");
     DYNALLOC1(int,count,count_sz,n,"fcanonise");
     DYNALLOC1(set,active,active_sz,m,"fcanonise");
-    DYNALLOC1(setword,workspace,workspace_sz,4*m,"fcanonise");
+    DYNALLOC1(setword,workspace,workspace_sz,24*m,"fcanonise");
 #endif
 
-    EMPTYSET(active,m);
-    ADDELEMENT(active,0);
-    numcells = 1;
+    digraph = digraph || hasloops(g,m,n);
 
-    if (fmt != NULL)
-    {
-        endfmt = FALSE;
-        for (i = 0; i < n; ++i)
-        {
-            if (!endfmt && fmt[i] != '\0') 
-                x[i] = ((long)fmt[i] << 22) | i;
-            else
-            {
-                endfmt = TRUE;
-                x[i] = ((long)'z' << 22) | i;
-            }
-        }
-        lsort(x,n);
-
-        for (i = 0; i < n; ++i)
-        {
-            lab[i] = x[i] & 0x3fffffL;
-            if (i == n-1)
-                ptn[i] = 0;
-            else if ((x[i+1] >> 22) != (x[i] >> 22))
-            {
-                ++numcells;
-                ADDELEMENT(active,i+1);
-                ptn[i] = 0;
-            }
-            else
-                ptn[i] = 1;
-        }
-    }
-    else
-    {
-        for (i = 0; i < n; ++i)
-        {
-            lab[i] = i;
-            ptn[i] = 1;
-        }
-        ptn[n-1] = 0;
-    }
+    numcells = setlabptnfmt(fmt,lab,ptn,active,m,n);
 
     if (m == 1)
         refine1(g,lab,ptn,0,&numcells,count,active,&code,1,n);
@@ -140,10 +209,11 @@ fcanonise(graph *g, int m, int n, graph *h, char *fmt, boolean digraph)
 #ifdef REFINE
         options.userrefproc = REFINE;
 #endif
+	if (n >= MIN_SCHREIER) options.schreier = TRUE;
 
         EMPTYSET(active,m);
         nauty(g,lab,ptn,active,orbits,&options,&stats,
-                                              workspace,4*m,m,n,h);
+                                              workspace,24*m,m,n,h);
         gt_numorbits = stats.numorbits;
     }
 }
@@ -155,7 +225,7 @@ fcanonise_inv(graph *g, int m, int n, graph *h, char *fmt,
    void (*invarproc)(graph*,int*,int*,int,int,int,int*,int,
     boolean,int,int), int mininvarlevel, int maxinvarlevel,
     int invararg, boolean digraph)
-/*  canonise g under format fmt; result in h.
+/* Canonise g under format fmt; result in h.
    fmt is either NULL (for no vertex classification) or is a string
    with char-valued colours for the vertices.  If it ends early, it
    is assumed to continue with the colour 'z' indefinitely.
@@ -164,21 +234,18 @@ fcanonise_inv(graph *g, int m, int n, graph *h, char *fmt,
 {
 #if MAXN
     int lab[MAXN],ptn[MAXN],orbits[MAXN];
-    long x[MAXN];
     int count[MAXN];
     set active[MAXM];
-    setword workspace[4*MAXM];
+    setword workspace[24*MAXM];
 #else
     DYNALLSTAT(int,lab,lab_sz);
     DYNALLSTAT(int,ptn,ptn_sz);
     DYNALLSTAT(int,orbits,orbits_sz);
-    DYNALLSTAT(long,x,x_sz);
     DYNALLSTAT(int,count,count_sz);
     DYNALLSTAT(set,active,active_sz);
     DYNALLSTAT(setword,workspace,workspace_sz);
 #endif
     int i;
-    boolean endfmt;
     int numcells,code;
     statsblk stats;
     static DEFAULTOPTIONS_GRAPH(options);
@@ -193,55 +260,13 @@ fcanonise_inv(graph *g, int m, int n, graph *h, char *fmt,
     DYNALLOC1(int,lab,lab_sz,n,"fcanonise");
     DYNALLOC1(int,ptn,ptn_sz,n,"fcanonise");
     DYNALLOC1(int,orbits,orbits_sz,n,"fcanonise");
-    DYNALLOC1(long,x,x_sz,n,"fcanonise");
     DYNALLOC1(int,count,count_sz,n,"fcanonise");
     DYNALLOC1(set,active,active_sz,m,"fcanonise");
-    DYNALLOC1(setword,workspace,workspace_sz,4*m,"fcanonise");
+    DYNALLOC1(setword,workspace,workspace_sz,24*m,"fcanonise");
 #endif
 
-    EMPTYSET(active,m);
-    ADDELEMENT(active,0);
-    numcells = 1;
-
-    if (fmt != NULL)
-    {
-        endfmt = FALSE;
-        for (i = 0; i < n; ++i)
-        {
-            if (!endfmt && fmt[i] != '\0') 
-                x[i] = ((long)fmt[i] << 22) | i;
-            else
-            {
-                endfmt = TRUE;
-                x[i] = ((long)'z' << 22) | i;
-            }
-        }
-        lsort(x,n);
-
-        for (i = 0; i < n; ++i)
-        {
-            lab[i] = x[i] & 0x3fffffL;
-            if (i == n-1)
-                ptn[i] = 0;
-            else if ((x[i+1] >> 22) != (x[i] >> 22))
-            {
-                ++numcells;
-                ADDELEMENT(active,i+1);
-                ptn[i] = 0;
-            }
-            else
-                ptn[i] = 1;
-        }
-    }
-    else
-    {
-        for (i = 0; i < n; ++i)
-        {
-            lab[i] = i;
-            ptn[i] = 1;
-        }
-        ptn[n-1] = 0;
-    }
+    numcells = setlabptnfmt(fmt,lab,ptn,active,m,n);
+    digraph = digraph || hasloops(g,m,n);
 
     if (m == 1)
         refine1(g,lab,ptn,0,&numcells,count,active,&code,1,n);
@@ -269,9 +294,10 @@ fcanonise_inv(graph *g, int m, int n, graph *h, char *fmt,
 #ifdef REFINE
         options.userrefproc = REFINE;
 #endif
+	if (n >= MIN_SCHREIER) options.schreier = TRUE;
 
         EMPTYSET(active,m);
-        nauty(g,lab,ptn,active,orbits,&options,&stats,workspace,4*m,m,n,h);
+        nauty(g,lab,ptn,active,orbits,&options,&stats,workspace,24*m,m,n,h);
         gt_numorbits = stats.numorbits;
     }
 }
@@ -292,21 +318,18 @@ fcanonise_inv_sg(sparsegraph *g, int m, int n, sparsegraph *h, char *fmt,
 {
 #if MAXN
     int lab[MAXN],ptn[MAXN],orbits[MAXN];
-    long x[MAXN];
     int count[MAXN];
     set active[MAXM];
-    setword workspace[4*MAXM];
+    setword workspace[24*MAXM];
 #else
     DYNALLSTAT(int,lab,lab_sz);
     DYNALLSTAT(int,ptn,ptn_sz);
     DYNALLSTAT(int,orbits,orbits_sz);
-    DYNALLSTAT(long,x,x_sz);
     DYNALLSTAT(int,count,count_sz);
     DYNALLSTAT(set,active,active_sz);
     DYNALLSTAT(setword,workspace,workspace_sz);
 #endif
     int i;
-    boolean endfmt;
     int numcells,code;
     statsblk stats;
     static DEFAULTOPTIONS_SPARSEGRAPH(options);
@@ -321,55 +344,13 @@ fcanonise_inv_sg(sparsegraph *g, int m, int n, sparsegraph *h, char *fmt,
     DYNALLOC1(int,lab,lab_sz,n,"fcanonise");
     DYNALLOC1(int,ptn,ptn_sz,n,"fcanonise");
     DYNALLOC1(int,orbits,orbits_sz,n,"fcanonise");
-    DYNALLOC1(long,x,x_sz,n,"fcanonise");
     DYNALLOC1(int,count,count_sz,n,"fcanonise");
     DYNALLOC1(set,active,active_sz,m,"fcanonise");
-    DYNALLOC1(setword,workspace,workspace_sz,4*m,"fcanonise");
+    DYNALLOC1(setword,workspace,workspace_sz,24*m,"fcanonise");
 #endif
 
-    EMPTYSET(active,m);
-    ADDELEMENT(active,0);
-    numcells = 1;
-
-    if (fmt != NULL)
-    {
-        endfmt = FALSE;
-        for (i = 0; i < n; ++i)
-        {
-            if (!endfmt && fmt[i] != '\0') 
-                x[i] = ((long)fmt[i] << 22) | i;
-            else
-            {
-                endfmt = TRUE;
-                x[i] = ((long)'z' << 22) | i;
-            }
-        }
-        lsort(x,n);
-
-        for (i = 0; i < n; ++i)
-        {
-            lab[i] = x[i] & 0x3fffffL;
-            if (i == n-1)
-                ptn[i] = 0;
-            else if ((x[i+1] >> 22) != (x[i] >> 22))
-            {
-                ++numcells;
-                ADDELEMENT(active,i+1);
-                ptn[i] = 0;
-            }
-            else
-                ptn[i] = 1;
-        }
-    }
-    else
-    {
-        for (i = 0; i < n; ++i)
-        {
-            lab[i] = i;
-            ptn[i] = 1;
-        }
-        ptn[n-1] = 0;
-    }
+    numcells = setlabptnfmt(fmt,lab,ptn,active,m,n);
+    digraph = digraph || hasloops_sg(g);
 
     refine_sg((graph*)g,lab,ptn,0,&numcells,count,active,&code,1,n);
 
@@ -394,10 +375,11 @@ fcanonise_inv_sg(sparsegraph *g, int m, int n, sparsegraph *h, char *fmt,
 #ifdef REFINE
         options.userrefproc = REFINE;
 #endif
+	if (n >= MIN_SCHREIER) options.schreier = TRUE;
 
         EMPTYSET(active,m);
         nauty((graph*)g,lab,ptn,active,orbits,&options,&stats,
-                                         workspace,4*m,m,n,(graph*)h);
+                                         workspace,24*m,m,n,(graph*)h);
         gt_numorbits = stats.numorbits;
     }
 }
@@ -414,22 +396,20 @@ fgroup(graph *g, int m, int n, char *fmt, int *orbits, int *numorbits)
 {
 #if MAXN
     int lab[MAXN],ptn[MAXN];
-    long x[MAXN];
     int count[MAXN];
     set active[MAXM];
-    setword workspace[4*MAXM];
+    setword workspace[24*MAXM];
 #else
     DYNALLSTAT(int,lab,lab_sz);
     DYNALLSTAT(int,ptn,ptn_sz);
-    DYNALLSTAT(long,x,x_sz);
     DYNALLSTAT(int,count,count_sz);
     DYNALLSTAT(set,active,active_sz);
     DYNALLSTAT(setword,workspace,workspace_sz);
 #endif
     int i,j;
     int orbrep;
-    boolean endfmt;
     int numcells,code;
+    boolean digraph;
     statsblk stats;
     static DEFAULTOPTIONS_GRAPH(options);
 
@@ -442,61 +422,20 @@ fgroup(graph *g, int m, int n, char *fmt, int *orbits, int *numorbits)
 #else
     DYNALLOC1(int,lab,lab_sz,n,"fcanonise");
     DYNALLOC1(int,ptn,ptn_sz,n,"fcanonise");
-    DYNALLOC1(long,x,x_sz,n,"fcanonise");
     DYNALLOC1(int,count,count_sz,n,"fcanonise");
     DYNALLOC1(set,active,active_sz,m,"fcanonise");
-    DYNALLOC1(setword,workspace,workspace_sz,4*m,"fcanonise");
+    DYNALLOC1(setword,workspace,workspace_sz,24*m,"fcanonise");
 #endif
 
-    EMPTYSET(active,m);
-    ADDELEMENT(active,0);
-    numcells = 1;
-
-    if (fmt != NULL)
-    {
-        endfmt = FALSE;
-        for (i = 0; i < n; ++i)
-        {
-            if (!endfmt && fmt[i] != '\0') 
-                x[i] = ((long)fmt[i] << 22) | i;
-            else
-            {
-                endfmt = TRUE;
-                x[i] = ((long)'z' << 22) | i;
-            }
-        }
-        lsort(x,n);
-
-        for (i = 0; i < n; ++i)
-        {
-            lab[i] = x[i] & 0xffff;
-            if (i == n-1) ptn[i] = 0;
-            else if ((x[i+1] >> 22) != (x[i] >> 22))
-            {
-                ++numcells;
-                ADDELEMENT(active,i+1);
-                ptn[i] = 0;
-            }
-            else
-                ptn[i] = 1;
-        }
-    }
-    else
-    {
-        for (i = 0; i < n; ++i)
-        {
-            lab[i] = i;
-            ptn[i] = 1;
-        }
-        ptn[n-1] = 0;
-    }
+    numcells = setlabptnfmt(fmt,lab,ptn,active,m,n);
+    digraph = hasloops(g,m,n);
 
     if (m == 1)
         refine1(g,lab,ptn,0,&numcells,count,active,&code,1,n);
     else
         refine(g,lab,ptn,0,&numcells,count,active,&code,m,n);
 
-    if (cheapautom(ptn,0,FALSE,n))
+    if (cheapautom(ptn,0,digraph,n))
     {
         for (i = 0; i < n; )
         {
@@ -523,12 +462,14 @@ fgroup(graph *g, int m, int n, char *fmt, int *orbits, int *numorbits)
     {
         options.getcanon = FALSE;
         options.defaultptn = FALSE;
+        options.digraph = digraph;
 #ifdef REFINE
         options.userrefproc = REFINE;
 #endif
+	if (n >= MIN_SCHREIER) options.schreier = TRUE;
 
         EMPTYSET(active,m);
-        nauty(g,lab,ptn,active,orbits,&options,&stats,workspace,4*m,m,n,NULL);
+        nauty(g,lab,ptn,active,orbits,&options,&stats,workspace,24*m,m,n,NULL);
         *numorbits = gt_numorbits = stats.numorbits;
     }
 }
@@ -549,21 +490,19 @@ fgroup_inv(graph *g, int m, int n, char *fmt, int *orbits, int *numorbits,
 {
 #if MAXN
     int lab[MAXN],ptn[MAXN];
-    long x[MAXN];
     int count[MAXN];
     set active[MAXM];
-    setword workspace[4*MAXM];
+    setword workspace[24*MAXM];
 #else
     DYNALLSTAT(int,lab,lab_sz);
     DYNALLSTAT(int,ptn,ptn_sz);
-    DYNALLSTAT(long,x,x_sz);
     DYNALLSTAT(int,count,count_sz);
     DYNALLSTAT(set,active,active_sz);
     DYNALLSTAT(setword,workspace,workspace_sz);
 #endif
     int i,j;
     int orbrep;
-    boolean endfmt;
+    boolean digraph;
     int numcells,code;
     statsblk stats;
     static DEFAULTOPTIONS_GRAPH(options);
@@ -577,61 +516,20 @@ fgroup_inv(graph *g, int m, int n, char *fmt, int *orbits, int *numorbits,
 #else
     DYNALLOC1(int,lab,lab_sz,n,"fcanonise");
     DYNALLOC1(int,ptn,ptn_sz,n,"fcanonise");
-    DYNALLOC1(long,x,x_sz,n,"fcanonise");
     DYNALLOC1(int,count,count_sz,n,"fcanonise");
     DYNALLOC1(set,active,active_sz,m,"fcanonise");
-    DYNALLOC1(setword,workspace,workspace_sz,4*m,"fcanonise");
+    DYNALLOC1(setword,workspace,workspace_sz,24*m,"fcanonise");
 #endif
 
-    EMPTYSET(active,m);
-    ADDELEMENT(active,0);
-    numcells = 1;
-
-    if (fmt != NULL)
-    {
-        endfmt = FALSE;
-        for (i = 0; i < n; ++i)
-        {
-            if (!endfmt && fmt[i] != '\0') 
-                x[i] = ((long)fmt[i] << 22) | i;
-            else
-            {
-                endfmt = TRUE;
-                x[i] = ((long)'z' << 22) | i;
-            }
-        }
-        lsort(x,n);
-
-        for (i = 0; i < n; ++i)
-        {
-            lab[i] = x[i] & 0xffff;
-            if (i == n-1) ptn[i] = 0;
-            else if ((x[i+1] >> 22) != (x[i] >> 22))
-            {
-                ++numcells;
-                ADDELEMENT(active,i+1);
-                ptn[i] = 0;
-            }
-            else
-                ptn[i] = 1;
-        }
-    }
-    else
-    {
-        for (i = 0; i < n; ++i)
-        {
-            lab[i] = i;
-            ptn[i] = 1;
-        }
-        ptn[n-1] = 0;
-    }
+    numcells = setlabptnfmt(fmt,lab,ptn,active,m,n);
+    digraph = hasloops(g,m,n);
 
     if (m == 1)
         refine1(g,lab,ptn,0,&numcells,count,active,&code,1,n);
     else
         refine(g,lab,ptn,0,&numcells,count,active,&code,m,n);
 
-    if (cheapautom(ptn,0,FALSE,n))
+    if (cheapautom(ptn,0,digraph,n))
     {
         for (i = 0; i < n; )
         {
@@ -658,6 +556,7 @@ fgroup_inv(graph *g, int m, int n, char *fmt, int *orbits, int *numorbits,
     {
         options.getcanon = FALSE;
         options.defaultptn = FALSE;
+        options.digraph = digraph;
         if (invarproc)
         {
             options.invarproc = invarproc;
@@ -668,9 +567,10 @@ fgroup_inv(graph *g, int m, int n, char *fmt, int *orbits, int *numorbits,
 #ifdef REFINE
         options.userrefproc = REFINE;
 #endif
+	if (n >= MIN_SCHREIER) options.schreier = TRUE;
 
         EMPTYSET(active,m);
-        nauty(g,lab,ptn,active,orbits,&options,&stats,workspace,4*m,m,n,NULL);
+        nauty(g,lab,ptn,active,orbits,&options,&stats,workspace,24*m,m,n,NULL);
         *numorbits = gt_numorbits = stats.numorbits;
     }
 }
@@ -701,7 +601,7 @@ userlevel(int *lab, int *ptn, int level, int *orbits, statsblk *stats,
 
 /* istransitive(g,m,n,h)
 
-   g   is an input graph with
+   g   is an input undirected graph without loops
    m,n of standard meaning.  
    h   is a place to put an output graph.
 
@@ -724,14 +624,13 @@ istransitive(graph *g, int m, int n, graph *h)
     int lab[MAXN],ptn[MAXN],orbits[MAXN];
     long x[MAXN];
     int count[MAXN];
-    setword workspace[4*MAXM];
+    setword workspace[24*MAXM];
     set workset[MAXM];
     set sofar[MAXM],frontier[MAXM];
 #else
     DYNALLSTAT(int,lab,lab_sz);
     DYNALLSTAT(int,ptn,ptn_sz);
     DYNALLSTAT(int,orbits,orbits_sz);
-    DYNALLSTAT(long,x,x_sz);
     DYNALLSTAT(int,count,count_sz);
     DYNALLSTAT(setword,workspace,workspace_sz);
     DYNALLSTAT(set,workset,workset_sz);
@@ -750,9 +649,8 @@ istransitive(graph *g, int m, int n, graph *h)
     DYNALLOC1(int,lab,lab_sz,n,"istransitive");
     DYNALLOC1(int,ptn,ptn_sz,n,"istransitive");
     DYNALLOC1(int,orbits,orbits_sz,n,"istransitive");
-    DYNALLOC1(long,x,x_sz,n,"istransitive");
     DYNALLOC1(int,count,count_sz,n,"istransitive");
-    DYNALLOC1(setword,workspace,workspace_sz,4*m,"istransitive");
+    DYNALLOC1(setword,workspace,workspace_sz,24*m,"istransitive");
     DYNALLOC1(set,workset,workset_sz,m,"istransitive");
     DYNALLOC1(set,sofar,sofar_sz,m,"istransitive");
     DYNALLOC1(set,frontier,frontier_sz,m,"istransitive");
@@ -776,8 +674,8 @@ istransitive(graph *g, int m, int n, graph *h)
                 for (i = m; --i >= 0;) workset[i] |= gw[i];
             }
             if (wt == 0) break;
-            wt += 0x73 ^ d;
-            wt = FUZZ2(wt);
+            wt += (short)(0x73 ^ d);
+            wt = (short)FUZZ2(wt);
             inv += wt;
             for (i = m; --i >= 0;)
             {
@@ -794,12 +692,13 @@ istransitive(graph *g, int m, int n, graph *h)
 #ifdef REFINE
     options.userrefproc = REFINE;
 #endif
+    if (n >= MIN_SCHREIER) options.schreier = TRUE;
  
     issymm = TRUE;
     g0 = (set*) g;
     gm = m;
 
-    nauty(g,lab,ptn,NULL,orbits,&options,&stats,workspace,4*m,m,n,h);
+    nauty(g,lab,ptn,NULL,orbits,&options,&stats,workspace,24*m,m,n,h);
 
     if (stats.numorbits != 1) return 0;
     else if (!issymm)         return 1;
@@ -816,7 +715,7 @@ tg_canonise(graph *g, graph *h, int m, int n)
 #if MAXN
     int lab[MAXN],ptn[MAXN],orbits[MAXN];
     set active[MAXM];
-    setword workspace[4*MAXM];
+    setword workspace[24*MAXM];
 #else
     DYNALLSTAT(int,lab,lab_sz);
     DYNALLSTAT(int,ptn,ptn_sz);
@@ -838,7 +737,7 @@ tg_canonise(graph *g, graph *h, int m, int n)
     DYNALLOC1(int,ptn,ptn_sz,n,"tg_canonise");
     DYNALLOC1(int,orbits,orbits_sz,n,"tg_canonise");
     DYNALLOC1(set,active,active_sz,m,"tg_canonise");
-    DYNALLOC1(setword,workspace,workspace_sz,4*m,"tg_canonise");
+    DYNALLOC1(setword,workspace,workspace_sz,24*m,"tg_canonise");
 #endif
 
     options.getcanon = TRUE;
@@ -857,5 +756,6 @@ tg_canonise(graph *g, graph *h, int m, int n)
     EMPTYSET(active,m);
     ADDELEMENT(active,0);
 
-    nauty(g,lab,ptn,active,orbits,&options,&stats,workspace,4*m,m,n,h);
+    if (n >= MIN_SCHREIER) options.schreier = TRUE;
+    nauty(g,lab,ptn,active,orbits,&options,&stats,workspace,24*m,m,n,h);
 }

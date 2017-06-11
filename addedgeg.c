@@ -1,4 +1,4 @@
-/* addedgeg.c   nauty version 2.5; B D McKay, March 2009. */
+/* addedgeg.c   nauty version 2.6; B D McKay, Jan 2013. */
 
 #define USAGE "addedgeg [-lq] [-D#] [-btfF] [-z#] [infile [outfile]]"
 
@@ -102,7 +102,7 @@ main(int argc, char *argv[])
 	DYNALLSTAT(int,dist,dist_sz);
 #endif
 
-	HELP;
+	HELP; PUTVERSION;
 
         infilename = outfilename = NULL;
 	Dswitch = dolabel = quiet = zswitch = FALSE;
@@ -272,17 +272,11 @@ main(int argc, char *argv[])
 	}
 	t = CPUTIME - t;
 
-#if LONG_LONG_COUNTERS
         if (!quiet)
             fprintf(stderr,
-              ">Z  %lld graphs read from %s, %lld written to %s; %3.2f sec.\n",
+              ">Z  " COUNTER_FMT " graphs read from %s, "
+                           COUNTER_FMT " written to %s; %3.2f sec.\n",
                     nin,infilename,nout,outfilename,t);
-#else
-        if (!quiet)
-            fprintf(stderr,
-              ">Z  %ld graphs read from %s, %ld written to %s; %3.2f sec.\n",
-                    nin,infilename,nout,outfilename,t);
-#endif
 
 	 exit(0);
 }

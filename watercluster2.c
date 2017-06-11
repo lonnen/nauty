@@ -7,7 +7,7 @@ options:
 
 ix  means: the indegree of every vertex may be at most x.
 
-iy  means: the outdegree of every vertex may be at most y.
+oy  means: the outdegree of every vertex may be at most y.
 
   S  means: allow that for every pair of vertices x,y at most one of the edges x-->y 
      and y-->x may be present. By default both of them may be present in the same graph.
@@ -473,7 +473,7 @@ if (knotenzahl=='>') /* koennte ein header sein -- oder 'ne 62, also ausreichend
 	if(b==0) nuller++; 
 	/* jetzt wurden 3 Zeichen gelesen */
 	if ((a=='>') && (b=='m')) /*garantiert header*/
-	  { while ((ucharpuffer=getc(fil)) != '<');
+	  { while ((ucharpuffer=getc(fil)) != '<') {}
 	    /* noch zweimal: */ ucharpuffer=getc(fil); 
 	    if (ucharpuffer!='<') { fprintf(stderr,"Problems with header -- single '<'\n"); exit(1); }
 	    if ((knotenzahl=getc(fil))==EOF) return EOF;

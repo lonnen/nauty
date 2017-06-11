@@ -1,23 +1,32 @@
 /* Test for basic nauty functions (but not nauty itself) */
 
-#include "nauty.h"
+#include "naututil.h"
+
+long seed;
 
 int
 main(int argc, char *argv[])
 {
 	int i,j,bad;
 	setword w,ww;
+        int curfile;
+        FILE *f;
+#ifdef CPUDEFS
+        CPUDEFS
+#endif
 
-	printf("NAUTYVERSION=%s NAUTYVERSIONID=%d\n",
-		NAUTYVERSION,NAUTYVERSIONID);
-	printf("MAXN=%d MAXM=%d WORDSIZE=%d NAUTY_INFINITY=%d\n",
+	printf("NAUTYVERSION=%s  NAUTYVERSIONID=%d  HAVE_TLS=%d\n",
+		NAUTYVERSION,NAUTYVERSIONID,HAVE_TLS);
+	printf("MAXN=%d  MAXM=%d  WORDSIZE=%d  NAUTY_INFINITY=%d\n",
 		MAXN,MAXM,WORDSIZE,NAUTY_INFINITY);
-	printf("sizes: short=%d int=%d long=%d double=%d\n",
+	printf("sizes: short=%d int=%d long=%d double=%d boolean=%d setword=%d\n",
 		(int)sizeof(short),(int)sizeof(int),(int)sizeof(long),
-		(int)sizeof(double));
-	printf("sizes: boolean=%d setword=%d\n",
-		(int)sizeof(boolean),(int)sizeof(setword));
-        printf("CLZ=%d,%d,%d\n",HAVE_CLZ,HAVE_CLZL,HAVE_CLZLL);
+		(int)sizeof(double),(int)sizeof(boolean),(int)sizeof(setword));
+        printf("CLZ=%d,%d,%d  POPCNT=%d,%d,%d;%d,%d\n",
+                HAVE_CLZ,HAVE_CLZL,HAVE_CLZLL,
+                HAVE_POPCNT,HAVE_POPCNTL,HAVE_POPCNTLL,HAVE_MMPOP32,HAVE_MMPOP64);
+        printf("LONG_LONG_COUNTERS=%d  COUNTER_FMT=%s\n",
+                LONG_LONG_COUNTERS,COUNTER_FMT);
 
 #if SIZEOF_LONGLONG > 0
 	printf("sizeof(long long)=%d\n",sizeof(long long));
@@ -118,6 +127,34 @@ main(int argc, char *argv[])
 		}
 	    }
 	}
+
+#ifdef DOPROMPT
+	curfile = 0;
+	printf("DOPROMPT(stdin)=%d DOPROMPT(stdout)=%d\n",
+		DOPROMPT(stdin),DOPROMPT(stdout));
+#else
+	printf("DOPROMPT is not defined\n");
+#endif
+
+#ifdef CPUTIME
+        printf("CPUTIME = %f\n",CPUTIME);
+#else
+        printf("CPUTIME is not defined\n");
+#endif
+
+#ifdef INITSEED
+	INITSEED;
+        printf("INITSEED: seed=%ld\n",seed);
+#else
+        printf("INITSEED is not defined\n");
+#endif
+
+#ifdef OPENOUT
+        OPENOUT(f,"nautest.txt",0);
+	fprintf(f,"test\n");
+#else
+        printf("OPENOUT is not defined\n");
+#endif
 
 	if (!bad) printf("\nNo errors found\n");
 	else      printf("\nXXXXXXX %d errors found XXXXXXX\n",bad);

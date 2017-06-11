@@ -1,4 +1,4 @@
-/* showg.c  version 1.7; B D McKay, September 2013.
+/* showg.c  version 2.0; B D McKay, June 2015.
    Formerly called readg.c.
  
    This is a stand-alone edition of listg.c that does not
@@ -39,10 +39,11 @@
  Version 1.3: Declared errno according to ISO C.  August 22, 1998.
  Version 1.4: Change name of getline() so that broken compilers
                 which define the GNU function without being asked
-		don't cause a conflict.   June 16, 2006.
+                don't cause a conflict.   June 16, 2006.
  Version 1.5: Use function prototypes.  Avoid errno.  Sep 19, 2007.
  Version 1.6: Very minor tweaks.  Hope you all have string.h. Sep 6, 2009.
  Version 1.7: Make it work for n=0. Sep 18, 2013.
+ Version 2.0: Support digraph6 format.
 */
 
 /*************************************************************************/
@@ -55,8 +56,15 @@
 #ifndef MAXN 
 #define MAXN  0
 #endif
-#define G6LEN(n)  (((n)*((n)-1)/2+5)/6+(n<=SMALLN?1:4))
-		/* Exact length of graph6 code except for \n\0 */
+#define G6LEN(n) (SIZELEN(n) \
+ + ((size_t)(n)/12)*((size_t)(n)-1) + (((size_t)(n)%12)*((size_t)(n)-1)+11)/12)
+#define D6LEN(n) (1 + SIZELEN(n) \
+ + (n)*(size_t)((n)/6) + (((n)*(size_t)((n)%6)+5)/6))
+/* Exact lengths of graph6 and digraph6 formats, excluding '\n' and '\0'. */
+#define SIZELEN(n) ((n)<=SMALLN?1:((n)<=SMALLISHN?4:8))
+
+#define B(i) (1 << ((i)-1))
+#define M(i) ((1 << (i))-1)
 
 /* Remove errno: too hard to get portable without configuration
  * #if defined(__unix) || defined(__unix__) || defined(unix) || \
@@ -73,14 +81,17 @@ int errno = 0;
 #define BIAS6 63
 #define MAXBYTE 126
 #define SMALLN 62
+#define SMALLISHN 258047
 #define TOPBIT6 32
 #define C6MASK 63
 
 #define GRAPH6_HEADER ">>graph6<<"
 #define SPARSE6_HEADER ">>sparse6<<"
+#define DIGRAPH6_HEADER ">>sparse6<<"
 
 #define GRAPH6         1
 #define SPARSE6        2
+#define DIGRAPH6       4
 #define UNKNOWN_TYPE 256
 #define HAS_HEADER   512
 
@@ -94,9 +105,9 @@ int errno = 0;
 
 #define SWBOOLEAN(c,boool) if (sw==c) boool=TRUE;
 #define SWINT(c,boool,val,id) if (sw==c) \
-        {boool=TRUE;arg_int(&arg,&val,id);}
+    {boool=TRUE;arg_int(&arg,&val,id);}
 #define SWRANGE(c,boool,val1,val2,id) if (sw==c) \
-	{boool=TRUE;arg_range(&arg,&val1,&val2,id);}
+    {boool=TRUE;arg_range(&arg,&val1,&val2,id);}
 
 #define FREES free
 #define ALLOCS calloc
@@ -164,8 +175,8 @@ static int labelorg = 0;
 
 #define WORDSIZE 32
 #define FIRSTBIT(x) ((x) & 037777600000 ? ((x) & 037700000000 ? \
-                     leftbit[((x)>>24) & 0377] : 8+leftbit[(x)>>16]) \
-                    : ((x) & 0177400 ? 16+leftbit[(x)>>8] : 24+leftbit[x]))
+                 leftbit[((x)>>24) & 0377] : 8+leftbit[(x)>>16]) \
+                : ((x) & 0177400 ? 16+leftbit[(x)>>8] : 24+leftbit[x]))
 #define BITMASK(x)  (017777777777 >> (x)) /* setword whose rightmost
   WORDSIZE-x-1 (numbered) bits are 1 and the rest 0 (0 <= x < WORDSIZE) */
 #define TIMESWORDSIZE(w) ((w)<<5)
@@ -197,8 +208,8 @@ static long ogf_linelen;
 static void
 gt_abort(char *msg)     /* Write message and halt. */
 {
-	if (msg) fprintf(stderr,"%s",msg);
-	exit(1);
+    if (msg) fprintf(stderr,"%s",msg);
+    exit(1);
 }
 
 /*****************************************************************************
@@ -214,42 +225,42 @@ gt_abort(char *msg)     /* Write message and halt. */
 static int
 itos(int i, char *s)
 {
-        int digit,j,k;
-        char c;
-        int ans;
+    int digit,j,k;
+    char c;
+    int ans;
 
-        if (i < 0)
-        {
-            k = 0;
-            i = -i;
-            j = 1;
-            s[0] = '-';
-        }
-        else
-        {
-            k = -1;
-            j = 0;
-        }
+    if (i < 0)
+    {
+        k = 0;
+        i = -i;
+        j = 1;
+        s[0] = '-';
+    }
+    else
+    {
+        k = -1;
+        j = 0;
+    }
 
-        do
-        {
-            digit = i % 10;
-            i = i / 10;
-            s[++k] = digit + '0';
-        }
-        while (i);
+    do
+    {
+        digit = i % 10;
+        i = i / 10;
+        s[++k] = digit + '0';
+    }
+    while (i);
 
-        s[k+1] = '\0';
-        ans = k + 1;
+    s[k+1] = '\0';
+    ans = k + 1;
 
-        for (;j < k; ++j, --k)
-        {
-            c = s[j];
-            s[j] = s[k];
-            s[k] = c;
-        }
+    for (;j < k; ++j, --k)
+    {
+        c = s[j];
+        s[j] = s[k];
+        s[k] = c;
+    }
 
-        return(ans);
+    return(ans);
 }
 
 /*****************************************************************************
@@ -266,50 +277,51 @@ itos(int i, char *s)
 static int
 nextelement(set *set1, int m, int pos)
 {
-        setword setwd;
-        int w;
+    setword setwd;
+    int w;
 
-        if (pos < 0)
-        {
-            w = 0;
-            setwd = set1[0];
-        }
-        else
-        {
-            w = SETWD(pos);
-            setwd = set1[w] & BITMASK(SETBT(pos));
-        }
+    if (pos < 0)
+    {
+        w = 0;
+        setwd = set1[0];
+    }
+    else
+    {
+        w = SETWD(pos);
+        setwd = set1[w] & BITMASK(SETBT(pos));
+    }
 
-        for (;;)
-        {
-            if (setwd != 0)
-                return(TIMESWORDSIZE(w) + FIRSTBIT(setwd));
-            if (++w == m) return -1;
-            setwd = set1[w];
-        }
+    for (;;)
+    {
+        if (setwd != 0)
+            return(TIMESWORDSIZE(w) + FIRSTBIT(setwd));
+        if (++w == m) return -1;
+        setwd = set1[w];
+    }
 }
 
 /*********************************************************************
 opengraphfile(filename,codetype,assumefixed,position) 
-          opens and positions a file for reading graphs.
+      opens and positions a file for reading graphs.
 
   filename = the name of the file to open 
-		(NULL means stdin, assumed already open)
+            (NULL means stdin, assumed already open)
   codetype   = returns a code for the format.
-		This is a combination of SPARSE6, GRAPH6,
-		UNKNOWN_TYPE and HAS_HEADER.  If a header is
-		present, that overrides the data.  If there is
-                no header, the first graph is examined.
+            This is a combination of SPARSE6, GRAPH6,
+            UNKNOWN_TYPE and HAS_HEADER.  If a header is
+            present, that overrides the data.  If there is
+            no header, the first graph is examined.
   assumefixed = nonzero if files other than stdin should be assumed to
-		be seekable and have equal record sizes.
-		Ignored if there is a sparse6 header or the first
-		graph has sparse6 format.
+            be seekable and have equal record sizes.
+            Ignored if there is a sparse6 header or the first
+            graph has sparse6 format.
   position = the number of the record to position to
-		(the first is number 1; 0 and -NOLIMIT also mean
-                 to position at start)
+            (the first is number 1; 0 and -NOLIMIT also mean
+             to position at start)
 
   If the file starts with ">", there must be a header, either
-  GRAPH6_HEAD or SPARSE6_HEAD.  Otherwise opengraphfile() fails.
+  GRAPH6_HEADER, SPARSE6_HEADER or DIGRAPH6_HEADER.  Otherwise
+  opengraphfile() fails.
 
   The value returned is a file pointer or NULL.  
   If assumedfixed is not zero and position > 1, the global variable
@@ -321,135 +333,150 @@ opengraphfile(filename,codetype,assumefixed,position)
 static FILE*
 opengraphfile(char *filename, int *codetype, int assumefixed, long position)
 {
-	FILE *f;
-	int c,firstc;
-	long i,l,pos,pos1,pos2;
-	boolean bad_header;
+    FILE *f;
+    int c,firstc;
+    long i,l,pos,pos1,pos2;
+    boolean bad_header;
 
-	if (filename == NULL)
-	    f = stdin;
-	else
-	{
-	    f = fopen(filename,"r");
-	    if (f == NULL)
-	    {
-		fprintf(stderr,">E opengraphfile: can't open %s\n",filename);
-		return NULL;
-	    }
-	}
+    if (filename == NULL)
+        f = stdin;
+    else
+    {
+        f = fopen(filename,"r");
+        if (f == NULL)
+        {
+            fprintf(stderr,">E opengraphfile: can't open %s\n",filename);
+            return NULL;
+        }
+    }
 
-	firstc = c = getc(f);
-	if (c == EOF)
-	{
-	    *codetype = GRAPH6;
-	    return f;
-	}
+    firstc = c = getc(f);
+    if (c == EOF)
+    {
+        *codetype = GRAPH6;
+        return f;
+    }
 
-	if (c != '>')
-	{
-	    *codetype = firstc == ':' ? SPARSE6 : GRAPH6;
-	    ungetc(c,f);
-	}
-	else
-	{
-	    bad_header = FALSE;
-	    if ((c = getc(f)) == EOF || c != '>')
-	        bad_header = TRUE;
-	    if (!bad_header &&
-		    ((c = getc(f)) == EOF || (c != 'g' && c != 's')))
-		bad_header = TRUE;	
-	    if (!bad_header && c == 'g')
-	    {
-		if ((c = getc(f)) == EOF || c != 'r' ||
-		    (c = getc(f)) == EOF || c != 'a' ||
-		    (c = getc(f)) == EOF || c != 'p' ||
-		    (c = getc(f)) == EOF || c != 'h' ||
-		    (c = getc(f)) == EOF || c != '6' ||
-		    (c = getc(f)) == EOF || c != '<' ||
-		    (c = getc(f)) == EOF || c != '<')
-			bad_header = TRUE;
-		else
-		    *codetype = GRAPH6 | HAS_HEADER;
-	    }
-	    else if (!bad_header && c == 's')
-	    {
-		if ((c = getc(f)) == EOF || c != 'p' ||
-		    (c = getc(f)) == EOF || c != 'a' ||
-		    (c = getc(f)) == EOF || c != 'r' ||
-		    (c = getc(f)) == EOF || c != 's' ||
-		    (c = getc(f)) == EOF || c != 'e' ||
-		    (c = getc(f)) == EOF || c != '6' ||
-		    (c = getc(f)) == EOF || c != '<' ||
-		    (c = getc(f)) == EOF || c != '<')
-			bad_header = TRUE;
-		else
-		    *codetype = SPARSE6 | HAS_HEADER;
-	    }
-	    if (bad_header)
-	    {
-		fprintf(stderr,">E opengraphfile: illegal header in %s\n",
-			filename == NULL ? "stdin" : filename);
-		*codetype = UNKNOWN_TYPE | HAS_HEADER;
-		return NULL;
-	    }
-	}
+    if (c != '>')
+    {
+        *codetype = firstc == ':' ? SPARSE6 : firstc == '&' ? DIGRAPH6 : GRAPH6;
+        ungetc(c,f);
+    }
+    else
+    {
+        bad_header = FALSE;
+        if ((c = getc(f)) == EOF || c != '>')
+            bad_header = TRUE;
+        if (!bad_header &&
+                ((c = getc(f)) == EOF || (c != 'g' && c != 's')))
+            bad_header = TRUE;      
+        if (!bad_header && c == 'g')
+        {
+            if ((c = getc(f)) == EOF || c != 'r' ||
+                (c = getc(f)) == EOF || c != 'a' ||
+                (c = getc(f)) == EOF || c != 'p' ||
+                (c = getc(f)) == EOF || c != 'h' ||
+                (c = getc(f)) == EOF || c != '6' ||
+                (c = getc(f)) == EOF || c != '<' ||
+                (c = getc(f)) == EOF || c != '<')
+                    bad_header = TRUE;
+            else
+                *codetype = GRAPH6 | HAS_HEADER;
+        }
+        else if (!bad_header && c == 'd')
+        {
+            if ((c = getc(f)) == EOF || c != 'i' ||
+                (c = getc(f)) == EOF || c != 'g' ||
+                (c = getc(f)) == EOF || c != 'r' ||
+                (c = getc(f)) == EOF || c != 'a' ||
+                (c = getc(f)) == EOF || c != 'p' ||
+                (c = getc(f)) == EOF || c != 'h' ||
+                (c = getc(f)) == EOF || c != '6' ||
+                (c = getc(f)) == EOF || c != '<' ||
+                (c = getc(f)) == EOF || c != '<')
+                    bad_header = TRUE;
+            else
+                *codetype = DIGRAPH6 | HAS_HEADER;
+        }
+        else if (!bad_header && c == 's')
+        {
+            if ((c = getc(f)) == EOF || c != 'p' ||
+                (c = getc(f)) == EOF || c != 'a' ||
+                (c = getc(f)) == EOF || c != 'r' ||
+                (c = getc(f)) == EOF || c != 's' ||
+                (c = getc(f)) == EOF || c != 'e' ||
+                (c = getc(f)) == EOF || c != '6' ||
+                (c = getc(f)) == EOF || c != '<' ||
+                (c = getc(f)) == EOF || c != '<')
+                    bad_header = TRUE;
+            else
+                *codetype = SPARSE6 | HAS_HEADER;
+        }
+        if (bad_header)
+        {
+            fprintf(stderr,">E opengraphfile: illegal header in %s\n",
+                    filename == NULL ? "stdin" : filename);
+            *codetype = UNKNOWN_TYPE | HAS_HEADER;
+            return NULL;
+        }
+    }
 
-	if (position <= 1) return f;
+    if (position <= 1) return f;
 
-	if (filename == NULL || !assumefixed || (*codetype&SPARSE6)
-			     || firstc == ':')
-	{
-	    l = 1;
-	    while ((c = getc(f)) != EOF)
-	    {
-	        if (c == '\n')
-		{
-		    ++l;
-		    if (l == position) break;
-		}
-	    }
-	    if (l == position) return f;
-
-	    fprintf(stderr,
-               ">E opengraphfile: can't find line %ld in %s\n",position,
-		filename == NULL ? "stdin" : filename);
-	    return NULL;
-	}
-	else
-	{
-	    pos1 = ftell(f);
-	    if (pos1 < 0)
-	    {
-		fprintf(stderr,">E opengraphfile: error on first ftell\n");
-		return NULL;
-	    }
-
-	    for (i = 1; (c = getc(f)) != EOF && c != '\n'; ++i) {}
-	    ogf_linelen = i;
-
-	    if (c == EOF)
-	    {
-		fprintf(stderr,
-		        ">E opengraphfile: required record no present\n");
-		return NULL;
-	    }
-	    
-	    pos2 = ftell(f);
-	    if (pos2 < 0)
+    if (filename == NULL || !assumefixed || (*codetype&SPARSE6)
+                         || firstc == ':')
+    {
+        l = 1;
+        while ((c = getc(f)) != EOF)
+        {
+            if (c == '\n')
             {
-                fprintf(stderr,">E opengraphfile: error on second ftell\n");
-                return NULL;
+                ++l;
+                if (l == position) break;
             }
+        }
+        if (l == position) return f;
 
-	    pos = pos1 + (position-1)*(pos2-pos1);
-	    if (fseek(f,pos,SEEK_SET) < 0)
-	    {
-		fprintf(stderr,">E opengraphfile: seek failed\n");
-		return NULL;
-	    }
-	}
+        fprintf(stderr,
+           ">E opengraphfile: can't find line %ld in %s\n",position,
+            filename == NULL ? "stdin" : filename);
+        return NULL;
+    }
+    else
+    {
+        pos1 = ftell(f);
+        if (pos1 < 0)
+        {
+            fprintf(stderr,">E opengraphfile: error on first ftell\n");
+            return NULL;
+        }
 
-	return f;
+        for (i = 1; (c = getc(f)) != EOF && c != '\n'; ++i) {}
+        ogf_linelen = i;
+
+        if (c == EOF)
+        {
+            fprintf(stderr,
+                    ">E opengraphfile: required record no present\n");
+            return NULL;
+        }
+        
+        pos2 = ftell(f);
+        if (pos2 < 0)
+        {
+            fprintf(stderr,">E opengraphfile: error on second ftell\n");
+            return NULL;
+        }
+
+        pos = pos1 + (position-1)*(pos2-pos1);
+        if (fseek(f,pos,SEEK_SET) < 0)
+        {
+            fprintf(stderr,">E opengraphfile: seek failed\n");
+            return NULL;
+        }
+    }
+
+    return f;
 }
 
 /*********************************************************************/
@@ -457,26 +484,26 @@ opengraphfile(char *filename, int *codetype, int assumefixed, long position)
 static char*
 showg_getline(FILE *f)     /* read a line with error checking */
        /* includes \n (if present) and \0.
-        Immediate EOF causes NULL return. */
+    Immediate EOF causes NULL return. */
 {
-	DYNALLSTAT(char,s,s_sz);
-	int c;
-	long i;
+    DYNALLSTAT(char,s,s_sz);
+    int c;
+    long i;
 
-	DYNALLOC1(char,s,s_sz,500,"showg_getline");
+    DYNALLOC1(char,s,s_sz,500,"showg_getline");
 
-	i = 0;
-	while ((c = getc(f)) != EOF && c != '\n')
-	{
-	    if (i == s_sz-2) DYNREALLOC(char,s,s_sz,s_sz+1000,"showg_getline");
-	    s[i++] = c;
-	}
+    i = 0;
+    while ((c = getc(f)) != EOF && c != '\n')
+    {
+        if (i == s_sz-2) DYNREALLOC(char,s,s_sz,s_sz+1000,"showg_getline");
+        s[i++] = c;
+    }
 
-	if (i == 0 && c == EOF) return NULL;
+    if (i == 0 && c == EOF) return NULL;
 
-	if (c == '\n') s[i++] = '\n';
-	s[i] = '\0';
-	return s;
+    if (c == '\n') s[i++] = '\n';
+    s[i] = '\0';
+    return s;
 }
 
 /****************************************************************************/
@@ -485,245 +512,294 @@ static int
 graphsize(char *s)
 /* Get size of graph out of graph6 or sparse6 string. */
 {
-	char *p;
-	int n;
+    char *p;
+    int n;
 
-	if (s[0] == ':') p = s+1;
-	else             p = s;
-	n = *p++ - BIAS6;
+    if (s[0] == ':') p = s+1;
+    else             p = s;
+    n = *p++ - BIAS6;
 
-	if (n > SMALLN) 
-	{
-	    n = *p++ - BIAS6;
-	    n = (n << 6) | (*p++ - BIAS6);
-	    n = (n << 6) | (*p++ - BIAS6);
-        }
-	return n;
+    if (n > SMALLN) 
+    {
+        n = *p++ - BIAS6;
+        n = (n << 6) | (*p++ - BIAS6);
+        n = (n << 6) | (*p++ - BIAS6);
+    }
+    return n;
 }
 
 /****************************************************************************/
 
 static void
 stringtograph(char *s, graph *g, int m)
-        /* Convert string (graph6 or sparse6 format) to graph. */
-       /* Assumes g is big enough to hold it.                 */
+/* Convert string (graph6, digraph6 or sparse6 format) to graph. */
+/* Assumes g is big enough to hold it.   */
 {
-	char *p;
-	int n,i,j,k,v,x,nb;
-	unsigned long ii;
-	set *gi,*gj;
+    char *p;
+    int n,i,j,k,v,x,nb,need;
+    size_t ii;
+    set *gi,*gj;
+    boolean done;
 
-	n = graphsize(s);
+    n = graphsize(s);
+    if (n == 0) return;
 
-	p = s + 1 + (s[0] == ':');
-	if (n > SMALLN) p += 3;
+    p = s + (s[0] == ':' || s[0] == '&') + SIZELEN(n);
 
-	if (TIMESWORDSIZE(m) < n)
-	    gt_abort(">E stringtograph: impossible m value\n");
+    if (TIMESWORDSIZE(m) < n)
+        gt_abort(">E stringtograph: impossible m value\n");
 
-	if (n == 0) return;
+    for (ii = m*(size_t)n; --ii > 0;) g[ii] = 0; g[0] = 0;
 
-	for (ii = 0; ii < m*(unsigned long)n; ++ii) g[ii] = 0;
-
-	if (s[0] != ':')       /* graph6 format */
-	{
-	    k = 1;
-	    for (j = 1; j < n; ++j)
-	    {
-	        gj = GRAPHROW(g,j,m);
+    if (s[0] != ':' && s[0] != '&')       /* graph6 format */
+    {
+        k = 1;
+        for (j = 1; j < n; ++j)
+        {
+            gj = GRAPHROW(g,j,m);
     
-	        for (i = 0; i < j; ++i)
-	        {
-	            if (--k == 0)
-	            {
-		        k = 6;
-		        x = *(p++) - BIAS6;
-	            }
-	    
-	            if (x & TOPBIT6)
-	            {
-		        gi = GRAPHROW(g,i,m);
-		        ADDELEMENT(gi,j);
-		        ADDELEMENT(gj,i);
-	            }
-	            x <<= 1;
-	        }
-	    }
-	}
-	else    /* sparse6 format */
-	{
-	    for (i = n-1, nb = 0; i != 0 ; i >>= 1, ++nb)
-	    {}
+            for (i = 0; i < j; ++i)
+            {
+                if (--k == 0)
+                {
+                    k = 6;
+                    x = *(p++) - BIAS6;
+                }
+        
+                if ((x & TOPBIT6))
+                {
+                    gi = GRAPHROW(g,i,m);
+                    ADDELEMENT(gi,j);
+                    ADDELEMENT(gj,i);
+                }
+                x <<= 1;
+            }
+        }
+    }
+    else if (s[0] == '&')
+    {
+        k = 1;
+        for (i = 0; i < n; ++i)
+        {
+            gi = GRAPHROW(g,i,m);
+    
+            for (j = 0; j < n; ++j)
+            {
+                if (--k == 0)
+                {
+                    k = 6;
+                    x = *(p++) - BIAS6;
+                }
+        
+                if ((x & TOPBIT6))
+                {
+                    ADDELEMENT(gi,j);
+                }
+                x <<= 1;
+            }
+        } 
+    }
+    else    /* sparse6 format */
+    {
+        for (i = n-1, nb = 0; i != 0 ; i >>= 1, ++nb) {}
 
-	    k = 1;
-	    v = 0;
-	    for (;;)
+        k = 0;
+        v = 0;
+	done = FALSE;
+        while (!done)
+        {
+	    if (k == 0)
 	    {
-		if (--k == 0)
+		x = *(p++);
+		if (x == '\n' || x == '\0')
 		{
-		    k = 6;
-		    if (*p == '\n' || *p == '\0') break;
-		    else x = *p - BIAS6;
-		    ++p;
+		    done = TRUE; continue;
 		}
 		else
-		    x <<= 1;
-
-		if (x & TOPBIT6) ++v;
-		j = 0;
-		for (i = 0; i < nb; ++i)
 		{
-		    if (--k == 0)
-		    {
-		 	k = 6;
-			if (*p == '\n' || *p == '\0') break;
-			else x = *p - BIAS6;
-			++p;
-		    }
-		    else
-			x <<= 1;
-		    if (x & TOPBIT6) j = (j << 1) | 1;
-		    else             j <<= 1;
-	 	}
-		if (i < nb) break;
-		if (j > v)
-		    v = j;
-		else if (v < n)
-		{
-		    ADDELEMENT(GRAPHROW(g,v,m),j);
-		    ADDELEMENT(GRAPHROW(g,j,m),v);
+		    x -= BIAS6; k = 6;
 		}
 	    }
-	}
+	    if ((x & B(k))) ++v;
+	    --k;
+
+	    need = nb;
+	    j = 0;
+	    while (need > 0 && !done)
+	    {
+		if (k == 0)
+		{
+		    x = *(p++);
+		    if (x == '\n' || x == '\0')
+		    {
+		        done = TRUE; continue;
+		    }
+		    else
+		    {
+		       	x -= BIAS6; k = 6;
+		    }
+		}
+		if (need >= k)
+		{
+		    j = (j << k) | (x & M(k));
+		    need -= k; k = 0;
+		}
+		else
+		{
+		    k -= need;
+		    j = (j << need) | ((x >> k) & M(need));
+		    need = 0;
+		}
+	    }
+	    if (done) continue;
+
+	    if (j > v)
+		v = j;
+	    else if (v < n)
+	    {
+		ADDELEMENT(GRAPHROW(g,v,m),j);
+		ADDELEMENT(GRAPHROW(g,j,m),v);
+	    }
+        }
+    }
 }
 
 /***********************************************************************/
 
-static graph*                 /* read graph into nauty format */
-readg(FILE *f, graph *g, int reqm, int *pm, int *pn)
-    /* graph6 and sparse6 formats are supported */
-    /* f = an open file */
-    /* g = place to put the answer (NULL for dynamic allocation) */
-    /* reqm = the requested value of m (0 => compute from n) */
-    /* pm = the actual value of m */
-    /* pn = the value of n */
+graph*                 /* read graph into nauty format */
+readgg(FILE *f, graph *g, int reqm, int *pm, int *pn, boolean *digraph) 
+/* graph6, digraph6 and sparse6 formats are supported 
+   f = an open file 
+   g = place to put the answer (NULL for dynamic allocation) 
+   reqm = the requested value of m (0 => compute from n) 
+   *pm = the actual value of m 
+   *pn = the value of n 
+   *digraph = whether the input is a digraph
+*/
 {
-	char *s,*p,*readg_line;
-	int m,n,readg_code;
+    char *s,*p;
+    int m,n;
+    int readg_code;
 
-	if ((readg_line = showg_getline(f)) == NULL) return NULL;
+    if ((s = showg_getline(f)) == NULL) return NULL;
 
-	s = readg_line;
-	if (s[0] == ':')
-	{
-	    readg_code = SPARSE6;
-	    p = s + 1;
-	}
-	else
-	{
-	    readg_code = GRAPH6;
-            p = s;
-	}
+    if (s[0] == ':')
+    {
+        *digraph = FALSE;
+        p = s + 1;
+    }
+    else if (s[0] == '&')
+    {
+	readg_code = DIGRAPH6;
+        *digraph = TRUE;
+	p = s + 1;
+    }
+    else
+    {
+        readg_code = GRAPH6;
+        *digraph = FALSE;
+        p = s;
+    }
 
-	while (*p >= BIAS6 && *p <= MAXBYTE) 
-	    ++p;
-	if (*p == '\0')
-	    gt_abort(">E showg: missing newline\n");
-	else if (*p != '\n')
-	    gt_abort(">E showg: illegal character\n");
+    while (*p >= BIAS6 && *p <= MAXBYTE) 
+        ++p;
+    if (*p == '\0')
+        gt_abort(">E readgg: missing newline\n");
+    else if (*p != '\n')
+        gt_abort(">E readgg: illegal character\n");
 
-	n = graphsize(s);
-	if (readg_code == GRAPH6 && p - s != G6LEN(n))
-	{
-	    fprintf(stderr,"p-s=%d G6LEN(%d)=%d\n",(int)(p-s),n,G6LEN(n));
-	    gt_abort(">E showg: truncated graph6 line\n");
-	}
+    n = graphsize(s);
+    if (readg_code == GRAPH6 && p - s != G6LEN(n))
+        gt_abort(">E readgg: truncated graph6 line\n");
+    if (readg_code == DIGRAPH6 && p - s != D6LEN(n))
+        gt_abort(">E readgg: truncated digraph6 line\n");
 
-	if (reqm > 0 && TIMESWORDSIZE(reqm) > n)
-	    gt_abort(">E showg: reqm too small\n");
-	else if (reqm > 0)
-	    m = reqm;
-	else
-	    m = (n + WORDSIZE - 1) / WORDSIZE;
+    if (reqm > 0 && TIMESWORDSIZE(reqm) < n)
+        gt_abort(">E readgg: reqm too small\n");
+    else if (reqm > 0)
+        m = reqm;
+    else
+        m = (n + WORDSIZE - 1) / WORDSIZE;
 
-	if (g == NULL)
-	{
-	    if ((g = (graph*)ALLOCS(n,m*sizeof(graph))) == NULL)
-		gt_abort(">E showg: malloc failed\n");
-	}
+    if (g == NULL)
+    {
+        if ((g = (graph*)ALLOCS(n,m*sizeof(graph))) == NULL)
+            gt_abort(">E readgg: malloc failed\n");
+    }
 
-	*pn = n;
-	*pm = m;
+    *pn = n;
+    *pm = m;
 
-	stringtograph(s,g,m);
-	return g;
+    stringtograph(s,g,m);
+    return g;
 }
+
 
 /**************************************************************************/
 
 static int
 longvalue(char **ps, long *l)
 {
-	boolean neg,pos;
-	long sofar,last;
-	char *s;
+    boolean neg,pos;
+    long sofar,last;
+    char *s;
 
-	s = *ps;
-	pos = neg = FALSE;
-	if (*s == '-')
-	{
-	    neg = TRUE;
-	    ++s;
-	}
-	else if (*s == '+')
-	{
-	    pos = TRUE;
-	    ++s;
-	}
+    s = *ps;
+    pos = neg = FALSE;
+    if (*s == '-')
+    {
+        neg = TRUE;
+        ++s;
+    }
+    else if (*s == '+')
+    {
+        pos = TRUE;
+        ++s;
+    }
 
-	if (*s < '0' || *s > '9') 
-	{
-	    *ps = s;
-	    return (pos || neg) ? ARG_ILLEGAL : ARG_MISSING;
-	}
+    if (*s < '0' || *s > '9') 
+    {
+        *ps = s;
+        return (pos || neg) ? ARG_ILLEGAL : ARG_MISSING;
+    }
 
-	sofar = 0;
+    sofar = 0;
 
-	for (; *s >= '0' && *s <= '9'; ++s)
-	{
-	    last = sofar;
-	    sofar = sofar * 10 + (*s - '0');
-	    if (sofar < last || sofar > MAXARG)
-	    {
-		*ps = s;
-		return ARG_TOOBIG;
-	    }
-	}
-	*ps = s;
-	*l = neg ? -sofar : sofar;
-	return ARG_OK;
+    for (; *s >= '0' && *s <= '9'; ++s)
+    {
+        last = sofar;
+        sofar = sofar * 10 + (*s - '0');
+        if (sofar < last || sofar > MAXARG)
+        {
+            *ps = s;
+            return ARG_TOOBIG;
+        }
+    }
+    *ps = s;
+    *l = neg ? -sofar : sofar;
+    return ARG_OK;
 }
-	
+    
 /*************************************************************************/
 
 static void
 arg_int(char **ps, int *val, char *id)
 {
-	int code;
-	long longval;
+    int code;
+    long longval;
 
-	code = longvalue(ps,&longval);
-	*val = longval;
-	if (code == ARG_MISSING || code == ARG_ILLEGAL)
-	{
-	    fprintf(stderr,">E %s: missing argument value\n",id);
-	    gt_abort(NULL);
-	}
-	else if (code == ARG_TOOBIG || *val != longval)
-	{
-	    fprintf(stderr,">E %s: argument value too large\n",id);
-	    gt_abort(NULL);
-	}
+    code = longvalue(ps,&longval);
+    *val = longval;
+    if (code == ARG_MISSING || code == ARG_ILLEGAL)
+    {
+        fprintf(stderr,">E %s: missing argument value\n",id);
+        gt_abort(NULL);
+    }
+    else if (code == ARG_TOOBIG || *val != longval)
+    {
+        fprintf(stderr,">E %s: argument value too large\n",id);
+        gt_abort(NULL);
+    }
 }
 
 /************************************************************************/
@@ -731,53 +807,53 @@ arg_int(char **ps, int *val, char *id)
 static void
 arg_range(char **ps, long *val1, long *val2, char *id)
 {
-	int code;
-	char *s;
+    int code;
+    char *s;
 
-	s = *ps;
-	code = longvalue(&s,val1);
-	if (code != ARG_MISSING)
-	{
-	    if (code == ARG_ILLEGAL)
-	    {
-		fprintf(stderr,">E %s: bad range\n",id);
-		gt_abort(NULL);
-	    }
-	    else if (code == ARG_TOOBIG)
-	    {
-		fprintf(stderr,">E %s: value too big\n",id);
-		gt_abort(NULL);
-	    }
-	}
-	else if (*s != ':' && *s != '-')
-	{
-	    fprintf(stderr,">E %s: missing value\n",id);
-	    gt_abort(NULL);
-	}
-	else
-	    *val1 = -NOLIMIT;
+    s = *ps;
+    code = longvalue(&s,val1);
+    if (code != ARG_MISSING)
+    {
+        if (code == ARG_ILLEGAL)
+        {
+            fprintf(stderr,">E %s: bad range\n",id);
+            gt_abort(NULL);
+        }
+        else if (code == ARG_TOOBIG)
+        {
+            fprintf(stderr,">E %s: value too big\n",id);
+            gt_abort(NULL);
+        }
+    }
+    else if (*s != ':' && *s != '-')
+    {
+        fprintf(stderr,">E %s: missing value\n",id);
+        gt_abort(NULL);
+    }
+    else
+        *val1 = -NOLIMIT;
 
-	if (*s == ':' || *s == '-')
-	{
-	    ++s;
-	    code = longvalue(&s,val2);
-	    if (code == ARG_MISSING)
-		*val2 = NOLIMIT;
-	    else if (code == ARG_TOOBIG)
-	    {
-		fprintf(stderr,">E %s: value too big\n",id);
-		gt_abort(NULL);
-	    }
-	    else if (code == ARG_ILLEGAL)
-	    {
-		fprintf(stderr,">E %s: illegal range\n",id);
-		gt_abort(NULL);
-	    }
-	}
-	else
-	    *val2 = *val1;
+    if (*s == ':' || *s == '-')
+    {
+        ++s;
+        code = longvalue(&s,val2);
+        if (code == ARG_MISSING)
+            *val2 = NOLIMIT;
+        else if (code == ARG_TOOBIG)
+        {
+            fprintf(stderr,">E %s: value too big\n",id);
+            gt_abort(NULL);
+        }
+        else if (code == ARG_ILLEGAL)
+        {
+            fprintf(stderr,">E %s: illegal range\n",id);
+            gt_abort(NULL);
+        }
+    }
+    else
+        *val2 = *val1;
 
-	*ps = s;
+    *ps = s;
 }
 
 /************************************************************************/
@@ -787,7 +863,6 @@ arg_range(char **ps, long *val1, long *val2, char *id)
 
 static FILE *infile,*outfile;
 static long nin;
-extern int labelorg;
 
 /*****************************************************************************
 *                                                                            *
@@ -805,49 +880,49 @@ extern int labelorg;
 
 static void
 putsetx(FILE *f, set *set1, int *curlenp, int linelength, int m,
-        boolean compress, int start)
+    boolean compress, int start)
 {
-        int slen,j1,j2;
-        char s[40];
-	boolean first;
+    int slen,j1,j2;
+    char s[40];
+    boolean first;
 
-	first = TRUE;
-        j1 = start;
-        while ((j1 = nextelement(set1,m,j1)) >= 0)
+    first = TRUE;
+    j1 = start;
+    while ((j1 = nextelement(set1,m,j1)) >= 0)
+    {
+        j2 = j1;
+        if (compress)
         {
-            j2 = j1;
-            if (compress)
-            {
-                while (nextelement(set1,m,j2) == j2 + 1)
-                    ++j2;
-                if (j2 == j1+1)
-                    j2 = j1;
-            }
-            slen = itos(j1 + labelorg,s);
-            if (j2 >= j1 + 2)
-            {
-                s[slen] = ':';
-                slen += 1 + itos(j2 + labelorg,&s[slen+1]);
-            }
-
-            if (*curlenp + slen + 1 >= linelength && linelength > 0)
-            {
-                fprintf(f,"\n ");
-                *curlenp = 1;
-            }
-	    if (first)
-	    {
-                fprintf(f,"%s",s);
-                *curlenp += slen;
-		first = FALSE;
-	    }
-	    else
-            {    
-                fprintf(f," %s",s);
-                *curlenp += slen + 1;
-            }
-            j1 = j2;
+            while (nextelement(set1,m,j2) == j2 + 1)
+                ++j2;
+            if (j2 == j1+1)
+                j2 = j1;
         }
+        slen = itos(j1 + labelorg,s);
+        if (j2 >= j1 + 2)
+        {
+            s[slen] = ':';
+            slen += 1 + itos(j2 + labelorg,&s[slen+1]);
+        }
+
+        if (*curlenp + slen + 1 >= linelength && linelength > 0)
+        {
+            fprintf(f,"\n ");
+            *curlenp = 1;
+        }
+        if (first)
+        {
+            fprintf(f,"%s",s);
+            *curlenp += slen;
+            first = FALSE;
+        }
+        else
+        {    
+            fprintf(f," %s",s);
+            *curlenp += slen + 1;
+        }
+        j1 = j2;
+    }
 }
 
 /*****************************************************************************
@@ -863,98 +938,102 @@ putsetx(FILE *f, set *set1, int *curlenp, int linelength, int m,
 static void
 putgraphx(FILE *f, graph *g, int linelength, boolean triang, int m, int n)
 {
-        int i,curlen;
-        set *pg;
+    int i,curlen;
+    set *pg;
 
-        for (i = 0, pg = g; i < n; ++i, pg += m)
-        {
-            fprintf(f,"%3d : ",i + labelorg);
-            curlen = 7;
-            putsetx(f,pg,&curlen,linelength,m,FALSE,triang ? i-1 : -1);
-            fprintf(f,";\n");
-        }
+    for (i = 0, pg = g; i < n; ++i, pg += m)
+    {
+        fprintf(f,"%3d : ",i + labelorg);
+        curlen = 7;
+        putsetx(f,pg,&curlen,linelength,m,FALSE,triang ? i-1 : -1);
+        fprintf(f,";\n");
+    }
 }
 
 /***************************************************************************/
 
 static void
-putedges(FILE *f, graph *g, int linelength, int m, int n)
- /* write list of edges */
+putedges(FILE *f, graph *g, int linelength, 
+         boolean digraph, int m, int n)
+/* Write list of edges, preceded by the numbers of vertices and
+   edges.  Use labelorg */
 {
-	int i,j,curlen,ne;
-	char s[20];
-	set *pg;
+    int i,j,curlen,ne;
+    char s[20];
+    set *pg;
 
-	ne = 0;
-        for (i = 0, pg = g; i < n; ++i, pg += m)
-	{
-	    for (j = i-1; (j = nextelement(pg,m,j)) >= 0;)
-		++ne;
-	}
+    ne = 0;
+    for (i = 0, pg = g; i < n; ++i, pg += m)
+    {
+        for (j = (digraph?-1:i-1); (j = nextelement(pg,m,j)) >= 0;)
+            ++ne;
+    }
 
-	fprintf(f,"%d %d\n",n,ne);
-	curlen = 0;
-        for (i = 0, pg = g; i < n; ++i, pg += m)
-	{
-	    for (j = i-1; (j = nextelement(pg,m,j)) >= 0;)
-	    { 
-		if (curlen > 0 && curlen > linelength - 10 && linelength > 0)
-		{
-		    fprintf(f,"\n");
-		    curlen = 0;
-		}
-		if (curlen > 0)
-		{
-		    fprintf(f,"  ");
-		    curlen += 2;
-		}
-		curlen += itos(i+labelorg,s);
-		fprintf(f,"%s",s);
-		fprintf(f," ");
-		curlen += 1 + itos(j+labelorg,s);
-		fprintf(f,"%s",s);
-	    }
-	}
-	fprintf(f,"\n");
+    fprintf(f,"%d %d\n",n,ne);
+
+    curlen = 0;
+    for (i = 0, pg = g; i < n; ++i, pg += m)
+    {
+        for (j = (digraph ? -1 : i-1); (j = nextelement(pg,m,j)) >= 0;)
+        { 
+            if (curlen > 0 && curlen > linelength - 10 && linelength > 0)
+            {
+                fprintf(f,"\n");
+                curlen = 0;
+            }
+            if (curlen > 0)
+            {
+                fprintf(f,"  ");
+                curlen += 2;
+            }
+            curlen += itos(i+labelorg,s);
+            fprintf(f,"%s",s);
+            fprintf(f," ");
+            curlen += 1 + itos(j+labelorg,s);
+            fprintf(f,"%s",s);
+        }
+    }
+    fprintf(f,"\n");
 }
 
 /***************************************************************************/
 
 static void
-putcgraph(FILE *f, graph *g, int linelength, int m, int n)
- /* write compressed form */
+putcgraph(FILE *f, graph *g, int linelength, boolean digraph, int m, int n)
+/* write compressed form, using labelorg */
 {
-        int i,curlen;
-	int semicolons;
-	char s[20];
-        set *pg;
+    int i,curlen,j0;
+    int semicolons;
+    char s[20];
+    set *pg;
 
-	curlen = itos(n,s)+2;
-	fprintf(f,";n%sg",s);
+    curlen = itos(n,s)+2;
+    fprintf(f,";n%s%s",s,(digraph?"dg":"g"));
 
-	semicolons = 0;
-        for (i = 0, pg = g; i < n; ++i, pg += m)
+    semicolons = 0;
+    for (i = 0, pg = g; i < n; ++i, pg += m)
+    {
+	j0 = digraph ? -1: i-1;
+        if (nextelement(pg,m,j0) >= 0)
         {
-	    if (nextelement(pg,m,i-1) >= 0)
-	    {
-		while (semicolons > 0)
-		{
-		    if (curlen >= linelength-1 && linelength > 0)
-		    {
-			fprintf(f,"\n ");
-			curlen = 1;
-		    }
-		    fprintf(f,";");
-		    ++curlen;
-		    --semicolons;
-		}
-                putsetx(f,pg,&curlen,linelength,m,FALSE,i-1);
-                semicolons = 1;
-	    }
-	    else
-		++semicolons;
+            while (semicolons > 0)
+            {
+                if (curlen >= linelength-1 && linelength > 0)
+                {
+                    fprintf(f,"\n ");
+                    curlen = 1;
+                }
+                fprintf(f,";");
+                ++curlen;
+                --semicolons;
+            }
+            putsetx(f,pg,&curlen,linelength,m,FALSE,j0);
+            semicolons = 1;
         }
-	fprintf(f,".\n");
+        else
+            ++semicolons;
+    }
+    fprintf(f,".\n");
 }
 
 /**************************************************************************/
@@ -963,22 +1042,22 @@ static void
 putam(FILE *f, graph *g, int linelength, boolean space, boolean triang,
       int m, int n)   /* write adjacency matrix */
 {
- 	set *gi;
-	int i,j;
-	boolean first;
+    set *gi;
+    int i,j;
+    boolean first;
 
-	for (i = 0, gi = (set*)g; i < n - (triang!=0); ++i, gi += m)
-	{
-	    first = TRUE;
-	    for (j = triang ? i+1 : 0; j < n; ++j)
-	    {
-		if (!first && space) putc(' ',f);
-		else                 first = FALSE;
-		if (ISELEMENT(gi,j)) putc('1',f);
-		else                 putc('0',f);
-	    }
-	    putc('\n',f);
-	}
+    for (i = 0, gi = (set*)g; i < n - (triang!=0); ++i, gi += m)
+    {
+        first = TRUE;
+        for (j = triang ? i+1 : 0; j < n; ++j)
+        {
+            if (!first && space) putc(' ',f);
+            else                 first = FALSE;
+            if (ISELEMENT(gi,j)) putc('1',f);
+            else                 putc('0',f);
+        }
+        putc('\n',f);
+    }
 }
 
 /**************************************************************************/
@@ -987,149 +1066,149 @@ putam(FILE *f, graph *g, int linelength, boolean space, boolean triang,
 int
 main(int argc, char *argv[])
 {
-	graph *g;
-	int m,n,codetype;
-	int argnum,j;
-	char *arg,sw;
-	boolean badargs;
-	long maxin,pval1,pval2;
-	boolean fswitch,pswitch,cswitch,dswitch;
-	boolean aswitch,lswitch,oswitch,Fswitch;
-	boolean Aswitch,eswitch,tswitch,qswitch;
-	int linelength;
-	char *infilename,*outfilename;
+    graph *g;
+    int m,n,codetype;
+    int argnum,j;
+    char *arg,sw;
+    boolean badargs,digraph;
+    long maxin,pval1,pval2;
+    boolean fswitch,pswitch,cswitch,dswitch;
+    boolean aswitch,lswitch,oswitch,Fswitch;
+    boolean Aswitch,eswitch,tswitch,qswitch;
+    int linelength;
+    char *infilename,*outfilename;
 
-	if (argc > 1 && (strcmp(argv[1],"-help") == 0
-                       || (strcmp(argv[1],"--help") == 0)))
-	{
-	    printf("Usage: %s\n\n%s",USAGE,HELPTEXT);
-	    exit(0);
-	}
+    if (argc > 1 && (strcmp(argv[1],"-help") == 0
+                   || (strcmp(argv[1],"--help") == 0)))
+    {
+        printf("Usage: %s\n\n%s",USAGE,HELPTEXT);
+        exit(0);
+    }
 
-	if (sizeof(setword) < 4)
-	{
-	    fprintf(stderr,">E showg: setword too small\n");
-	    fprintf(stderr,"   Please report this to bdm@cs.anu.edu.au\n");
-	    exit(1);
-	}
+    if (sizeof(setword) < 4)
+    {
+        fprintf(stderr,">E showg: setword too small\n");
+        fprintf(stderr,"   Please report this to bdm@cs.anu.edu.au\n");
+        exit(1);
+    }
 
-	fswitch = pswitch = cswitch = dswitch = FALSE;
-	aswitch = lswitch = oswitch = Fswitch = FALSE;
-	Aswitch = eswitch = tswitch = qswitch = FALSE;
-	infilename = outfilename = NULL;
-	linelength = LINELEN;
-	labelorg = 0;
+    fswitch = pswitch = cswitch = dswitch = FALSE;
+    aswitch = lswitch = oswitch = Fswitch = FALSE;
+    Aswitch = eswitch = tswitch = qswitch = FALSE;
+    infilename = outfilename = NULL;
+    linelength = LINELEN;
+    labelorg = 0;
 
-	argnum = 0;
-	badargs = FALSE;
-	for (j = 1; !badargs && j < argc; ++j)
-	{
-	    arg = argv[j];
-	    if (arg[0] == '-' && arg[1] != '\0')
-	    {
-		++arg;
-		while (*arg != '\0')
-		{
-		    sw = *arg++;
-			 SWBOOLEAN('a',aswitch)
-		    else SWBOOLEAN('A',Aswitch)
-		    else SWBOOLEAN('c',cswitch)
-		    else SWBOOLEAN('d',dswitch)
-		    else SWBOOLEAN('e',eswitch)
-		    else SWBOOLEAN('f',fswitch)
-		    else SWBOOLEAN('F',Fswitch)
-		    else SWBOOLEAN('t',tswitch)
-		    else SWBOOLEAN('q',qswitch)
-		    else SWRANGE('p',pswitch,pval1,pval2,"showg -p")
-		    else SWINT('l',lswitch,linelength,"showg -l")
-		    else SWINT('o',oswitch,labelorg,"listo -o")
-		    else badargs = TRUE;
-		}
-	    }
-	    else
-	    {
-		++argnum;
-		if      (argnum == 1) infilename = arg;
-		else if (argnum == 2) outfilename = arg;
-		else                  badargs = TRUE;
-	    }
-	}
-
-	if (labelorg < 0) gt_abort(">E showg: negative origin forbidden.\n");
-
-	if ((aswitch!=0) + (Aswitch!=0) + (eswitch!=0) 
-	    		 + (dswitch!=0) + (cswitch!=0) > 1)
-	    gt_abort(">E showg: -aAecd are incompatible\n");
-
-	if (badargs)
-	{
-	    fprintf(stderr,">E Usage: %s\n",USAGE);
-	    fprintf(stderr,"Use showg -help to see a list of the options.\n");
-	    exit(1);
-	}
-
-	if (!pswitch || pval1 < 1) pval1 = 1;
-
-	if (infilename && infilename[0] == '-') infilename = NULL;
-	infile = opengraphfile(infilename,&codetype,fswitch,
-			       pswitch ? pval1 : 1);
-	if (!infile) exit(1);
-	if (!infilename) infilename = "stdin";
-
-	if (!outfilename || outfilename[0] == '-')
-	{
-	    outfilename = "stdout";
-	    outfile = stdout;
-	}
-	else if ((outfile = fopen(outfilename,"w")) == NULL)
-	{
-	    fprintf(stderr,"Can't open output file %s\n",outfilename);
-	    gt_abort(NULL);
-	}
-
-	nin = 0;
-	if (!pswitch || pval2 == NOLIMIT)
-	    maxin = NOLIMIT;
-	else if (pval1 < 1) maxin = pval2;
-	else                maxin = pval2 - pval1 + 1;
-	while (nin < maxin || maxin == NOLIMIT)
-	{
-	    if ((g = readg(infile,NULL,0,&m,&n)) == NULL) break;
-	    ++nin;
-
-	    if (Fswitch && nin > 1) fprintf(outfile,"\f");
-
-	    if (cswitch)
-		putcgraph(outfile,g,linelength,m,n);
-	    else if (dswitch)
-	    {
-		if (qswitch)
-		    fprintf(outfile,"%d\n",n);
-		else
-		{
-		    fprintf(outfile,"\n!Graph %ld.\n",pval1+nin-1);
-		    fprintf(outfile,"n=%d $=%d g\n",n,labelorg);
-		}
-		putgraphx(outfile,g,linelength,tswitch,m,n);
-		if (!qswitch) fprintf(outfile,"$$\n");
-	    }
-	    else
+    argnum = 0;
+    badargs = FALSE;
+    for (j = 1; !badargs && j < argc; ++j)
+    {
+        arg = argv[j];
+        if (arg[0] == '-' && arg[1] != '\0')
+        {
+            ++arg;
+            while (*arg != '\0')
             {
-		if (qswitch)
-		{
-		    if (!eswitch) fprintf(outfile,"%d\n",n);
-		}
-                else fprintf(outfile,"\nGraph %ld, order %d.\n",
-				     pval1+nin-1,n);
-	        if (aswitch|Aswitch)
-		    putam(outfile,g,linelength,Aswitch,tswitch,m,n);
-		else if (eswitch)
-		    putedges(outfile,g,linelength,m,n);
-	        else
-	            putgraphx(outfile,g,linelength,tswitch,m,n);
+                sw = *arg++;
+                     SWBOOLEAN('a',aswitch)
+                else SWBOOLEAN('A',Aswitch)
+                else SWBOOLEAN('c',cswitch)
+                else SWBOOLEAN('d',dswitch)
+                else SWBOOLEAN('e',eswitch)
+                else SWBOOLEAN('f',fswitch)
+                else SWBOOLEAN('F',Fswitch)
+                else SWBOOLEAN('t',tswitch)
+                else SWBOOLEAN('q',qswitch)
+                else SWRANGE('p',pswitch,pval1,pval2,"showg -p")
+                else SWINT('l',lswitch,linelength,"showg -l")
+                else SWINT('o',oswitch,labelorg,"listo -o")
+                else badargs = TRUE;
             }
-	    FREES(g);
-	}
+        }
+        else
+        {
+            ++argnum;
+            if      (argnum == 1) infilename = arg;
+            else if (argnum == 2) outfilename = arg;
+            else                  badargs = TRUE;
+        }
+    }
 
-	exit(0);
+    if (labelorg < 0) gt_abort(">E showg: negative origin forbidden.\n");
+
+    if ((aswitch!=0) + (Aswitch!=0) + (eswitch!=0) 
+                     + (dswitch!=0) + (cswitch!=0) > 1)
+        gt_abort(">E showg: -aAecd are incompatible\n");
+
+    if (badargs)
+    {
+        fprintf(stderr,">E Usage: %s\n",USAGE);
+        fprintf(stderr,"Use showg -help to see a list of the options.\n");
+        exit(1);
+    }
+
+    if (!pswitch || pval1 < 1) pval1 = 1;
+
+    if (infilename && infilename[0] == '-') infilename = NULL;
+    infile = opengraphfile(infilename,&codetype,fswitch,
+                           pswitch ? pval1 : 1);
+    if (!infile) exit(1);
+    if (!infilename) infilename = "stdin";
+
+    if (!outfilename || outfilename[0] == '-')
+    {
+        outfilename = "stdout";
+        outfile = stdout;
+    }
+    else if ((outfile = fopen(outfilename,"w")) == NULL)
+    {
+        fprintf(stderr,"Can't open output file %s\n",outfilename);
+        gt_abort(NULL);
+    }
+
+    nin = 0;
+    if (!pswitch || pval2 == NOLIMIT)
+        maxin = NOLIMIT;
+    else if (pval1 < 1) maxin = pval2;
+    else                maxin = pval2 - pval1 + 1;
+    while (nin < maxin || maxin == NOLIMIT)
+    {
+        if ((g = readgg(infile,NULL,0,&m,&n,&digraph)) == NULL) break;
+        ++nin;
+
+        if (Fswitch && nin > 1) fprintf(outfile,"\f");
+
+        if (cswitch)
+            putcgraph(outfile,g,linelength,digraph,m,n);
+        else if (dswitch)
+        {
+            if (qswitch)
+                fprintf(outfile,"%d\n",n);
+            else
+            {
+                fprintf(outfile,"\n!Graph %ld.\n",pval1+nin-1);
+                fprintf(outfile,"n=%d $=%d g\n",n,labelorg);
+            }
+            putgraphx(outfile,g,linelength,tswitch,m,n);
+            if (!qswitch) fprintf(outfile,"$$\n");
+        }
+        else
+        {
+            if (qswitch)
+            {
+                if (!eswitch) fprintf(outfile,"%d\n",n);
+            }
+            else fprintf(outfile,"\nGraph %ld, order %d.\n",
+                                 pval1+nin-1,n);
+            if (aswitch|Aswitch)
+                putam(outfile,g,linelength,Aswitch,tswitch,m,n);
+            else if (eswitch)
+                putedges(outfile,g,linelength,digraph,m,n);
+            else
+                putgraphx(outfile,g,linelength,tswitch,m,n);
+        }
+        FREES(g);
+    }
+
+    exit(0);
 }

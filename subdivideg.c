@@ -52,7 +52,7 @@ subdivisiongraph(sparsegraph *g, int k, sparsegraph *h)
         for (j = gv[i]; j < gv[i]+gd[i]; ++j)
         {
             if (ge[j] == i)
-                gt_abort(">E subdivideg can't handle loops\n");
+                gt_abort(">E subdivideg can't handle undirected loops\n");
             else if (ge[j] > i)
                 eno[j] = num++;
             else
@@ -121,15 +121,14 @@ main(int argc, char *argv[])
     char *infilename,*outfilename;
     FILE *infile,*outfile;
     boolean badargs,quiet,kswitch;
-    int j,m,n,argnum,kvalue;
+    int j,argnum,kvalue;
     int codetype,outcode;
     SG_DECL(g); SG_DECL(h);
     nauty_counter nin;
     char *arg,sw;
-    static graph *gq;
     double t;
 
-    HELP;
+    HELP; PUTVERSION;
 
     infilename = outfilename = NULL;
     quiet = kswitch = FALSE;
@@ -181,6 +180,8 @@ main(int argc, char *argv[])
     infile = opengraphfile(infilename,&codetype,FALSE,1);
     if (!infile) exit(1);
     if (!infilename) infilename = "stdin";
+
+    NODIGRAPHSYET(codetype);
 
     if (!outfilename || outfilename[0] == '-')
     {

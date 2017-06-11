@@ -1,6 +1,6 @@
-/* amtog.c  version 1.0; B D McKay, Jan 1997. */
+/* amtog.c  version 2.0; B D McKay, Jun 2015. */
 
-#define USAGE "amtog [-n#sghq] [infile [outfile]]"
+#define USAGE "amtog [-n#sgzhq] [-o#] [infile [outfile]]"
 
 #define HELPTEXT \
 " Read graphs in matrix format.\n\
@@ -9,26 +9,28 @@
           This can be overridden in the input.\n\
     -g    Write the output in graph6 format (default).\n\
     -s    Write the output in sparse6 format.\n\
+    -z    Write the output in digraph6 format.\n\
     -h    Write a header (according to -g or -s).\n\
+    -w    Don't warn about loops (which are suppressed for -g)\n\
     -q    Suppress auxiliary information.\n\
+    -o#   Treat digit # as 1 and other digits as 0.\n\
 \n\
    Input consists of a sequence of commands restricted to:\n\
 \n\
     n=#   set number of vertices (no default)\n\
           The = is optional.\n\
-    m     Matrix to follow (01 any spacing or no spacing)\n\
-          An 'm' is also assumed if 0 or 1 is encountered.\n\
+    m     Matrix to follow\n\
+          An 'm' is also assumed if a digit is encountered.\n\
     M     Complement of matrix to follow (as m)\n\
     t     Upper triangle of matrix to follow, row by row\n\
-           excluding the diagonal. (01 in any or no spacing)\n\
+           excluding the diagonal.\n\
     T     Complement of upper trangle to follow (as t)\n\
     q     exit (optional)\n"
 
 /*************************************************************************/
 
 #include "gtools.h"  /* which includes nauty.h and stdio.h */
-
-extern int labelorg;
+#include <ctype.h>
 
 /**************************************************************************/
 /**************************************************************************/
@@ -36,12 +38,13 @@ extern int labelorg;
 int
 main(int argc, char *argv[])
 {
-    int m,n;
+    int m,n,outdigit;
     int argnum,i,j,outcode,val;
-    char *arg,sw;
+    char *arg,sw,ochar;
     boolean badargs;
     boolean nswitch,sswitch,gswitch,hswitch,qswitch;
-    boolean loop,unsymm,compl,triangle;
+    boolean warn,loop,unsymm,compl,triangle;
+    boolean zswitch,oswitch,nowarn;
     char *infilename,*outfilename;
     FILE *infile,*outfile;
     nauty_counter nin;
@@ -52,10 +55,10 @@ main(int argc, char *argv[])
     DYNALLSTAT(graph,g,g_sz);
 #endif
 
-    HELP;
+    HELP; PUTVERSION;
 
-    sswitch = gswitch = FALSE;
-    qswitch = nswitch = hswitch = FALSE;
+    sswitch = gswitch = zswitch = oswitch = FALSE;
+    nowarn = qswitch = nswitch = hswitch = FALSE;
     infilename = outfilename = NULL;
     n = -1;
 
@@ -72,9 +75,12 @@ main(int argc, char *argv[])
                 sw = *arg++;
                      SWBOOLEAN('s',sswitch)
                 else SWBOOLEAN('g',gswitch)
+                else SWBOOLEAN('z',zswitch)
                 else SWBOOLEAN('h',hswitch)
+                else SWBOOLEAN('w',nowarn)
                 else SWBOOLEAN('q',qswitch)
                 else SWINT('n',nswitch,n,">E amtog -n")
+                else SWINT('o',oswitch,outdigit,">E amtog -o")
                 else badargs = TRUE;
             }
         }
@@ -87,8 +93,11 @@ main(int argc, char *argv[])
         }
     }
 
-    if (sswitch && gswitch) 
-        gt_abort(">E amtog: -s and -g are incompatible\n");
+    if ((sswitch!=0) + (gswitch!=0) + (zswitch!=0) > 1)
+        gt_abort(">E amtog: -sgz are incompatible\n");
+
+    if (oswitch && (outdigit < 0 || outdigit > 9))
+        gt_abort(">E amtog: only digits are allowed for -o\n");
 
     if (badargs || argnum > 2)
     {
@@ -96,6 +105,9 @@ main(int argc, char *argv[])
         GETHELP;
         exit(1);
     }
+
+    if (oswitch) ochar = outdigit + '0';
+    else         ochar = '1';
 
     if (!infilename || infilename[0] == '-')
     {
@@ -119,13 +131,15 @@ main(int argc, char *argv[])
         gt_abort(NULL);
     }
 
-    if (sswitch) outcode = SPARSE6;
-    else         outcode = GRAPH6;
+    if (sswitch)      outcode = SPARSE6;
+    else if (zswitch) outcode = DIGRAPH6;
+    else              outcode = GRAPH6;
 
     if (hswitch)
     {
-        if (outcode == SPARSE6) writeline(outfile,SPARSE6_HEADER);
-        else                    writeline(outfile,GRAPH6_HEADER);
+        if (outcode == SPARSE6)       writeline(outfile,SPARSE6_HEADER);
+        else if (outcode == DIGRAPH6) writeline(outfile,DIGRAPH6_HEADER);
+        else                          writeline(outfile,GRAPH6_HEADER);
     }
 
 #if MAXN
@@ -145,6 +159,7 @@ main(int argc, char *argv[])
 
      /* perform scanning required */
 
+    warn = FALSE;
     nin = 0;
     while (fscanf(infile,"%1s",s) == 1)
     {
@@ -164,7 +179,8 @@ main(int argc, char *argv[])
 #endif
         } 
         else if (s[0] == 'm' || s[0] == 'M' || s[0] == 't' ||
-                 s[0] == 'T' || s[0] == '0' || s[0] == '1')
+                 s[0] == 'T' || s[0] == '0' || s[0] == '1' ||
+                 (oswitch && isdigit(s[0])))
         {
             if (n < 0)
             {
@@ -172,10 +188,10 @@ main(int argc, char *argv[])
                     ">E amtog: matrix found before n is defined\n");
                 exit(2);
             }
-            if (s[0] == '0' || s[0] == '1') ungetc(s[0],infile);
+            if (isdigit(s[0])) ungetc(s[0],infile);
             m = (n + WORDSIZE - 1) / WORDSIZE;
     
-	    EMPTYSET(g,m*(size_t)n);
+            EMPTYSET(g,m*(size_t)n);
 
             loop = unsymm = FALSE;
             triangle = (s[0] == 't') || (s[0] == 'T');
@@ -190,51 +206,45 @@ main(int argc, char *argv[])
                     fprintf(stderr,">E amtog: incomplete matrix\n");
                     ABORT(">E amtog");
                 }
-                if (s[0] == '0' || s[0] == '1')
+                if (s[0] == '0' || s[0] == '1'
+                      || (oswitch && isdigit(s[0])))
                 {
-                    if (i == j)
+                    val = ((i != j) & compl) ^ (s[0] == ochar);
+                    if (val == 1)
                     {
-                        if (s[0] == '1') loop = TRUE;
-                    }
-                    else
-                    {
-                        val = compl ^ (s[0] == '1');
-                        if (val == 1)
+                        if (triangle)
                         {
-                            if (triangle)
-                            {
-                                ADDELEMENT(GRAPHROW(g,i,m),j);
-                                ADDELEMENT(GRAPHROW(g,j,m),i);
-                            }
-                            else
-                            {
-                                if (j < i && !ISELEMENT(GRAPHROW(g,j,m),i))
-                                    unsymm = TRUE;
-                                ADDELEMENT(GRAPHROW(g,i,m),j);
-                            }
+                            ADDELEMENT(GRAPHROW(g,i,m),j);
+                            ADDELEMENT(GRAPHROW(g,j,m),i);
                         }
-                        else if (j < i && ISELEMENT(GRAPHROW(g,j,m),i))
-                            unsymm = TRUE;
+                        else
+                        {
+                            if (j < i && !ISELEMENT(GRAPHROW(g,j,m),i))
+                                unsymm = TRUE;
+                            ADDELEMENT(GRAPHROW(g,i,m),j);
+                        }
+                        if (i == j) loop = TRUE;
                     }
+                    else if (j < i && ISELEMENT(GRAPHROW(g,j,m),i))
+                        unsymm = TRUE;
                 }
                 else
                 {
                     fprintf(stderr,
                       ">E amtog: illegal character in matrix: \"%c\"\n",
                       s[0]);
-                    exit(2);
+                    gt_abort(NULL);
                 }
             }
 
-            if (loop) fprintf(stderr,
-                   ">E amtog: warning, loop in graph " COUNTER_FMT "\n",nin);
-
-            if (unsymm) fprintf(stderr,
-                   ">E amtog: warning, graph "
+            if (unsymm && outcode != DIGRAPH6) fprintf(stderr,
+                   ">W amtog: warning, graph "
                           COUNTER_FMT " is unsymmetric\n",nin);
     
-            if (outcode == SPARSE6) writes6(outfile,g,m,n);
-            else                    writeg6(outfile,g,m,n);
+            if (outcode == DIGRAPH6)     writed6(outfile,g,m,n);
+            else if (outcode == SPARSE6) writes6(outfile,g,m,n);
+            else                         writeg6(outfile,g,m,n);
+	    if (loop && outcode == GRAPH6) ++warn;
         }
         else if (s[0] == 'q')
         {
@@ -243,9 +253,11 @@ main(int argc, char *argv[])
         else
         {
             fprintf(stderr,">E amtog: invalid command \"%c\"\n",s[0]);
-            exit(2);
+            gt_abort(NULL);
         }
     }
+
+    if (warn) fprintf(stderr,">Z complg: loops were lost\n");
 
     if (!qswitch)
         fprintf(stderr,">Z  " COUNTER_FMT " graphs converted from %s to %s.\n",

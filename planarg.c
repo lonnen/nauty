@@ -187,7 +187,7 @@ main(int argc, char *argv[])
     DYNALLSTAT(t_ver_sparse_rep,V,V_sz);
     DYNALLSTAT(t_adjl_sparse_rep,A,A_sz);
 
-    HELP;
+    HELP; PUTVERSION;
 
     infilename = outfilename = NULL;
     quiet = nowrite = planarcode = FALSE;
@@ -253,6 +253,8 @@ main(int argc, char *argv[])
     infile = opengraphfile(infilename,&codetype,FALSE,1);
     if (!infile) exit(1);
     if (!infilename) infilename = "stdin";
+
+    NODIGRAPHSYET(codetype);
 
     if (!nowrite)
     {

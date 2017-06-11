@@ -66,7 +66,7 @@ main(int argc, char *argv[])
 	DYNALLSTAT(graph,h,h_sz);
 #endif
 
-	HELP;
+	HELP; PUTVERSION;
 
         infilename = outfilename = NULL;
 	quiet = FALSE;
@@ -110,6 +110,8 @@ main(int argc, char *argv[])
 	    fprintf(stderr,"\n");
 	    fflush(stderr);
 	}
+
+	NODIGRAPHSYET(codetype);
 
 	if (infilename && infilename[0] == '-') infilename = NULL;
 	infile = opengraphfile(infilename,&codetype,FALSE,1);

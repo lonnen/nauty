@@ -1,4 +1,4 @@
-/* multig.c version 1.6; B D McKay, Aug 31, 2011 */
+/* multig.c version 1.7; B D McKay, May 17, 2014 */
 
 #define USAGE \
 "multig [-q] [-u|-T|-G|-A|-B] [-e#|-e#:#] \n" \
@@ -34,7 +34,7 @@
 #include "gtools.h"
 #include "naugroup.h"
 
-nauty_counter mg_nin,mg_nout;
+nauty_counter mg_nin,mg_nout,mg_skipped;
 FILE *outfile;
 
 #define MAXNV 128 
@@ -63,6 +63,14 @@ static long long count0,count1,count2,count3,count4,count5;
 static nauty_counter oldlo;
 #endif
 
+/* INPUTGRAPH feature
+ *
+ * If INPUTGRAPH is defined, it must expand as the name of a procedure
+ * with prototype like  int INPUTGRAPH(graph *g, int m, int n).
+ * This procedure will be called for each input graph before it is
+ * processed. The graph will be skipped if the value 0 is returned.
+ */
+
 /* If OUTPROC is defined at compile time, and -u is not used, the
  * procedure OUTPROC is called for each graph.  This must be linked
  * by the compiler.  The arguments are
@@ -79,9 +87,13 @@ static nauty_counter oldlo;
  * If SUMMARY is defined, it must expand as the name of a procedure
  * with prototype  void SUMMARY(void).  It is called at the end before
  * the normal summary (which can be suppressed with -q).  The numbers of
- * graphs read and digraphs produced are available in the global variables
+ * graphs read and multigraphs produced are available in the global variables
  * mg_nin and mg_nout (type nauty_counter).
  */
+
+#ifdef INPUTGRAPH
+extern int INPUTGRAPH(graph*,int,int);
+#endif
 
 #ifdef OUTPROC
 extern void OUTPROC(FILE*,int,int,unsigned long,int*,int*,int*);
@@ -93,7 +105,7 @@ extern void SUMMARY(void);
 
 /**************************************************************************/
 
-void
+static void
 writeautom(int *p, int n)
 /* Called by allgroup. */
 {
@@ -125,7 +137,7 @@ ismax(int *p, int n)
 
 /**************************************************************************/
 
-void
+static void
 testmax(int *p, int n, int *abort)
 /* Called by allgroup2. */
 {
@@ -147,7 +159,7 @@ testmax(int *p, int n, int *abort)
 
 /**************************************************************************/
 
-void
+static void
 printam(FILE *f, int n, int ne, int *ix)
 /* Write adjacency matrix formats */
 {
@@ -614,7 +626,7 @@ main(int argc, char *argv[])
     char msg[201];
     int msglen;
 
-    HELP;
+    HELP; PUTVERSION;
 
     nauty_check(WORDSIZE,1,1,NAUTYVERSIONID);
 
@@ -753,6 +765,8 @@ main(int argc, char *argv[])
     if (!infile) exit(1);
     if (!infilename) infilename = "stdin";
 
+    NODIGRAPHSYET(codetype);
+
     if (uswitch)
         outfile = NULL;
     else
@@ -769,7 +783,7 @@ main(int argc, char *argv[])
         }
     }
 
-    mg_nin = mg_nout = 0;
+    mg_nin = mg_nout = mg_skipped = 0;
 
     t = CPUTIME;
     while (TRUE)
@@ -779,6 +793,15 @@ main(int argc, char *argv[])
 #ifdef PATHCOUNTS
         oldlo = mg_nout;
 #endif
+#ifdef INPUTGRAPH
+        if (!INPUTGRAPH(g,m,n))
+        {
+           ++mg_skipped;
+           FREES(g);
+           continue;
+        }
+#endif
+ 
         if (rswitch)
         {
             minedges = ((long)n * (long)regdeg + 1) / 2;
@@ -808,10 +831,11 @@ main(int argc, char *argv[])
 
     if (!qswitch)
     {
-        fprintf(stderr,">Z ");
-        PRINT_COUNTER(stderr,mg_nin);
-        fprintf(stderr," graphs read from %s",infilename);
-        fprintf(stderr,"; ");
+        fprintf(stderr,">Z " COUNTER_FMT " graphs read from %s; ",
+	 	       mg_nin,infilename);
+#ifdef INPUTGRAPH
+        fprintf(stderr,COUNTER_FMT " skipped; ",mg_skipped);
+#endif
         PRINT_COUNTER(stderr,mg_nout);
         if (!uswitch)
             fprintf(stderr," multigraphs written to %s",outfilename);

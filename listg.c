@@ -1,4 +1,4 @@
-/* listg.c  version 1.6; B D McKay, March 2012 */
+/* listg.c  version 2.2; B D McKay, Aug 2016 */
 
 #define USAGE \
  "listg [-fp#:#l#o#Ftq] [-a|-A|-c|-d|-e|-H|-M|-s|-b|-G|-y|-Yxxx]" \
@@ -12,6 +12,7 @@
     -p#, -p#:#, -p#-# : only display one graph or a sequence of\n\
            graphs.  The first graph is number 1.  A second number\n\
            which is empty or zero means infinity.\n\
+	   This option won't work for incremental input.\n\
     -a  : write as adjacency matrix, not as list of adjacencies\n\
     -A  : same as -a with a space between entries\n\
     -l# : specify screen width limit (default 78, 0 means no limit)\n\
@@ -40,6 +41,8 @@
 /*************************************************************************
 
     June 26, 2007 : Fix error in putve() reported by Evan Heidtmann
+    March 3, 2013 : Allow incremental input
+    June 18, 2015 : Add digraph code
 
 *************************************************************************/
 
@@ -64,7 +67,7 @@ extern int labelorg;
 *                                                                            *
 *****************************************************************************/
 
-void
+static void
 putsetx(FILE *f, set *set1, int *curlenp, int linelength, int m,
         boolean compress, int start)
 {
@@ -121,7 +124,7 @@ putsetx(FILE *f, set *set1, int *curlenp, int linelength, int m,
 *                                                                            *
 *****************************************************************************/
 
-void
+static void
 putgraphx(FILE *f, graph *g, int linelength, boolean triang, int m, int n)
 {
     int i,curlen;
@@ -138,8 +141,9 @@ putgraphx(FILE *f, graph *g, int linelength, boolean triang, int m, int n)
 
 /***************************************************************************/
 
-void
-putedges(FILE *f, graph *g, boolean ptn, int linelength, int m, int n)
+static void
+putedges(FILE *f, graph *g, boolean ptn, int linelength, 
+         boolean digraph, int m, int n)
 /* Write list of edges, preceded by the numbers of vertices and
    edges and optionally by "1" if "ptn" is TRUE.  Use labelorg */
 {
@@ -150,7 +154,7 @@ putedges(FILE *f, graph *g, boolean ptn, int linelength, int m, int n)
     ne = 0;
     for (i = 0, pg = g; i < n; ++i, pg += m)
     {
-        for (j = i-1; (j = nextelement(pg,m,j)) >= 0;)
+        for (j = (digraph?-1:i-1); (j = nextelement(pg,m,j)) >= 0;)
             ++ne;
     }
 
@@ -160,9 +164,9 @@ putedges(FILE *f, graph *g, boolean ptn, int linelength, int m, int n)
     curlen = 0;
     for (i = 0, pg = g; i < n; ++i, pg += m)
     {
-        for (j = i-1; (j = nextelement(pg,m,j)) >= 0;)
+        for (j = (digraph ? -1 : i-1); (j = nextelement(pg,m,j)) >= 0;)
         { 
-            if (curlen > linelength - 10 && linelength > 0)
+            if (curlen > 0 && curlen > linelength - 10 && linelength > 0)
             {
                 fprintf(f,"\n");
                 curlen = 0;
@@ -184,7 +188,7 @@ putedges(FILE *f, graph *g, boolean ptn, int linelength, int m, int n)
 
 /***************************************************************************/
 
-void
+static void
 putHCP(FILE *f, graph *g, int m, int n)
 /* Write list of edges in HCP format.  labelorg is ignored */
 {
@@ -208,22 +212,23 @@ putHCP(FILE *f, graph *g, int m, int n)
 
 /***************************************************************************/
 
-void
-putcgraph(FILE *f, graph *g, int linelength, int m, int n)
+static void
+putcgraph(FILE *f, graph *g, int linelength, boolean digraph, int m, int n)
 /* write compressed form, using labelorg */
 {
-    int i,curlen;
+    int i,curlen,j0;
     int semicolons;
     char s[20];
     set *pg;
 
     curlen = itos(n,s)+2;
-    fprintf(f,";n%sg",s);
+    fprintf(f,";n%s%s",s,(digraph?"dg":"g"));
 
     semicolons = 0;
     for (i = 0, pg = g; i < n; ++i, pg += m)
     {
-        if (nextelement(pg,m,i-1) >= 0)
+	j0 = digraph ? -1: i-1;
+        if (nextelement(pg,m,j0) >= 0)
         {
             while (semicolons > 0)
             {
@@ -236,7 +241,7 @@ putcgraph(FILE *f, graph *g, int linelength, int m, int n)
                 ++curlen;
                 --semicolons;
             }
-            putsetx(f,pg,&curlen,linelength,m,FALSE,i-1);
+            putsetx(f,pg,&curlen,linelength,m,FALSE,j0);
             semicolons = 1;
         }
         else
@@ -248,7 +253,7 @@ putcgraph(FILE *f, graph *g, int linelength, int m, int n)
 /**************************************************************************/
 
 static void
-putve(FILE *f, unsigned long id, graph *g, int m, int n)
+putve(FILE *f, unsigned long id, graph *g, boolean digraph, int m, int n)
 /* Write the numbers of vertices and edges */
 {
     unsigned long ne;
@@ -258,7 +263,8 @@ putve(FILE *f, unsigned long id, graph *g, int m, int n)
     for (pg = g + m*(size_t)n; --pg >= g;)
         if ((x = *pg) != 0) ne += POPCOUNT(x);
 
-    fprintf(f,"Graph %lu has %d vertices and %lu edges.\n",id,n,ne/2);
+    fprintf(f,"Graph %lu has %d vertices and %lu edges.\n",id,n,
+            (digraph?ne:ne/2));
 }
 
 /**************************************************************************/
@@ -370,19 +376,22 @@ putam(FILE *f, graph *g, int linelength, boolean space,
 /**************************************************************************/
 
 static void
-putMagma(FILE *outfile, graph *g, int linelength, int m, int n, long index)
+putMagma(FILE *outfile, graph *g, int linelength, boolean digraph,
+         int m, int n, long index)
 {
-    int i,j;
+    int i,j,j0;
     set *gi;
     boolean first;
 
-    fprintf(outfile,"g%ld := Graph<%d|[\n",index,n);
+    fprintf(outfile,"g%ld := %s<%d|[\n",
+                 index,(digraph?"Digraph":"Graph"),n);
 
     for (i = 0, gi = (set*)g; i < n; ++i, gi += m)
     {
         fprintf(outfile,"{");
         first = TRUE;
-        for (j = i; (j = nextelement(gi,m,j)) >= 0; )
+        j0 = digraph ? -1 : i;
+        for (j = j0; (j = nextelement(gi,m,j)) >= 0; )
         {
             if (!first) fprintf(outfile,",");
             first = FALSE;
@@ -431,11 +440,11 @@ putMaple(FILE *outfile, graph *g, int linelength, int m, int n, long index)
 int
 main(int argc, char *argv[])
 {
-    graph *g;
+    graph *g,*gprev;
     int m,n,codetype;
-    int argnum,j;
+    int argnum,j,nprev,mprev;
     char *arg,sw;
-    boolean badargs,first;
+    boolean badargs,first,digraph;
     unsigned long maxin;
     long pval1,pval2;
     boolean fswitch,pswitch,cswitch,dswitch;
@@ -446,7 +455,7 @@ main(int argc, char *argv[])
     int linelength;
     char *infilename,*outfilename,*yarg;
 
-    HELP;
+    HELP; PUTVERSION;
 
     fswitch = pswitch = cswitch = dswitch = FALSE;
     aswitch = lswitch = oswitch = Fswitch = FALSE;
@@ -548,9 +557,13 @@ main(int argc, char *argv[])
     else if (pval1 < 1) maxin = pval2;
     else                maxin = pval2 - pval1 + 1;
     first = TRUE;
+    gprev = NULL;
+    nprev = mprev = 1;
+
     while (nin < maxin || maxin == NOLIMIT)
     {
-        if ((g = readg(infile,NULL,0,&m,&n)) == NULL) break;
+        if ((g = readgg_inc(infile,NULL,0,&m,&n,
+		  gprev,mprev,nprev,&digraph)) == NULL) break;
         ++nin;
 
         if (Gswitch)
@@ -564,7 +577,7 @@ main(int argc, char *argv[])
         if (Fswitch && nin > 1) fprintf(outfile,"\f");
 
         if (cswitch)
-            putcgraph(outfile,g,linelength,m,n);
+            putcgraph(outfile,g,linelength,digraph,m,n);
         else if (dswitch)
         {
             if (qswitch)
@@ -572,17 +585,18 @@ main(int argc, char *argv[])
             else
             {
                 fprintf(outfile,"\n!Graph %lu.\n",pval1+nin-1);
-                fprintf(outfile,"n=%d $=%d g\n",n,labelorg);
+                fprintf(outfile,"n=%d $=%d %sg\n",
+                                n,labelorg,(digraph?"d":""));
             }
             putgraphx(outfile,g,linelength,tswitch,m,n);
             if (!qswitch) fprintf(outfile,"$$\n");
         }
         else if (Mswitch)
-            putMagma(outfile,g,linelength,m,n,pval1+nin-1);
+            putMagma(outfile,g,linelength,digraph,m,n,pval1+nin-1);
         else if (Wswitch)
             putMaple(outfile,g,linelength,m,n,pval1+nin-1);
         else if (sswitch)
-            putve(outfile,pval1+nin-1,g,m,n);
+            putve(outfile,pval1+nin-1,g,digraph,m,n);
         else if (bswitch)
             putbliss(outfile,pval1+nin-1,g,m,n);
         else if (Gswitch)
@@ -602,11 +616,15 @@ main(int argc, char *argv[])
             if (aswitch|Aswitch)
                 putam(outfile,g,linelength,Aswitch,tswitch,m,n);
             else if (eswitch || Eswitch)
-                putedges(outfile,g,Eswitch,linelength,m,n);
+                putedges(outfile,g,Eswitch,linelength,digraph,m,n);
             else
                 putgraphx(outfile,g,linelength,tswitch,m,n);
         }
-        FREES(g);
+        if (gprev) FREES(gprev);
+        gprev = g;
+        nprev = n;
+        mprev = m;
+
         if (ferror(outfile)) gt_abort(">E listg output error\n");
     }
 

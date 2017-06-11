@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(dreadnaut.c)
+AC_INIT(nauty-h.in)
 
 AC_DEFUN([AX_TLS], [
   AC_MSG_CHECKING(for thread local storage (TLS) class)
@@ -65,9 +65,7 @@ CFLAGS=$user_cflags
 MORECFLAGS=""
 dnl  we need  AC_SYS_LARGEFILE and AC_FUNC_FSEEKO
 AC_SYS_LARGEFILE
-if test x"$ac_cv_sys_file_offset_bits" = xno ; then
-   ac_cv_sys_file_offset_bits=0
-fi
+AS_IF([test x"$ac_cv_sys_file_offset_bits" = xno],[ac_cv_sys_file_offset_bits=0],[])
 AC_SUBST(ac_cv_sys_file_offset_bits)
 
 if test x"$user_cflags" = x"" -o x"$user_cflags" = x-m32 ; then
@@ -77,7 +75,7 @@ if test x"$user_cflags" = x"" -o x"$user_cflags" = x-m32 ; then
         AC_TRY_CFLAGS([-O2],[CFLAGS="$CFLAGS -O2"],[CFLAGS="$CFLAGS -O"]);
     fi
   else
-    AC_TRY_CFLAGS([-O4],[CFLAGS="$CFLAGS -O4"]);
+    AC_TRY_CFLAGS([-O4 -Werror],[CFLAGS="$CFLAGS -O4"]);
     if test x"$ac_cv_try_cflags_ok" = x"no"; then
        AC_TRY_CFLAGS([-O3],[CFLAGS="$CFLAGS -O3"]);
        if test x"$ac_cv_try_cflags_ok" = x"no"; then
@@ -92,6 +90,7 @@ if test x"$user_cflags" = x"" -o x"$user_cflags" = x-m32 ; then
       gccver=0.0.0
   fi
 
+  is_powerpc=0
   case "$host" in
    *i686-apple-darwin*)
 	AC_TRY_CFLAGS([-fast],[CFLAGS="$MORECFLAGS -fast"]);;
@@ -99,11 +98,12 @@ if test x"$user_cflags" = x"" -o x"$user_cflags" = x-m32 ; then
 	;;
    *pentium4*)
 	AC_TRY_CFLAGS([-march=pentium4],[CFLAGS="$CFLAGS -march=pentium4"]);;
-   *pentium3*|*i686*|*athlon*|x86*)
+   *pentium3*|*i686*|*athlon*)
 	AC_TRY_CFLAGS([-march=i686],[CFLAGS="$CFLAGS -march=i686"]);;
    *pentium2*|*i586*)
 	AC_TRY_CFLAGS([-march=i586],[CFLAGS="$CFLAGS -march=i586"]);;
    *powerpc*)
+	is_powerpc=1
         machtype=`/usr/bin/machine 2>/dev/null || echo unknown`
         case "$machtype" in
 	  ppc740?)
@@ -212,16 +212,17 @@ AC_SUBST(has_math_inf)
 AC_MSG_RESULT($has_math_inf)
 
 dnl Checks for sizes of integer types; avoid 64-bit if necessary
-AC_CHECK_SIZEOF(int,4)
+AC_CHECK_SIZEOF([int],4)
 AC_SUBST(ac_cv_sizeof_int)
-AC_CHECK_SIZEOF(long,4)
+AC_CHECK_SIZEOF([long],4)
 AC_SUBST(ac_cv_sizeof_long)
-AC_CHECK_SIZEOF(long long,0)
+AC_CHECK_SIZEOF([long long],0)
 AC_SUBST(ac_cv_sizeof_long_long)
+AC_CHECK_SIZEOF([__int128_t],0)
+AC_SUBST(ac_cv_sizeof___int128_t)
 lok=0
 testprogs="dreadtest dreadtestS dreadtestS1 dreadtest4K"
 testprogs="$testprogs dreadtest1 dreadtestW dreadtestW1"
-AC_SUBST(MORECFLAGS)
 
 if test $ac_cv_sizeof_long_long -eq 8; then
    lok=1
@@ -241,8 +242,6 @@ CVT_YESNO(ac_cv_c_const,have_const)
 dnl Checks for library functions.
 AC_CHECK_FUNC(isatty,have_isatty=1,have_isatty=0)
 AC_SUBST(have_isatty)
-AC_CHECK_FUNC(times,have_times=1,have_times=0)
-AC_SUBST(have_times)
 AC_CHECK_FUNC(time,have_time=1,have_time=0)
 AC_SUBST(have_time)
 AC_CHECK_FUNC(gettimeofday,have_gettimeofday=1,have_gettimeofday=0)
@@ -273,6 +272,63 @@ AC_SUBST(have_sigaction)
 AC_CHECK_FUNC(sigprocmask,have_sigprocmask=1,have_sigprocmask=0)
 AC_SUBST(have_sigprocmask)
 
+dnl --check if popcnt instruction is available and desired
+dnl --disable-popcnt disables the use of gcc extensions __builtin_popcount*()
+
+AC_MSG_CHECKING(if popcnt instruction is available and requested)
+AC_ARG_ENABLE([popcnt],
+   AS_HELP_STRING([--disable-popcnt], [Disable popcnt extensions]), [popcntarg=given], [popcntarg=notgiven])
+AS_IF([test "x$popcntarg" = "xnotgiven" -o "x$enable_popcnt" = "xyes"], [
+have_hwpopcnt=0
+test -e /proc/cpuinfo && grep -i popcnt /proc/cpuinfo >/dev/null && have_hwpopcnt=1 
+test $have_hwpopcnt -eq 0 && sysctl machdep.cpu.features 2>/dev/null | grep -i popcnt >/dev/null && have_hwpopcnt=1
+test $have_hwpopcnt -eq 0 && isainfo -x -v 2>/dev/null | grep -i popc >/dev/null && have_hwpopcnt=1 
+],[
+have_hwpopcnt=0
+])
+test $is_powerpc -eq 1 && have_hwpopcnt=0
+AC_MSG_RESULT($have_hwpopcnt)
+AC_SUBST(have_hwpopcnt)
+
+SAVE_CFLAGS="$CFLAGS"
+have_popcnt=0
+have_popcntl=0
+have_popcntll=0
+have_mmpop32=0
+have_mmpop64=0
+
+AS_IF([test $have_hwpopcnt -eq 1], [
+AS_IF([test "$CC" = "icc"],[
+AC_MSG_CHECKING(if _mm_popcnt_u32() is supported)
+AC_LINK_IFELSE([AC_LANG_SOURCE([#include <nmmintrin.h>
+main(){unsigned int x; x = _mm_popcnt_u32(x);}])], [have_mmpop32=1], [have_mmpop32=0])
+AC_MSG_RESULT($have_mmpop32)
+AC_MSG_CHECKING(if _mm_popcnt_u64() is supported)
+AC_LINK_IFELSE([AC_LANG_SOURCE([#include <nmmintrin.h>
+main(){unsigned int x; x = _mm_popcnt_u64(x);}])], [have_mmpop64=1], [have_mmpop64=0])
+AC_MSG_RESULT($have_mmpop64)
+], [
+CFLAGS="$CFLAGS -mpopcnt"
+AC_MSG_CHECKING(if __builtin_popcount() is supported)
+AC_LINK_IFELSE([AC_LANG_SOURCE([main(){unsigned int x; x = __builtin_popcount(x);}])], [have_popcnt=1], [have_popcnt=0])
+AC_MSG_RESULT($have_popcnt)
+AC_MSG_CHECKING(if __builtin_popcountl() is supported)
+AC_LINK_IFELSE([AC_LANG_SOURCE([main(){unsigned long x; x = __builtin_popcountl(x);}])], [have_popcntl=1], [have_popcntl=0])
+AC_MSG_RESULT($have_popcntl)
+AC_MSG_CHECKING(if __builtin_popcountll() is supported)
+AC_LINK_IFELSE([AC_LANG_SOURCE([main(){unsigned long long x; x = __builtin_popcountll(x);}])], [have_popcntll=1], [have_popcntll=0])
+AC_MSG_RESULT($have_popcntll)
+AS_IF([test $have_popcnt -eq 1 -o $have_popcntl -eq 1 -o $have_popcntll -eq 1],
+   [MORECFLAGS="$MORECFLAGS -mpopcnt"],[])
+])],[])
+CFLAGS="$SAVE_CFLAGS"
+AC_SUBST(have_popcnt)
+AC_SUBST(have_popcntl)
+AC_SUBST(have_popcntll)
+AC_SUBST(have_mmpop32)
+AC_SUBST(have_mmpop64)
+AC_SUBST(MORECFLAGS)
+
 dnl --disable-clz disables the use of gcc extensions __builtin_clz*()
 
 AC_ARG_ENABLE([clz],
@@ -297,16 +353,12 @@ AC_SUBST(have_clzl)
 AC_SUBST(have_clzll)
 
 AC_CHECK_FUNC(pthread_create,have_pthread=1,have_pthread=0)
-if test $have_pthread -eq 1 ; then
-    threadlib=
-else
+AS_IF([test $have_pthread -eq 1],
+[threadlib=],
+[
     AC_CHECK_LIB(pthread,pthread_create,have_pthread=1,have_pthread=0)
-    if test $have_pthread -eq 1 ; then
-        threadlib=-lpthread
-    else
-        threadlib=
-    fi
-fi
+    AS_IF([test $have_pthread -eq 1],[threadlib=-lpthread],[threadlib=])
+])
 
 if test $have_pipe -eq 1 -a $have_wait -eq 1 -a $have_fork -eq 1 ; then
     shortg=1
@@ -355,6 +407,12 @@ AC_ARG_ENABLE([ansicontrols],
    AS_HELP_STRING([--enable-ansicontrols], [Enable ANSI terminal control sequences]))
 AS_IF([test "x$enable_ansicontrols" = "xyes"],[have_ansicontrols=1],[have_ansicontrols=0])
 AC_SUBST(have_ansicontrols)
+
+dnl --disable-interrupt disables SIGINT catching in dreadnaut
+AC_ARG_ENABLE([interrupt],
+   AS_HELP_STRING([--disable-interrupt], [Disable SIGINT catching in dreadnaut]),[intarg=given],[intarg=notgiven])
+AS_IF([test "x$intarg" = "xnotgiven" -o "x$enable_interrupt" = "xyes"], [allow_interrupt=1],[allow_interrupt=0])
+AC_SUBST(allow_interrupt)
 
 case "$build" in
    *cygwin*)

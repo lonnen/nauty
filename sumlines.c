@@ -1,5 +1,5 @@
 /* sumlines.c - total the numbers appearing in various input lines. */
-/* B. D. McKay.  Version of Aug 3, 2009. */
+/* B. D. McKay.  Version of June 18, 2016. */
 
 #ifndef GMP
 #define GMP 1  /* Non-zero if gmp multi-precise integers are allowed.
@@ -8,7 +8,7 @@
 #endif
 
 #define USAGE \
-"sumlines [-w] [-v] [-d] [-n] [-f fmtfile]...  file file file ..."
+"sumlines [-w|-W] [-v] [-d] [-n] [-f fmtfile]...  file file file ..."
 
 #define HELPTEXT \
 "   Sum lines matching specified formats.\n\
@@ -41,6 +41,7 @@
    -d don't read sumlines.fmt or ~/sumlines.fmt or $SUMLINES.FMT \n\
    -w suppresses warning messages about no matching lines or no\n\
       matching final lines.\n\
+   -W in addition, suppresses woarning about missing cases.\n\
    -n don't write the number of matching lines for each format.\n\
    -v produces a list of all the formats.\n"
 
@@ -67,6 +68,7 @@
    %m is like %d but allows arbitrarily large integers.
    %x is like %d but the maximum rather than the sum is accumulated.
    %p is like %d but the value is accumulated modulo some base.
+   %h is like %d:%d:%f taken as h:m:s with a single floating value.
 
    In the case of the COUNT flag, the program only reports the number of
    input lines which matched the format.
@@ -85,6 +87,7 @@
    %m  - matches a integer of unbounded size (if GMP!=0)
    %f  - matches a real number of the form ddddd.ddd or -ddddd.ddd
    %v  - same as %f but reports the average rather than the sum
+   %h  - similar to %d:%d:%f taken as h:m:s with a single floating value
    %sx - matches a string, where 'x' is any character. 
          If 'x' is not a space, match zero or more characters from the
              current position up but not including the first 'x'.
@@ -136,24 +139,30 @@ typedef long integer;
 #define DOUT "%ld"       /* Formats used to output %d/%x/%p,%f,%v quantities */
 #define FOUT "%.2f"
 #define VOUT "%.4f"
+#define HMSOUT1 "%ld:%ld:%ld"
+#define HMSOUT2 "%ld:%ld:%.2f"
 #elif defined(__sun) || defined(__GNUC__) || (__STDC_VERSION__ > 199900L)
 typedef long long integer;
 #define DOUT "%lld"   
 #define FOUT "%.2f"
 #define VOUT "%.4f"
+#define HMSOUT1 "%lld:%lld:%lld"
+#define HMSOUT2 "%lld:%lld:%.2f"
 #else
 typedef long long integer;
 #define DOUT "%Ld"   
 #define FOUT "%.2f"
 #define VOUT "%.4f"
+#define HMSOUT1 "%Ld:%Ld:%Ld"
+#define HMSOUT2 "%Ld:%Ld:%.2f"
 #endif
 
-static char *dout,*fout,*vout;
+static char *dout,*fout,*vout,*hmsout1,*hmsout2;
 static integer maxint;   /* set by find_maxint() */
 
 
 #define INCR(x,inc) \
-     {if ((x) > 0 && maxint-(x) < (inc) || (x) < 0 && (maxint)+(x) < -(inc)) \
+     {if (((x) > 0 && maxint-(x) < (inc)) || ((x) < 0 && (maxint)+(x) < -(inc))) \
            {fprintf(stderr,">E overflow with %%d or %%p format\n"); exit(1);} \
       x += (inc);}    /*  x += inc   with safety check */
 
@@ -184,11 +193,12 @@ typedef union
 #define V 4    /* Code for "real, take average" */
 #define P 5    /* Code for "integer, modulo some base" */
 #define LD 6   /* Code for "list of integer" */
+#define H 8    /* Code for "h:m:s" */
 
 #define MAXLINELEN 100000   /* Maximum input line size
                               (longer lines are broken in bits) */
-#define MAXVALUES 16  /* Maximum  total number of 
-                             %d,%x,%p,%m,%v,%f or %l items in a format */
+#define MAXVALUES 32  /* Maximum  total number of 
+                             %d,%x,%p,%m,%v,%f,%h or %l items in a format */
 
 #define MAXFORMATS 1000
 
@@ -254,7 +264,6 @@ numstrcmp(char *s1, char *s2)
    numbers are considered part of the numbers.  A number in one string
    is considered less than a non-number in the other string. */
 {
-    int c1,c2;
     char *a1,*a2;
 
     while (1)
@@ -321,6 +330,9 @@ writeline(char *outf, number *val, unsigned long count)
 /* Write an output line with the given format and values */
 {
     int i,n;
+    integer mins,nsecs;
+    double secs,hms;
+    boolean neg;
 
     n = 0;
 
@@ -337,6 +349,28 @@ writeline(char *outf, number *val, unsigned long count)
                 printf(fout,val[n++].f);
             else if (*outf == 'v')
                 printf(vout,val[n++].f/count);
+	    else if (*outf == 'h')
+	    {
+		if (val[n].f < 0)
+		{
+		    neg = TRUE;
+		    hms = -val[n].f;
+		}
+		else
+		{
+		    neg = FALSE;
+		    hms = val[n].f;
+		}
+		mins = hms/60.0;
+		secs = hms - 60*mins;
+		nsecs = secs;
+		++n;
+		if (neg) printf("-");
+		if (secs == nsecs)
+		    printf(hmsout1,mins/60,mins%60,nsecs);
+		else
+		    printf(hmsout2,mins/60,mins%60,secs);
+	    }
             else if (*outf == 'l')
             {
                 for (i = 0; i < val[n].l->nvals; ++i)
@@ -474,7 +508,7 @@ splay(countnode *p)
 /* Splay the node p.  It becomes the new root. */
 {
     countnode *q,*r,*s;
-    countnode *a,*b,*c,*d;
+    countnode *a,*b,*c;
     int code;
 
 #define LCHILD(x,y) {(x)->left = y; if (y) (y)->parent = x;}
@@ -539,7 +573,7 @@ add_one(countnode **to_root, char *fmt, integer pmod, int nval,
 /* Add one match to the node with the given format, creating it if it is new.
    The tree is then splayed to ensure good efficiency. */
 {
-    int i,j,cmp,len;
+    int i,j,cmp;
     countnode *p,*ppar,*new_node;
     integer w;
 
@@ -590,7 +624,7 @@ add_one(countnode **to_root, char *fmt, integer pmod, int nval,
                     mpz_add(*(p->total[i].m),*(p->total[i].m),*(val[i].m));
 #endif
                 else  
-                    p->total[i].f += val[i].f;   /* F and V */
+                    p->total[i].f += val[i].f;   /* F, V and H */
             ++p->count;
             splay(p);
             *to_root = p;
@@ -701,10 +735,10 @@ scanline(char *s, char *f, number *val, int *valtype,
 */
 {
     int n;                   /* Number of values assigned */
-    int fracdigits,digit;
-    boolean doass,neednonsp,neg,oflow,badgmp;
+    int digit;
+    boolean doass,neg,oflow,badgmp;
     integer ival;
-    double dval,digval;
+    double dval,digval,comval;
     char ends,*saves;
     static boolean gmp_warning = FALSE;
     integer *ilist;
@@ -976,6 +1010,49 @@ scanline(char *s, char *f, number *val, int *valtype,
                     *outf++ = '*';
                 ++f;
             }
+            else if (*f == 'h')
+            {
+                while (*s == ' ' || *s == '\t') ++s;
+
+                if (!isdigit(*s) && *s != '.' && *s != '-' && *s != '+' && *s != ':')
+                    return -1;
+                neg = (*s == '-');
+                if (*s == '-' || *s == '+') ++s;
+                dval = 0.0;
+		comval = 0.0;
+                while (isdigit(*s) || *s == ':')
+		{
+		    if (*s == ':')
+		    {
+			dval = dval*60.0 + comval;
+			comval = 0.0;
+			++s;
+		    }
+		    else
+		        comval = comval*10.0 + (*s++ - '0');
+		}
+                if (*s == '.')
+                {
+                    digval = 1.0;
+                    ++s;
+                    while (isdigit(*s))
+                    {
+                        digval /= 10.0;
+                        comval += (*s++ - '0') * digval;
+                    }
+                }
+		dval = dval*60.0 + comval;
+                if (doass)
+                {
+                    valtype[n] = H;
+                    val[n++].f = (neg ? -dval : dval);
+                    *outf++ = '%';
+                    *outf++ = *f;
+                }
+                else
+                    *outf++ = '*';
+                ++f;
+            }
             else if (*f == ' ')
             {
                 while (*s == ' ' || *s == '\t') ++s;
@@ -1017,26 +1094,6 @@ scanline(char *s, char *f, number *val, int *valtype,
 
 /****************************************************************************/
 
-#if 0
-find_maxint(void)
-{
-/* Put the maximum possible integer value into maxint. */
-/* Old version. */
-        integer x;
-
-        x = 1;
-        while (x > 0) x <<= 1;
-        x -= 1;
-
-        if (x <= 0)
-        {
-            fprintf(stderr,">E find_maxint() failed\n");
-            exit(1);
-        }
-
-        maxint = x;
-}
-#else
 void
 find_maxint(void)
 {
@@ -1056,7 +1113,6 @@ find_maxint(void)
 
     maxint = x;
 }
-#endif
 
 /****************************************************************************/
 
@@ -1258,16 +1314,20 @@ read_global_formats(int *numformatsp)
 /* Read formats from sumlines.fmt in home directory */
 {
     struct passwd *pwd;
-    char filename[257+12];
+    char *homedir;
+    char filename[4097];
 
-    if ((pwd = getpwuid(getuid())) < 0)
+    homedir = getenv("HOME");
+    if (homedir == NULL && (pwd = getpwuid(getuid())) != NULL)
+        homedir = pwd->pw_dir;
+
+    if (homedir == NULL)
     {
-        fprintf(stderr,">E Can't find home directory\n");
-        exit(1);
+        fprintf(stderr,">W Can't find home directory\n");
+        return;
     }
 
-    sprintf(filename,"%s/sumlines.fmt",pwd->pw_dir);
-
+    sprintf(filename,"%s/sumlines.fmt",homedir);
     read_formats(filename,numformatsp,FALSE);
 }
 
@@ -1368,7 +1428,7 @@ main(int argc, char *argv[])
     char *filename;
     FILE *infile;
     int numformats,firstarg,nulls;
-    boolean havefinal,nowarn,listformats,readfiles;
+    boolean havefinal,nowarn,noWarn,listformats,readfiles;
     integer seq;
     int order[MAXFORMATS];
     glob_t globlk,globlk_stdin,*pglob;
@@ -1381,7 +1441,7 @@ main(int argc, char *argv[])
 
     firstarg = 1;
     numformats = 0;
-    nowarn = FALSE;
+    nowarn = noWarn = FALSE;
     listformats = FALSE;
     readfiles = TRUE;
     printcounts = TRUE;
@@ -1394,6 +1454,8 @@ main(int argc, char *argv[])
     dout = DOUT;
     fout = FOUT;
     vout = VOUT;
+    hmsout1 = HMSOUT1;
+    hmsout2 = HMSOUT2;
 
     for (; firstarg < argc; ++firstarg)
     {
@@ -1412,6 +1474,8 @@ main(int argc, char *argv[])
                 read_formats(argv[firstarg],&numformats,TRUE);
             }
         }
+        else if (strcmp(argv[firstarg],"-W") == 0)
+            noWarn = TRUE;
         else if (strcmp(argv[firstarg],"-w") == 0)
             nowarn = TRUE;
         else if (strcmp(argv[firstarg],"-v") == 0)
@@ -1438,6 +1502,8 @@ main(int argc, char *argv[])
         il[i].nvals = 0;
         il[i].val = NULL;
     }
+
+    if (noWarn) nowarn = TRUE;
 
     if (readfiles) read_local_formats(&numformats);
     if (readfiles) read_env_formats(&numformats);
@@ -1523,7 +1589,7 @@ main(int argc, char *argv[])
                         total_position[i] += line_number;
                         add_one(&count_root[i],outf,format[i].pmod,nvals,
                              val,valtype,i,HAS(i,NUMERIC));
-                        if (matching_lines[i] > 1 && seq >= 0 
+                        if (!noWarn && matching_lines[i] > 1 && seq >= 0 
                                                && seq != lastseq[i]+1)
                         {
                             printf("WARNING: Sequence number");

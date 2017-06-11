@@ -1,8 +1,9 @@
 /* TODO:  insert new timings
  *        add chordal graphs 
+ *        add perfect graphs
  *        add complements for ordinary graphs */
 
-/* geng.c  version 2.7; B D McKay, Jan 2013. */
+/* geng.c  version 2.9; B D McKay, Jan 2016. */
 
 #define USAGE \
 "geng [-cCmtfbd#D#] [-uygsnh] [-lvq] \n\
@@ -176,7 +177,7 @@ PRUNE feature.
 SUMMARY
 
    If the C preprocessor variable SUMMARY is defined at compile time, the
-   procedure SUMMARY(bigint nout, double cpu) is called just before
+   procedure SUMMARY(nauty_counter nout, double cpu) is called just before
    the program exits.  The purpose is to allow reporting of statistics
    collected by PRUNE or OUTPROC.  The values nout and cpu are the output
    count and cpu time reported on the >Z line.
@@ -377,6 +378,8 @@ cost of a small increase in cpu time.
                              mixing of outputs in multi-process pipes.
               Sep 19, 2007 : Force -m for n > 28 regardless of word size.
               Nov 29, 2008 : Slightly improved connectivity testing.
+              Mar 3,  2015 : Improve maxdeg tweaking.
+              Jan 18, 2016 : Replace bigint by nauty_counter.
 
 **************************************************************************/
 
@@ -480,49 +483,9 @@ typedef struct
     xword xlim;           /* number of x-sets in xx[] */
 } leveldata;
 
-
-/* The program is so fast that the count of output graphs can quickly
-   overflow a 32-bit integer.  Therefore, we use two long values
-   for each count, with a ratio of 10^9 between them.  The macro
-   ADDBIG adds a small number to one of these big numbers.  
-   BIGTODOUBLE converts a big number to a double (approximately).
-   SUMBIGS adds a second big number into a first big number.
-   SUBBIGS subtracts one big number from a second.
-   PRINTBIG prints a big number in decimal.
-   ZEROBIG sets the value of a big number to 0.
-   ISZEROBIG tests if the value is 0.
-   SETBIG sets a big number to a value at most 10^9-1.
-   ISEQBIG tests if two big numbers are equal.
-   ISASBIG tests if a big number is at least as a value at most 10^9-1.
-*/
-
-typedef struct
-{
-    long hi,lo;
-} bigint;
-
-#define ZEROBIG(big) big.hi = big.lo = 0L
-#define ISZEROBIG(big) (big.lo == 0 && big.hi == 0)
-#define SETBIG(big,value) {big.hi = 0L; big.lo = (value);}
-#define ADDBIG(big,extra) if ((big.lo += (extra)) >= 1000000000L) \
-    { ++big.hi; big.lo -= 1000000000L;}
-#define PRINTBIG(file,big) if (big.hi == 0) \
- fprintf(file,"%ld",big.lo); else fprintf(file,"%ld%09ld",big.hi,big.lo)
-#define BIGTODOUBLE(big) (big.hi * 1000000000.0 + big.lo)
-#define SUMBIGS(big1,big2) {if ((big1.lo += big2.lo) >= 1000000000L) \
-    {big1.lo -= 1000000000L; big1.hi += big2.hi + 1L;} \
-    else big1.hi += big2.hi;}
-#define SUBBIGS(big1,big2) {if ((big1.lo -= big2.lo) < 0L) \
-    {big1.lo += 1000000000L; big1.hi -= big2.hi + 1L;} \
-    else big1.hi -= big2.hi;}
-/* Note: SUBBIGS must not allow the value to go negative.
-   SUMBIGS and SUBBIGS both permit big1 and big2 to be the same bigint. */
-#define ISEQBIG(big1,big2) (big1.lo == big2.lo && big1.hi == big2.hi)
-#define ISASBIG(big,value) (big.hi > 0 || big.lo >= (value))
-
 static leveldata data[MAXN];      /* data[n] is data for n -> n+1 */
-static bigint ecount[1+MAXN*(MAXN-1)/2];  /* counts by number of edges */
-static bigint nodes[MAXN];     /* nodes at each level */
+static nauty_counter ecount[1+MAXN*(MAXN-1)/2];  /* counts by number of edges */
+static nauty_counter nodes[MAXN];     /* nodes at each level */
 
 #ifdef INSTRUMENT
 static unsigned long rigidnodes[MAXN],fertilenodes[MAXN];
@@ -567,7 +530,7 @@ extern int PRUNE(graph*,int,int);
 extern int PREPRUNE(graph*,int,int);
 #endif
 #ifdef SUMMARY
-extern void SUMMARY(bigint,double);
+extern void SUMMARY(nauty_counter,double);
 #endif
 
 /************************************************************************/
@@ -1846,7 +1809,7 @@ spaextend(graph *g, int n, int *deg, int ne, boolean rigid,
     haschild = FALSE;
     if (rigid) ++rigidnodes[n];
 #endif
-    ADDBIG(nodes[n],1);
+    ++nodes[n];
 
     nx = n + 1;
     dmax = deg[n-1];
@@ -1894,7 +1857,7 @@ spaextend(graph *g, int n, int *deg, int ne, boolean rigid,
 #ifdef INSTRUMENT
                         haschild = TRUE;
 #endif
-                        ADDBIG(ecount[ne+xc],1);
+                        ++ecount[ne+xc];
                         (*outproc)(outfile,canonise ? gcan : gx,nx);
                     }
                 }
@@ -1934,7 +1897,7 @@ spaextend(graph *g, int n, int *deg, int ne, boolean rigid,
             }
         }
         if (n == splitlevel - 1 && n >= min_splitlevel
-                                && ISASBIG(nodes[n],multiplicity))
+                                && nodes[n] >= multiplicity)
             --splitlevel;
     }
 #ifdef INSTRUMENT
@@ -1963,7 +1926,7 @@ genextend(graph *g, int n, int *deg, int ne, boolean rigid, int xlb, int xub)
     haschild = FALSE;
     if (rigid) ++rigidnodes[n];
 #endif
-    ADDBIG(nodes[n],1);
+    ++nodes[n];
 
     nx = n + 1;
     dmax = deg[n-1];
@@ -2010,7 +1973,7 @@ genextend(graph *g, int n, int *deg, int ne, boolean rigid, int xlb, int xub)
 #ifdef INSTRUMENT
                         haschild = TRUE;
 #endif
-                        ADDBIG(ecount[ne+xc],1);
+                        ++ecount[ne+xc];
                         (*outproc)(outfile,canonise ? gcan : gx,nx);
                     }
                 }
@@ -2048,7 +2011,7 @@ genextend(graph *g, int n, int *deg, int ne, boolean rigid, int xlb, int xub)
         }
 
     if (n == splitlevel-1 && n >= min_splitlevel
-            && ISASBIG(nodes[n],multiplicity))
+            && nodes[n] >= multiplicity)
         --splitlevel;
 #ifdef INSTRUMENT
     if (haschild) ++fertilenodes[n];
@@ -2073,18 +2036,18 @@ main(int argc, char *argv[])
     int i,j,argnum;
     graph g[1];
     int tmaxe,deg[1];
-    bigint nout;
+    nauty_counter nout;
     int splitlevinc;
     xword testxword;
     double t1,t2;
     char msg[201];
 
-    HELP;
+    HELP; PUTVERSION;
     nauty_check(WORDSIZE,1,MAXN,NAUTYVERSIONID);
 
     testxword = (xword)(-1);
     if (MAXN > 32 || MAXN > WORDSIZE || MAXN > 8*sizeof(xword)
-        || (MAXN == 8*sizeof(xword) && testxword < 0))
+        || (MAXN == 8*sizeof(xword) && testxword < 1))
     {
         fprintf(stderr,"geng: incompatible MAXN, WORDSIZE, or xword\n");
         fprintf(stderr,"--See notes in program source\n");
@@ -2225,6 +2188,7 @@ PLUGIN_SWITCHES
     if (maxdeg > maxe) maxdeg = maxe;
     if (mindeg < 0) mindeg = 0;
     if (mine < (maxn*mindeg+1) / 2) mine = (maxn*mindeg+1) / 2;
+    if (maxdeg > 2*maxe - mindeg*(maxn-1)) maxdeg = 2*maxe - mindeg*(maxn-1);
 
     if (!badargs && (mine > maxe || maxe < 0 || maxdeg < 0))
     {
@@ -2270,8 +2234,8 @@ PLUGIN_SWITCHES
 PLUGIN_INIT
 #endif
 
-    for (i = 0; i <= maxe; ++i) ZEROBIG(ecount[i]);
-    for (i = 0; i < maxn; ++i)  ZEROBIG(nodes[i]);
+    for (i = 0; i <= maxe; ++i) ecount[i] = 0;
+    for (i = 0; i < maxn; ++i)  nodes[i] = 0;
 
     if (nooutput)
         outfile = stdout;
@@ -2307,28 +2271,13 @@ PLUGIN_INIT
             gt_abort(">E geng: -x value must be in [3*mod,10^9-1]\n");
     }
     else
+    {
         multiplicity = PRUNEMULT * mod;
+	if (multiplicity / PRUNEMULT != mod)
+	    gt_abort(">E geng: mod value is too large\n");
+    }
 
     if (!gotX) splitlevinc = 0;
-
-/*
-    if (!quiet)
-    {
-        fprintf(stderr,">A %s -%s%s%s%s%s%s",argv[0],
-            connec2      ? "C" : connec1 ? "c" : "",
-            trianglefree ? "t" : "",
-            squarefree   ? "f" : "",
-            bipartite    ? "b" : "",
-            canonise     ? "l" : "",
-            savemem      ? "m" : "");
-        if (mod > 1) fprintf(stderr,"X%dx%d",splitlevinc,multiplicity);
-        fprintf(stderr,"d%dD%d n=%d e=%d",mindeg,maxdeg,maxn,mine);
-        if (maxe > mine) fprintf(stderr,"-%d",maxe);
-        if (mod > 1) fprintf(stderr," class=%d/%d",res,mod);
-        fprintf(stderr,"\n");
-        fflush(stderr);
-    }
-*/
 
     if (!quiet)
     {
@@ -2380,7 +2329,7 @@ PLUGIN_INIT
     {
         if (res == 0)
         {
-            ADDBIG(ecount[0],1);
+            ++ecount[0];
             (*outproc)(outfile,g,1);
         }
     }
@@ -2441,17 +2390,16 @@ PLUGIN_INIT
     }
     t2 = CPUTIME;
 
-    ZEROBIG(nout);
-    for (i = 0; i <= maxe; ++i) SUMBIGS(nout,ecount[i]);
+    nout = 0;
+    for (i = 0; i <= maxe; ++i) nout += ecount[i];
 
     if (verbose)
     {
         for (i = 0; i <= maxe; ++i)
-            if (!ISZEROBIG(ecount[i]))
+            if (ecount[i] != 0)
             {
-                fprintf(stderr,">C ");
-                PRINTBIG(stderr,ecount[i]);
-                fprintf(stderr," graphs with %d edges\n",i);
+		fprintf(stderr,">C " COUNTER_FMT " graphs with %d edges\n",
+                     ecount[i],i);
             }
     }
 
@@ -2460,9 +2408,8 @@ PLUGIN_INIT
     for (i = 1; i < maxn; ++i)
     {
         fprintf(stderr," level %2d: \n",i);
-        PRINTBIG(stderr,nodes[i]);
-        fprintf(stderr," (%lu rigid, %lu fertile)\n",
-                        rigidnodes[i],fertilenodes[i]);
+        fprintf(stderr,COUNTER_FMT " (%lu rigid, %lu fertile)\n",
+                       nodes[i],rigidnodes[i],fertilenodes[i]);
     }
     fprintf(stderr,">A1 %lu calls to accept1, %lu nauty, %lu succeeded\n",
                     a1calls,a1nauty,a1succs);
@@ -2478,9 +2425,8 @@ PLUGIN_INIT
 
     if (!quiet)
     {
-        fprintf(stderr,">Z ");
-        PRINTBIG(stderr,nout);
-        fprintf(stderr," graphs generated in %3.2f sec\n",t2-t1);
+        fprintf(stderr,">Z " COUNTER_FMT " graphs generated in %3.2f sec\n",
+                nout,t2-t1);
     }
 
 #ifdef GENG_MAIN

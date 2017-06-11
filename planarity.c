@@ -6163,6 +6163,13 @@ embedg_mark_obstruction (
                      fprintf(stdout, "Minor E5\n");
                      )
         break;
+    case MINOR_A: 
+    case MINOR_B: 
+    case MINOR_C: 
+    case MINOR_D:
+    case MINOR_E:
+    case NBR_MINORS:
+        break;
     }
 
     mem_free(path_v);

@@ -1,7 +1,7 @@
-/* directg.c version 1.7; B D McKay, May 22, 2011 */
+/* directg.c version 2.0; B D McKay, June 19, 2015 */
 
 #define USAGE \
-  "directg [-q] [-u|-T|-G] [-V] [-o] [-f#] [-e#|-e#:#] [infile [outfile]]"
+  "directg [-q] [-u|-T|-G] [-V] [-o] [-f#] [-e#|-e#:#] [-s#/#] [infile [outfile]]"
 
 #define HELPTEXT \
 " Read undirected graphs and orient their edges in all possible ways.\n\
@@ -19,6 +19,9 @@
     -V  only output graphs with nontrivial groups (including exchange of\n\
           isolated vertices).  The -f option is respected.\n\
     -u  no output, just count them\n\
+    -s#/#  Make only a fraction of the orientations: The first integer is\n\
+            the part number (first is 0) and the second is the number of\n\
+            parts. Splitting is done per input graph independently.\n\
     -q  suppress auxiliary information\n"
 
 /* NOTE: Do not use nauty1.* for this program! */
@@ -28,7 +31,7 @@
 #include "gtools.h"
 #include "naugroup.h"
 
-nauty_counter dg_nin,gd_ngen,dg_nout; 
+nauty_counter dg_nin,dg_ngen,dg_nout,dg_skipped; 
 
 FILE *outfile;
 
@@ -48,7 +51,10 @@ static boolean lastrejok;
 static int rejectlevel;
 static unsigned long groupsize;
 static unsigned long newgroupsize;
-static boolean Gswitch,Vswitch,ntgroup,ntisol;
+static boolean Gswitch,Vswitch,ntgroup,ntisol,digraph6;
+
+static int splitlevel,splitmod,splitres,splitcount;
+static unsigned long splitcases;
 
 /* DEGPRUNE feature 
  *
@@ -66,6 +72,14 @@ static boolean Gswitch,Vswitch,ntgroup,ntisol;
  * Before any graph is output, DEGPRUNE will have been called for every
  * vertex, but it cannot be assumed that DEGPRUNE will be called in order
  * of vertex number.
+ */
+
+/* INPUTGRAPH feature
+ *
+ * If INPUTGRAPH is defined, it must expand as the name of a procedure
+ * with prototype like  int INPUTGRAPH(graph *g, int m, int n).
+ * This procedure will be called for each input graph before it is 
+ * processed. The graph will be skipped if the value 0 is returned.
  */
 
 /* PROCESS feature
@@ -89,6 +103,10 @@ static boolean Gswitch,Vswitch,ntgroup,ntisol;
 #ifdef DEGPRUNE
 static int lastlev[MAXNV],indeg[MAXNV],outdeg[MAXNV];
 extern int DEGPRUNE(int*,int*,int,int);
+#endif
+
+#ifdef INPUTGRAPH
+extern int INPUTGRAPH(graph*,int,int);
 #endif
 
 #ifdef PROCESS
@@ -183,13 +201,11 @@ trythisone(grouprec *group, int ne, int n)
 {
     int i,k;
     boolean accept;
-#ifdef PROCESS
     graph g[WORDSIZE];
-#endif
 
     first = TRUE;
 
-    ++gd_ngen;
+    ++dg_ngen;
     nix = ne;
     newgroupsize = 1;
     ntgroup = FALSE;
@@ -223,18 +239,34 @@ trythisone(grouprec *group, int ne, int n)
 
         ++dg_nout;
 
-#ifdef PROCESS
-	EMPTYSET(g,n);
-	for (i = -1; (i = nextelement(x,me,i)) >= 0; )
+	if (digraph6)
         {
-            k = i >> 1;
-            if (i & 1) g[v1[k]] |= bit[v0[k]];
-            else       g[v0[k]] |= bit[v1[k]];
-        }
+	    EMPTYSET(g,n);
+	    for (i = -1; (i = nextelement(x,me,i)) >= 0; )
+            {
+                k = i >> 1;
+                if (i & 1) g[v1[k]] |= bit[v0[k]];
+                else       g[v0[k]] |= bit[v1[k]];
+            }
+	}
+
+#ifdef PROCESS
+	if (!digraph6)
+        {
+	    EMPTYSET(g,n);
+	    for (i = -1; (i = nextelement(x,me,i)) >= 0; )
+            {
+                k = i >> 1;
+                if (i & 1) g[v1[k]] |= bit[v0[k]];
+                else       g[v0[k]] |= bit[v1[k]];
+            }
+	}
 	PROCESS(outfile,g,n);
 #endif
 
-        if (outfile)
+	if (digraph6)
+	    writed6(outfile,g,1,n);
+        else if (outfile)
         {
             fprintf(outfile,"%d %d",n,ne);
             if (Gswitch) fprintf(outfile," %lu",newgroupsize);
@@ -250,7 +282,7 @@ trythisone(grouprec *group, int ne, int n)
         return MAXNE+1;
     }
     else
-        return rejectlevel;
+        return (rejectlevel < splitlevel ? splitlevel : rejectlevel);
 }
 
 /**************************************************************************/
@@ -267,6 +299,16 @@ scan(int level, int ne, int minarcs, int maxarcs, int sofar,
     w0 = v0[level];
     w1 = v1[level];
 #endif
+
+    if (level == splitlevel)
+    {
+#ifdef SPLITTEST
+        ++splitcases;
+        return level-1;
+#endif
+        if (splitcount-- != 0) return level-1;
+        splitcount = splitmod - 1;
+    }
 
     if (level == ne)
     {
@@ -382,19 +424,27 @@ direct(graph *g, int nfixed, long minarcs, long maxarcs,
     if (me == 0) me = 1;
     EMPTYSET(x,me);
 
+    splitcount = splitres;
+    if (splitmod == 1)
+        splitlevel = -1;
+    else
+	splitlevel = (ne <= 34 ? ne/2 : 17);
+
 #ifdef DEGPRUNE
     for (i = 0; i < n; ++i) indeg[i] = outdeg[i] = 0;
 #endif
-    if (ne == 0 && minarcs <= 0 && (!Vswitch || ntisol))
+#ifndef SPLITTEST
+    if (ne == 0 && minarcs <= 0 && (!Vswitch || ntisol) && splitres == 0)
     {
 #ifdef DEGPRUNE
 	for (i = 0; i < n; ++i)
 	    if (DEGPRUNE(indeg,outdeg,i,n)) break;
 	if (i == n)
 #endif
-            trythisone(NULL,0,n);
+            trythisone(NULL,0,n);    // only in case 0
         return;
     }
+#endif
 
     if (oriented)
     {
@@ -483,21 +533,23 @@ main(int argc, char *argv[])
     int argnum,j,nfixed;
     char *arg,sw;
     boolean badargs;
-    boolean Tswitch,uswitch,eswitch,qswitch,oswitch,fswitch;
+    boolean Tswitch,uswitch,eswitch,qswitch,oswitch,fswitch,sswitch;
     long minarcs,maxarcs;
     double t;
     char *infilename,*outfilename;
     FILE *infile;
     char msg[201];
     int msglen;
+    long lsplitres,lsplitmod;
 
-    HELP;
+    HELP; PUTVERSION;
 
 /* Put 2 in the following to catch incorrect uses of naut*1. */
     nauty_check(WORDSIZE,2,2*WORDSIZE,NAUTYVERSIONID);
 
     Tswitch = Gswitch = fswitch = Vswitch = FALSE;
     uswitch = eswitch = oswitch = qswitch = FALSE;
+    sswitch = digraph6 = FALSE;
     infilename = outfilename = NULL;
 
     argnum = 0;
@@ -518,6 +570,7 @@ main(int argc, char *argv[])
                 else SWBOOLEAN('G',Gswitch)
                 else SWBOOLEAN('V',Vswitch)
                 else SWINT('f',fswitch,nfixed,"directg -f")
+		else SWRANGE('s',"/",sswitch,lsplitres,lsplitmod,"directg -s")
                 else SWRANGE('e',":-",eswitch,minarcs,maxarcs,"directg -e")
                 else badargs = TRUE;
             }
@@ -541,14 +594,28 @@ main(int argc, char *argv[])
     if ((Gswitch!=0) + (Tswitch!=0) + (uswitch!=0) >= 2)
         gt_abort(">E directg: -G, -T and -u are incompatible\n");
 
-    if (!Tswitch && !Gswitch && !uswitch)
-        gt_abort(
-          ">E directg: digraph6 output is unimplemented; use -T or -G\n");
+    digraph6 = !(Gswitch || Tswitch || uswitch);
 
     if (!eswitch)
     {
         minarcs = 0;
         maxarcs = NOLIMIT;
+    }
+    if (sswitch)
+    {
+	splitmod = lsplitmod;
+	splitres = lsplitres;
+    }
+    else
+    {
+	splitmod = 1;
+	splitres = 0;
+    }
+    splitcases = 0;
+    if (sswitch && (splitmod < 1 || splitres < 0 || splitres >= splitmod))
+    {
+        fprintf(stderr,">E -s#/# requires 0 <= res < mod\n");
+        exit(1);
     }
 
     if (!fswitch) nfixed = 0;
@@ -557,13 +624,14 @@ main(int argc, char *argv[])
     {
         msg[0] = '\0';
         CATMSG0(">A directg");
-        if (eswitch || oswitch || uswitch || fswitch) CATMSG0(" -");
+        if (sswitch || eswitch || oswitch || uswitch || fswitch) CATMSG0(" -");
         if (oswitch) CATMSG0("o");
         if (uswitch) CATMSG0("u");
         if (Tswitch) CATMSG0("T");
         if (Gswitch) CATMSG0("G");
         if (Vswitch) CATMSG0("V");
         if (fswitch) CATMSG1("f%d",nfixed);
+	if (sswitch) CATMSG2("s%d/%d",splitres,splitmod);
         if (eswitch) CATMSG2("e%ld:%ld",minarcs,maxarcs);
         msglen = strlen(msg);
         if (argnum > 0) msglen += strlen(infilename);
@@ -607,13 +675,15 @@ main(int argc, char *argv[])
     }
 
     dg_nin = 0;
-    gd_ngen = 0;
+    dg_ngen = 0;
     dg_nout = 0;
+    dg_skipped = 0;
 
     t = CPUTIME;
     while (TRUE)
     {
         if ((g = readg(infile,NULL,0,&m,&n)) == NULL) break;
+        ++dg_nin;
 #ifdef PROCESS
 	if (m > 1)
 	{
@@ -621,7 +691,15 @@ main(int argc, char *argv[])
 	    exit(1);
 	}
 #endif
-        ++dg_nin;
+#ifdef INPUTGRAPH
+	if (!INPUTGRAPH(g,m,n))
+	{
+	   ++dg_skipped;
+	   FREES(g);
+	   continue;
+	}
+#endif
+
         direct(g,nfixed,minarcs,maxarcs,oswitch,m,n);
         if (!uswitch && ferror(outfile))
 	    gt_abort(">E directg output error\n");
@@ -633,22 +711,24 @@ main(int argc, char *argv[])
     SUMMARY();
 #endif
 
+#ifdef SPLITTEST
+    fprintf(stderr,">S %lu cases at level %d\n",splitcases,splitlevel);
+#else
     if (!qswitch)
     {
-        fprintf(stderr,">Z ");
-        PRINT_COUNTER(stderr,dg_nin);
-        fprintf(stderr," graphs read from %s",infilename);
-     /* fprintf(stderr,"; ");
-        PRINT_COUNTER(stderr,gd_ngen);
-        fprintf(stderr,"; %lu digraphs tested",gd_ngen); */
-        fprintf(stderr,"; ");
-        PRINT_COUNTER(stderr,dg_nout);
+        fprintf(stderr,">Z " COUNTER_FMT " graphs read from %s",
+                       dg_nin,infilename); 
+#ifdef INPUTGRAPH
+	fprintf(stderr,"; " COUNTER_FMT " skipped",dg_skipped);
+#endif
+        fprintf(stderr,"; " COUNTER_FMT ,dg_nout);
         if (!uswitch)
             fprintf(stderr," digraphs written to %s",outfilename);
         else
             fprintf(stderr," digraphs generated");
         fprintf(stderr,"; %.2f sec\n",t);
     }
+#endif
 
 #ifdef GROUPTEST
     fprintf(stderr,"Group test = %lld\n",totallab);

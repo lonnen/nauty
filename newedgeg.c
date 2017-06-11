@@ -135,7 +135,7 @@ main(int argc, char *argv[])
         char *arg,sw;
 	double t;
 
-	HELP;
+	HELP; PUTVERSION;
 
         infilename = outfilename = NULL;
 	dolabel = quiet = FALSE;
@@ -186,6 +186,8 @@ main(int argc, char *argv[])
 	infile = opengraphfile(infilename,&codetype,FALSE,1);
 	if (!infile) exit(1);
 	if (!infilename) infilename = "stdin";
+
+        NODIGRAPHSYET(codetype);
 
 	if (!outfilename || outfilename[0] == '-')
 	{

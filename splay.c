@@ -311,7 +311,7 @@ SPLAY_LOOKUP(SPLAYNODE **to_root  LOOKUP_ARGS)
 /* Do a look-up operation.  If found, return a pointer to the
    node containing it.  If not, return NULL. */
 {
-    int i,cmp;
+    int i,cmp;   /* i is available for COMPARE */
     SPLAYNODE *p;
 
     p = *to_root;

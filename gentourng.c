@@ -1,7 +1,7 @@
-/* gentourng.c  version 1.1; B D McKay, Nov 10, 2009. */
+/* gentourng.c  version 1.4; B D McKay, Jan 20, 2016 */
 
 #define USAGE \
-"gentourng [-cd#D#] [-ugs] [-lq] n [res/mod] [file]"
+"gentourng [-cd#D#] [-ugsz] [-lq] n [res/mod] [file]"
 
 #define HELPTEXT \
 " Generate all tournaments of a specified class.\n\
@@ -17,6 +17,7 @@
      -u    : do not output any graphs, just generate and count them\n\
      -g    : use graph6 output (lower triangle)\n\
      -s    : use sparse6 output (lower triangle)\n\
+     -z    : use digraph6 output\n\
      -h    : write a header (only with -g or -s)\n\
   Default output is upper triangle row-by-row in ascii\n\
 \n\
@@ -46,6 +47,7 @@
              -l    : canonically label output graphs
 
              -u    : do not output any graphs, just generate and count them
+             -z    : use digraph6 output
 	     -g    : use graph6 output
 	     -s    : use sparse6 output
 		For -g and -s, the lower triangle of the adjacency matrix
@@ -60,9 +62,10 @@
 Output formats.
 
   The output format is determined by the mutually exclusive switches
-  -u, -g and -s.  The default is ascii format.
+  -u, -z, -g and -s.  The default is ascii format.
 
   -u suppresses output of graphs completely.
+  -z uses digraph6 output.
 
   -s and -g specify sparse6 and graph6 format, defined elsewhere.
   In this case a header is also written if -h is present.
@@ -111,7 +114,7 @@ PRUNE feature.
 SUMMARY
 
    If the C preprocessor variable SUMMARY is defined at compile time, the
-   procedure SUMMARY(bigint nout, double cpu) is called just before
+   procedure SUMMARY(nauty_counter nout, double cpu) is called just before
    the program exits.  The purpose is to allow reporting of statistics
    collected by PRUNE or OUTPROC.  The values nout and cpu are the output
    count and cpu time reported on the >Z line.
@@ -187,6 +190,7 @@ static void (*outproc)(FILE*,graph*,int);
 static FILE *outfile;           /* file for output graphs */
 static int connec;              /* 1 for -c, 0 for not */
 boolean graph6;                 /* presence of -g */
+boolean digraph6;               /* presence of -z */
 boolean sparse6;                /* presence of -s */
 boolean nooutput;               /* presence of -u */
 boolean canonise;               /* presence of -l */
@@ -251,49 +255,9 @@ typedef struct
     xword *xorb;          /* min orbit representative */
 } leveldata;
 
-
-/* The program is so fast that the count of output graphs can quickly
-   overflow a 32-bit integer.  Therefore, we use two long values
-   for each count, with a ratio of 10^9 between them.  The macro
-   ADDBIG adds a small number to one of these big numbers.  
-   BIGTODOUBLE converts a big number to a double (approximately).
-   SUMBIGS adds a second big number into a first big number.
-   SUBBIGS subtracts one big number from a second.
-   PRINTBIG prints a big number in decimal.
-   ZEROBIG sets the value of a big number to 0.
-   ISZEROBIG tests if the value is 0.
-   SETBIG sets a big number to a value at most 10^9-1.
-   ISEQBIG tests if two big numbers are equal.
-   ISASBIG tests if a big number is at least as a value at most 10^9-1.
-*/
-
-typedef struct
-{
-    long hi,lo;
-} bigint;
-
-#define ZEROBIG(big) big.hi = big.lo = 0L
-#define ISZEROBIG(big) (big.lo == 0 && big.hi == 0)
-#define SETBIG(big,value) {big.hi = 0L; big.lo = (value);}
-#define ADDBIG(big,extra) if ((big.lo += (extra)) >= 1000000000L) \
-    { ++big.hi; big.lo -= 1000000000L;}
-#define PRINTBIG(file,big) if (big.hi == 0) \
- fprintf(file,"%ld",big.lo); else fprintf(file,"%ld%09ld",big.hi,big.lo)
-#define BIGTODOUBLE(big) (big.hi * 1000000000.0 + big.lo)
-#define SUMBIGS(big1,big2) {if ((big1.lo += big2.lo) >= 1000000000L) \
-    {big1.lo -= 1000000000L; big1.hi += big2.hi + 1L;} \
-    else big1.hi += big2.hi;}
-#define SUBBIGS(big1,big2) {if ((big1.lo -= big2.lo) < 0L) \
-    {big1.lo += 1000000000L; big1.hi -= big2.hi + 1L;} \
-    else big1.hi -= big2.hi;}
-/* Note: SUBBIGS must not allow the value to go negative.
-   SUMBIGS and SUBBIGS both permit big1 and big2 to be the same bigint. */
-#define ISEQBIG(big1,big2) (big1.lo == big2.lo && big1.hi == big2.hi)
-#define ISASBIG(big,value) (big.hi > 0 || big.lo >= (value))
-
 static leveldata data[MAXN];      /* data[n] is data for n -> n+1 */
-static bigint nodes[MAXN];     /* nodes at each level */
-static bigint nout;
+static nauty_counter nodes[MAXN];     /* nodes at each level */
+static nauty_counter nout;
 
 #ifdef INSTRUMENT
 static unsigned long rigidnodes[MAXN],fertilenodes[MAXN];
@@ -315,7 +279,7 @@ extern int PRUNE(graph*,int,int);
 extern int PREPRUNE(graph*,int,int);
 #endif
 #ifdef SUMMARY
-extern void SUMMARY(bigint,double);
+extern void SUMMARY(nauty_counter,double);
 #endif
 
 /************************************************************************/
@@ -356,6 +320,15 @@ writes6x(FILE *f, graph *g, int n)
 /* write graph g (n vertices) to file f in sparse6 format */
 {
 	writes6(f,g,1,n);
+}
+
+/************************************************************************/
+
+void
+writed6x(FILE *f, graph *g, int n)
+/* write graph g (n vertices) to file f in digraph6 format */
+{
+	writed6(f,g,1,n);
 }
 
 /***********************************************************************/
@@ -1065,7 +1038,7 @@ genextend(graph *g, int n, int *deg, boolean rigid)
         if (rigid) ++rigidnodes[n];
 #endif
         nx = n + 1;
-        ADDBIG(nodes[n],1);
+        ++nodes[n];
 
 	if (regular && nx == maxn)
 	{
@@ -1082,7 +1055,7 @@ genextend(graph *g, int n, int *deg, boolean rigid)
 #ifdef INSTRUMENT
                     haschild = TRUE;
 #endif
-		    ADDBIG(nout,1);
+		    ++nout;
                     (*outproc)(outfile,canonise ? gcan : gx,nx);
 		}
             }
@@ -1148,7 +1121,7 @@ genextend(graph *g, int n, int *deg, boolean rigid)
 #ifdef INSTRUMENT
                             haschild = TRUE;
 #endif
-			    ADDBIG(nout,1);
+			    ++nout;
                             (*outproc)(outfile,canonise ? gcan : gx,nx);
 			}
                     }
@@ -1191,7 +1164,7 @@ genextend(graph *g, int n, int *deg, boolean rigid)
 	}
 
         if (n == splitlevel-1 && n >= min_splitlevel
-                && ISASBIG(nodes[n],multiplicity))
+                && nodes[n] >= multiplicity)
             --splitlevel;
 #ifdef INSTRUMENT
         if (haschild) ++fertilenodes[n];
@@ -1216,24 +1189,23 @@ main(int argc, char *argv[])
         graph g[1];
         int deg[1];
 	int splitlevinc;
-	xword testxword;
         double t1,t2;
 	char msg[201];
 
-	HELP;
+	HELP; PUTVERSION;
 	nauty_check(WORDSIZE,1,MAXN,NAUTYVERSIONID);
 
-	testxword = (xword)(-1);
-	if (MAXN > 32 || MAXN > WORDSIZE || MAXN > 8*sizeof(xword)
-	    || (MAXN == 8*sizeof(xword) && testxword < 0))
+	if (MAXN > 32 || MAXN > WORDSIZE || MAXN > 8*sizeof(xword))
 	{
-	    fprintf(stderr,"gentourng: incompatible MAXN, WORDSIZE, or xword\n");
+	    fprintf(stderr,
+		    "gentourng: incompatible MAXN, WORDSIZE, or xword\n");
 	    fprintf(stderr,"--See notes in program source\n");
 	    exit(1);
 	}
 
         badargs = FALSE;
 	graph6 = FALSE;
+	digraph6 = FALSE;
 	sparse6 = FALSE;
         nooutput = FALSE;
         canonise = FALSE;
@@ -1260,6 +1232,7 @@ main(int argc, char *argv[])
 		    sw = *arg++;
 		         SWBOOLEAN('u',nooutput)
 		    else SWBOOLEAN('g',graph6)
+		    else SWBOOLEAN('z',digraph6)
 		    else SWBOOLEAN('s',sparse6)
 		    else SWBOOLEAN('l',canonise)
 		    else SWBOOLEAN('h',header)
@@ -1348,8 +1321,8 @@ PLUGIN_SWITCHES
             exit(1);
         }
 
-	if ((graph6!=0) + (sparse6!=0) + (nooutput!=0) > 1)
-	    gt_abort(">E gentourng: -uyngs are incompatible\n");
+	if ((graph6!=0) + (sparse6!=0) + (digraph6!=0) + (nooutput!=0) > 1)
+	    gt_abort(">E gentourng: -ungzs are incompatible\n");
 
 #ifdef OUTPROC
         outproc = OUTPROC;
@@ -1357,6 +1330,7 @@ PLUGIN_SWITCHES
         if      (nooutput) outproc = nullwrite;
 	else if (sparse6)  outproc = writes6x;
         else if (graph6)   outproc = writeg6x;
+        else if (digraph6) outproc = writed6x;
 	else               outproc = write_ascii;
 #endif
 
@@ -1364,7 +1338,7 @@ PLUGIN_SWITCHES
 PLUGIN_INIT
 #endif
 
-	for (i = 0; i < maxn; ++i)  ZEROBIG(nodes[i]);
+	for (i = 0; i < maxn; ++i)  nodes[i] = 0;
 
 	if (nooutput)
 	    outfile = stdout;
@@ -1421,13 +1395,13 @@ PLUGIN_INIT
 	    }
 	}
 
-        ZEROBIG(nout);
+        nout = 0;
 
         if (maxn == 1)
         {
             if (res == 0)
             {
-                ADDBIG(nout,1);
+                ++nout;
                 (*outproc)(outfile,g,1);
             }
         }
@@ -1457,9 +1431,8 @@ PLUGIN_INIT
         for (i = 1; i < maxn; ++i)
 	{
             fprintf(stderr," level %2d: \n",i);
-	    PRINTBIG(stderr,nodes[i]);
-	    fprintf(stderr," (%lu rigid, %lu fertile)\n",
-                            rigidnodes[i],fertilenodes[i]);
+	    fprintf(stderr,COUNTER_FMT " (%lu rigid, %lu fertile)\n",
+                           nodes[i],rigidnodes[i],fertilenodes[i]);
 	}
         fprintf(stderr,">A1 %lu calls to accept1, %lu nauty, %lu succeeded\n",
                         a1calls,a1nauty,a1succs);
@@ -1475,9 +1448,8 @@ PLUGIN_INIT
 
 	if (!quiet)
 	{
-            fprintf(stderr,">Z ");
-	    PRINTBIG(stderr,nout);
-	    fprintf(stderr," graphs generated in %3.2f sec\n",t2-t1);
+            fprintf(stderr,">Z " COUNTER_FMT " graphs generated in %3.2f sec\n",
+                    nout,t2-t1);
 	}
 
 #ifdef GENG_MAIN

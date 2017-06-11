@@ -1,4 +1,4 @@
-/* shortg.c  version 2.2; B D McKay, Jan, 2011. */
+/* shortg.c  version 3.1; B D McKay, July 15 2016. */
 
 #define USAGE \
   "shortg [-qvkdu] [-i# -I#:# -K#] [-fxxx] [-S|-t] [-Tdir] [infile [outfile]]"
@@ -14,19 +14,22 @@
 \n\
     -s  force output to sparse6 format\n\
     -g  force output to graph6 format\n\
-        If neither -s or -g are given, the output format is\n\
-        determined by the header or, if there is none, by the\n\
-        format of the first input graph.\n\
+    -z  force output to digraph6 format\n\
+        If none of -s, -z, -g are given, the output format is determined\n\
+        by the header or, if there is none, by the format of the first\n\
+        input graph. The output format determines the sorting order too.\n\
+        As an exception, digraphs are always written in digraph6 format.\n\
     -S  Use sparse representation internally. Note that this changes the\n\
         canonical labelling. \n\
         Multiple edges are not supported.  One loop per vertex is ok.\n\
     -t  Use Traces.\n\
         Note that this changes the canonical labelling.\n\
-        Multiple edges and loops are not supported, nor invariants.\n\
+        Multiple edges,loops, directed edges are not supported,\n\
+        nor invariants.\n\
 \n\
     -k  output graphs have the same labelling and format as the inputs.\n\
         Without -k, output graphs have canonical labelling.\n\
-        -s and -g are ineffective if -k is given.\n\
+        -s, -g, -z are ineffective if -k is given.\n\
 \n\
     -v  write to stderr a list of which input graphs correspond to which\n\
         output graphs. The input and output graphs are both numbered\n\
@@ -73,23 +76,12 @@
 #include "gutils.h"
 #include "traces.h"
 
-#if (HAVE_PIPE==0) || (HAVE_WAIT==0)
- #error Forget it, either pipe() or wait() are not available
+#if (HAVE_PIPE==0) || (HAVE_WAIT==0) || (HAVE_FORK==0)
+ #error Forget it, either pipe(), wait() or fork() are not available
 #endif
 
-#if HAVE_SIGNAL_H
-#include <signal.h>
-#endif
-#if HAVE_SYS_WAIT_H
-#include <sys/wait.h>
-#else
 #if !HAVE_PID_T
 typedef int pid_t;
-#endif
-#endif
-
-#if !PIPE_DEC
-int pipe(int*);
 #endif
 
 #if !FDOPEN_DEC
@@ -118,25 +110,27 @@ static struct invarrec
 {
     void (*entrypoint)(graph*,int*,int*,int,int,int,int*,
                       int,boolean,int,int);
+    void (*entrypoint_sg)(graph*,int*,int*,int,int,int,int*,
+                      int,boolean,int,int);
     char *name;
 } invarproc[]
-    = {{NULL, "none"},
-       {twopaths,    "twopaths"},
-       {adjtriang,   "adjtriang"},
-       {triples,     "triples"},
-       {quadruples,  "quadruples"},
-       {celltrips,   "celltrips"},
-       {cellquads,   "cellquads"},
-       {cellquins,   "cellquins"},
-       {distances,   "distances"},
-       {indsets,     "indsets"},
-       {cliques,     "cliques"},
-       {cellcliq,    "cellcliq"},
-       {cellind,     "cellind"},
-       {adjacencies, "adjacencies"},
-       {cellfano,    "cellfano"},
-       {cellfano2,   "cellfano2"},
-       {refinvar,    "refinvar"}
+    = {{NULL, NULL, "none"},
+       {twopaths,   NULL, "twopaths"},
+       {adjtriang,  NULL, "adjtriang"},
+       {triples,    NULL, "triples"},
+       {quadruples, NULL, "quadruples"},
+       {celltrips,  NULL, "celltrips"},
+       {cellquads,  NULL, "cellquads"},
+       {cellquins,  NULL, "cellquins"},
+       {distances, distances_sg, "distances"},
+       {indsets,    NULL, "indsets"},
+       {cliques,    NULL, "cliques"},
+       {cellcliq,   NULL, "cellcliq"},
+       {cellind,    NULL, "cellind"},
+       {adjacencies, adjacencies_sg, "adjacencies"},
+       {cellfano,   NULL, "cellfano"},
+       {cellfano2,  NULL, "cellfano2"},
+       {refinvar,   NULL, "refinvar"}
       };
 
 #define NUMINVARS ((int)(sizeof(invarproc)/sizeof(struct invarrec)))
@@ -283,9 +277,10 @@ main(int argc, char *argv[])
     int status,loops;
     char *dstr,*cdstr,*prevdstr,*prevcdstr;
     char sw,*fmt;
-    boolean badargs,quiet,vswitch,dswitch,keep,format,uswitch;
+    boolean badargs,quiet,vswitch,dswitch,kswitch,format,uswitch;
     boolean iswitch,Iswitch,Kswitch,Tswitch;
-    boolean sswitch,gswitch,Sswitch,tswitch;
+    boolean zswitch,sswitch,gswitch,Sswitch,tswitch;
+    boolean digraph;
     nauty_counter numread,prevnumread,numwritten,classsize;
     int m,n,i,ii,argnum,line;
     int outcode,codetype;
@@ -307,13 +302,13 @@ main(int argc, char *argv[])
     DYNALLSTAT(int,orbits,orbits_sz);
 #endif
 
-    HELP;
+    HELP; PUTVERSION;
 
     nauty_check(WORDSIZE,1,1,NAUTYVERSIONID);
 
     infilename = outfilename = NULL;
-    dswitch = format = quiet = vswitch = keep = uswitch = FALSE;
-    sswitch = gswitch = Sswitch = Tswitch = FALSE;
+    dswitch = format = quiet = vswitch = kswitch = uswitch = FALSE;
+    zswitch = sswitch = gswitch = Sswitch = Tswitch = FALSE;
     tswitch = iswitch = Iswitch = Kswitch = FALSE;
     tempdir = NULL;
     inv = 0;
@@ -334,11 +329,12 @@ main(int argc, char *argv[])
                 sw = *arg++;
                      SWBOOLEAN('q',quiet)
                 else SWBOOLEAN('v',vswitch)
-                else SWBOOLEAN('k',keep)
+                else SWBOOLEAN('k',kswitch)
                 else SWBOOLEAN('d',dswitch)
                 else SWBOOLEAN('u',uswitch)
                 else SWBOOLEAN('s',sswitch)
                 else SWBOOLEAN('g',gswitch)
+                else SWBOOLEAN('z',zswitch)
                 else SWBOOLEAN('S',Sswitch)
                 else SWBOOLEAN('t',tswitch)
                 else SWINT('i',iswitch,inv,"shortg -i")
@@ -368,29 +364,25 @@ main(int argc, char *argv[])
         }
     }
 
+    if (iswitch && inv == 0) iswitch = FALSE;
+
     if (strcmp(SORTPROG,"no_sort_found") == 0)
         gt_abort(">E shortg: no sort program known\n");
-
     if (uswitch && outfilename != NULL)
         gt_abort(">E shortg: -u and outfile are incompatible\n");
-
-    if (sswitch && gswitch)
-        gt_abort(">E shortg: -s and -g are incompatible\n");
-
+    if ((sswitch!=0) + (gswitch!=0) + (zswitch!=0) + (kswitch!=0) > 1)
+        gt_abort(">E shortg: -sgzk are incompatible\n");
     if (Tswitch && *tempdir == '\0')
         gt_abort(">E shortg: -T needs a non-empty argument\n");
-
     if (tswitch && (format || Sswitch))
         gt_abort(">E shortg: -t is incompatible with -S and -f \n");
-
-    if (argnum == 1 && !uswitch) outfilename = infilename;
-
     if (iswitch && (inv > 16))
         gt_abort(">E shortg: -i value must be 0..16\n");
-    if (Sswitch && iswitch && (inv != 8))
-        gt_abort(">E shortg: only distances (-i8) is available with -S");
+    if (Sswitch && iswitch && invarproc[inv].entrypoint_sg == NULL)
+        gt_abort(
+          ">E shortg: that invariant is not available in sparse mode\n");
 
-    if (iswitch && inv == 0) iswitch = FALSE;
+    if (argnum == 1 && !uswitch) outfilename = infilename;
 
     if (iswitch)
     {
@@ -414,14 +406,15 @@ main(int argc, char *argv[])
     if (!quiet)
     {
         fprintf(stderr,">A shortg");
-        if (uswitch || keep || vswitch || format || Tswitch
+        if (uswitch || kswitch || vswitch || format || Tswitch || zswitch
                   || tswitch  || sswitch || gswitch || Sswitch || iswitch)
         fprintf(stderr," -");
         if (sswitch) fprintf(stderr,"s");
         if (gswitch) fprintf(stderr,"g");
+        if (zswitch) fprintf(stderr,"z");
         if (Sswitch) fprintf(stderr,"S");
         if (tswitch) fprintf(stderr,"t");
-        if (keep) fprintf(stderr,"k");
+        if (kswitch) fprintf(stderr,"k");
         if (vswitch) fprintf(stderr,"v");
         if (dswitch) fprintf(stderr,"d");
         if (uswitch) fprintf(stderr,"u");
@@ -443,6 +436,19 @@ main(int argc, char *argv[])
     if (!infile) exit(1);
     if (!infilename) infilename = "stdin";
 
+    if (gswitch)      outcode = GRAPH6;
+    else if (sswitch) outcode = SPARSE6;
+    else if (zswitch) outcode = DIGRAPH6;
+    else if ((codetype&GRAPH6))   outcode = GRAPH6;
+    else if ((codetype&SPARSE6))  outcode = SPARSE6;
+    else if ((codetype&DIGRAPH6)) outcode = DIGRAPH6;
+    else
+    {
+        outcode = GRAPH6;
+        fprintf(stderr,
+             ">W shortg doesn't handle this graph format, writing graph6.\n");
+    }
+
     if (sswitch || (!gswitch && (codetype&SPARSE6))) outcode = SPARSE6;
     else                                             outcode = GRAPH6;
 
@@ -453,9 +459,9 @@ main(int argc, char *argv[])
      /* begin sort in a subprocess */
 
     sortpid = beginsort(&sortin,&sortout,(Tswitch?tempdir:NULL),
-                                            dswitch||vswitch,keep);
+                                            dswitch||vswitch,kswitch);
 
-     /* feed input graphs, possibly relabelled, to sort process */
+  /* feed input graphs, possibly relabelled, to sort process */
 
     numread = 0;
 
@@ -465,7 +471,7 @@ main(int argc, char *argv[])
 	SG_INIT(sh);
         while (TRUE)
         {
-	    if (read_sg_loops(infile,&sg,&loops) == NULL) break;
+	    if (read_sgg_loops(infile,&sg,&loops,&digraph) == NULL) break;
             dstr = readg_line;
             ++numread;
 	    n = sg.nv;
@@ -475,13 +481,14 @@ main(int argc, char *argv[])
             m = SETWORDSNEEDED(n);
             SG_ALLOC(sh,n,sg.nde,"shortg");
             fcanonise_inv_sg(&sg,m,n,&sh,format?fmt:NULL,
-		iswitch?distances_sg:NULL,
-                mininvarlevel,maxinvarlevel,invararg,loops>0);
+		invarproc[inv].entrypoint_sg,
+                mininvarlevel,maxinvarlevel,invararg,loops>0||digraph);
             sortlists_sg(&sh);
-            if (outcode == SPARSE6) cdstr = sgtos6(&sh);
-            else                    cdstr = sgtog6(&sh);
+	    if (outcode == DIGRAPH6 || digraph) cdstr = sgtod6(&sh);
+            else if (outcode == SPARSE6)        cdstr = sgtos6(&sh);
+            else                                cdstr = sgtog6(&sh);
 
-            tosort(sortin,cdstr,keep ? dstr : NULL,vswitch ? numread : 0);
+            tosort(sortin,cdstr,kswitch ? dstr : NULL,vswitch ? numread : 0);
         }
     }
     else if (tswitch)
@@ -495,8 +502,9 @@ main(int argc, char *argv[])
 
         while (TRUE)
         {   
-            if (read_sg_loops(infile,&sg,&loops) == NULL) break;
-            if (loops > 0) gt_abort(">E shortg: Traces does not allow loops\n");
+            if (read_sgg_loops(infile,&sg,&loops,&digraph) == NULL) break;
+            if (loops > 0) gt_abort(
+               ">E shortg: Traces does not allow loops or directed edges\n");
             ++numread;
             n = sg.nv;
 #if MAXN
@@ -510,16 +518,17 @@ main(int argc, char *argv[])
             ptn[n-1] = 0;
             Traces(&sg,lab,ptn,orbits,&traces_opts,&traces_stats,&sh);
             sortlists_sg(&sh);
-            if (outcode == SPARSE6) cdstr = sgtos6(&sh);
-            else                    cdstr = sgtog6(&sh);
-	    tosort(sortin,cdstr,keep ? dstr : NULL,vswitch ? numread : 0);
+	    if (outcode == DIGRAPH6 || digraph) cdstr = sgtod6(&sh);
+            else if (outcode == SPARSE6)        cdstr = sgtos6(&sh);
+            else                                cdstr = sgtog6(&sh);
+	    tosort(sortin,cdstr,kswitch ? dstr : NULL,vswitch ? numread : 0);
         }
     }
     else
     {
         while (TRUE)
         {
-            if ((g = readg(infile,NULL,0,&m,&n)) == NULL) break;
+            if ((g = readgg(infile,NULL,0,&m,&n,&digraph)) == NULL) break;
             dstr = readg_line;
             ++numread;
             loops = loopcount(g,m,n);
@@ -528,11 +537,12 @@ main(int argc, char *argv[])
 #endif
             fcanonise_inv(g,m,n,h,format?fmt:NULL,
                 invarproc[inv].entrypoint,mininvarlevel,maxinvarlevel,
-                invararg, loops>0);
-            if (outcode == SPARSE6) cdstr = ntos6(h,m,n);
-            else                    cdstr = ntog6(h,m,n);
+                invararg, loops>0||digraph);
+	    if (outcode == DIGRAPH6 || digraph) cdstr = ntod6(h,m,n);
+            else if (outcode == SPARSE6)        cdstr = ntos6(h,m,n);
+            else                                cdstr = ntog6(h,m,n);
 
-            tosort(sortin,cdstr,keep ? dstr : NULL,vswitch ? numread : 0);
+            tosort(sortin,cdstr,kswitch ? dstr : NULL,vswitch ? numread : 0);
             FREES(g);
         }
     }
@@ -565,13 +575,8 @@ main(int argc, char *argv[])
     }
 
     if (!quiet)
-#if LONG_LONG_COUNTERS
-        fprintf(stderr,
-                ">Z %6llu graphs read from %s\n",numread,infilename);
-#else
-        fprintf(stderr,
-                ">Z %6lu graphs read from %s\n",numread,infilename);
-#endif
+        fprintf(stderr,">Z " COUNTER_FMT " graphs read from %s\n",
+                numread,infilename);
 
      /* collect output from sort process and write to output file */
 
@@ -592,15 +597,15 @@ main(int argc, char *argv[])
                     ++numwritten;
                     if (!uswitch)
                     {
-                        writeline(outfile,keep ? prevdstr : prevcdstr);
+                        writeline(outfile,kswitch ? prevdstr : prevcdstr);
                         writeline(outfile,"\n");
                     }
-                    if (keep)
+                    if (kswitch)
                     {
                         ++numwritten;
                         if (!uswitch)
                         {
-                            writeline(outfile,keep ? dstr : cdstr);
+                            writeline(outfile,kswitch ? dstr : cdstr);
                             writeline(outfile,"\n");
                         }
                     }
@@ -619,12 +624,12 @@ main(int argc, char *argv[])
                 }
                 else
                 {
-                    if (keep)
+                    if (kswitch)
                     {
                         ++numwritten;
                         if (!uswitch)
                         {
-                            writeline(outfile,keep ? dstr : cdstr);
+                            writeline(outfile,kswitch ? dstr : cdstr);
                             writeline(outfile,"\n");
                         }
                     }
@@ -647,7 +652,7 @@ main(int argc, char *argv[])
             if (prevcdstr) FREES(prevcdstr);
             prevcdstr = stringcopy(cdstr);
             if (prevdstr) FREES(prevdstr);
-            if (keep) prevdstr = stringcopy(dstr);
+            if (kswitch) prevdstr = stringcopy(dstr);
             prevnumread = numread;
         }
         if (vswitch) fprintf(stderr,"\n\n");
@@ -661,7 +666,7 @@ main(int argc, char *argv[])
                 ++numwritten;
                 if (!uswitch)
                 {
-                    writeline(outfile,keep ? dstr : cdstr);
+                    writeline(outfile,kswitch ? dstr : cdstr);
                     writeline(outfile,"\n");
                 }
                 fprintf(stderr,"\n");
@@ -698,7 +703,7 @@ main(int argc, char *argv[])
             ++numwritten;
             if (!uswitch)
             {
-                writeline(outfile,keep ? dstr : cdstr);
+                writeline(outfile,kswitch ? dstr : cdstr);
                 writeline(outfile,"\n");
             }
         }
@@ -709,19 +714,11 @@ main(int argc, char *argv[])
 
     if (!quiet)
     {
-#if LONG_LONG_COUNTERS
         if (uswitch)
-            fprintf(stderr,">Z %6llu graphs produced\n",numwritten);
+            fprintf(stderr,">Z " COUNTER_FMT " graphs produced\n",numwritten);
         else
             fprintf(stderr,
-                  ">Z %6llu graphs written to %s\n",numwritten,outfilename);
-#else
-        if (uswitch)
-            fprintf(stderr,">Z %6lu graphs produced\n",numwritten);
-        else
-            fprintf(stderr,
-                  ">Z %6lu graphs written to %s\n",numwritten,outfilename);
-#endif
+                  ">Z " COUNTER_FMT " graphs written to %s\n",numwritten,outfilename);
     }
 
      /* check that the subprocess exitted properly */

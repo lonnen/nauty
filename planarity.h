@@ -227,13 +227,12 @@ typedef struct graph_sparse_rep {
 	int                 nbr_e;   /* ALWAYS # directed edges */
 } t_graph_sparse_rep;
 
-/*
- * embed_graph_protos.h
- */
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+/*
+ * embed_graph_protos.h
+ */
 
 /* aproto: file embed_graph/sparseg_adjl_pred.c */
 extern boolean sparseg_adjl_dir_edge_exists (t_ver_sparse_rep *, int, t_adjl_sparse_rep *, int, int);

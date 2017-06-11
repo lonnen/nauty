@@ -1,18 +1,20 @@
-Description of graph6 and sparse6 encodings
--------------------------------------------
+Description of graph6, sparse6 and digraph6 encodings
+-----------------------------------------------------
 Brendan McKay, bdm@cs.anu.edu.au
-Updated May 2005.
+Updated Jun 2015.
 
 General principles:
 
   All numbers in this description are in decimal unless obviously 
   in binary.
 
-  Apart from the header, there is one object per line.  Apart from the
-  header and the end-of-line characters, all bytes have a value in the
-  range 63-126 (which are all printable ASCII characters).  A file of
-  objects is a text file, so whatever end-of-line convention is locally 
-  used is fine).
+  Apart from the header, there is one object per line. Apart from
+  the header, end-of-line characters, and the characters ":", ";"
+  and "&" which might start a line, all bytes have a value in the
+  range 63-126 (which are all printable ASCII characters). A file of
+  objects is a text file, so whatever end-of-line convention is
+  locally used is fine; however the C library input routines must
+  show the standard single-LF end of line to programs).
 
 Bit vectors:
 
@@ -92,12 +94,12 @@ File name extension:
 
 General structure:
 
-  Each graph occupies one text line.  Except for end-of-line characters,
-  each byte has the form 63+x, where 0 <= x <= 63.  The byte encodes
-  the six bits of x. 
+  Each graph occupies one text line. Except for the first character
+  and end-of-line characters, each byte has the form 63+x, where 
+  0 <= x <= 63. The byte encodes the six bits of x.
 
   The encoded graph consists of:
-	(1) The character ':'.   (This is present to distinguish
+        (1) The character ':'.   (This is present to distinguish
                                   the code from graph6 format.)
         (2) The number of vertices.
         (3) A list of edges.
@@ -121,7 +123,7 @@ List of edges:
   Each b[i] occupies 1 bit, and each x[i] occupies k bits.
   Pack them together in bigendian order, and pad up to a
   multiple of 6 as follows:
-  1. If (n,k) = (2,1), (4,2), (8,4) or (16,5), and vertex
+  1. If (n,k) = (2,1), (4,2), (8,3) or (16,4), and vertex
      n-2 has an edge but n-1 doesn't have an edge, and
      there are k+1 or more bits to pad, then pad with one
      0-bit and enough 1-bits to complete the multiple of 6.
@@ -162,3 +164,56 @@ Example:
     This is the b/x sequence  1,0 1,0 0,1 1,6 0,5 1,7.
     The 1,7 at the end is just padding.
     The remaining parts give the edges 0-1 0-2 1-2 5-6.
+
+
+Description of incremental sparse6 format.
+-----------------------------------------
+
+  This is an extension to sparse6 format that is very efficient if most
+  graphs in a file are similar to the previous graph.
+
+  Each graph occupies one text line. Except for the first character
+  and end-of-line characters, each byte has the form 63+x, where 
+  0 <= x <= 63. The byte encodes the six bits of x.
+
+  The encoded graph consists of:
+        (1) The character ';'.
+        (2) A list of edges.
+        (3) end-of-line
+
+  This cannot appear as the first graph in a file.  The number of vertices
+  is taken to be equal to the number of vertices in the previous graph.
+  The list of edges specifies the symmetric difference of this graph and
+  the previous graph.  It is encoded exactly the same as part (3) of
+  sparse6 format.
+
+  Loops are supported, but not multiple edges.
+
+
+Description of digraph6 format.
+------------------------------
+
+Data type:  
+   simple directed graphs (allowing loops) of order 0 to 68719476735.
+
+Optional Header: 
+   >>digraph6<<     (without end of line!)
+
+File name extension:
+   .d6
+
+One graph:
+   Suppose G has n vertices. Write the adjacency matrix of G
+   as a bit vector x of length n^2, row by row.
+
+   Then the graph is represented as '&' N(n) R(x).
+   The character '&' (decimal 38) appears as the first character.
+
+Example:
+   Suppose n=5 and G has edges 0->2, 0->4, 3->1 and 3->4.
+
+   x = 00101 00000 00000 01001 00000
+    
+   Then N(n) = 68 and
+   R(x) = R(00101 00000 00000 01001 00000) = 73  63  65  79  63.
+   So, the graph is  38 68 73  63  65  79  63.

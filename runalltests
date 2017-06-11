@@ -75,6 +75,17 @@ runonetest "./dreadtest4K -o As" nautest2.dre nautest2b.ans
 runonetest "./geng -ud1D7t 11" "" nautesta.ans
 runonetest "./geng -cd1f 10 | ./labelg -q" "" nautestb.ans
 runonetest "./genrang -r3 114 100 | ./countg --nedDr -q" "" nautestc.ans
+runonetest "./gentourng -q -z 8 | ./pickg -T3" "" nautestd.ans
+runonetest "./gentreeg -q -s 18 | ./countg -z6 --o" "" nauteste.ans
+runonetest "./geng -c -q 8 8 | ./directg -q -o | ./converseg -q | ./labelg -q" "" nautestf.ans
+runonetest "./genbg -q 4 3 10 | ./vcolg -m6 -T" "" nautestg.ans
 
 echo " "
-echo $fails tests failed
+
+if [ $fails -eq 0 ] ; then
+   echo "PASSED ALL TESTS"
+   exit 0
+else
+   echo "$fails TESTS FAILED"
+   exit 1
+fi

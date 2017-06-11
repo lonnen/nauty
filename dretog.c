@@ -1,4 +1,4 @@
-/* dretog.c  version 1.0; B D McKay, Jan 1997. */
+/* dretog.c  version 1.1; B D McKay, Jan 2013. */
 
 #define USAGE "dretog [-n#o#sghq] [infile [outfile]]"
 
@@ -9,9 +9,11 @@
          This can be overridden in the input.\n\
    -n#   Set the initial graph order to # (no default).  \n\
          This can be overridden in the input.\n\
-   -g    Use graph6 format (default).\n\
+   -g    Use graph6 format (default for undirected graphs).\n\
+   -z    Use digraph6 format (default for directed graphs).\n\
    -s    Use sparse6 format.\n\
-   -h    Write a header (according to -g or -s).\n\
+   -h    Write a header (according to -g, -z or -s).\n\
+   -q    Suppress auxiliary output.\n\
 \n\
   Input consists of a sequence of dreadnaut commands restricted to:\n\
 \n\
@@ -19,6 +21,7 @@
          The = is optional.\n\
    $=#   set label of first vertex (default 0)\n\
          The = is optional.\n\
+   d     indicate graph will be directed\n\
    $$    return origin to initial value (see -o#)\n\
    \"..\" and !..\\n   comments to ignore\n\
    g     specify graph to follow (as dreadnaut format)\n\
@@ -29,8 +32,6 @@
 
 #include "gtools.h"  /* which includes nauty.h and stdio.h */
 
-extern int labelorg;
-
 /**************************************************************************/
 /**************************************************************************/
 
@@ -40,8 +41,8 @@ main(int argc, char *argv[])
 	int m,n,c;
 	int argnum,j,outcode,initorg;
 	char *arg,sw;
-	boolean badargs,prompt;
-	boolean sswitch,gswitch,oswitch,nswitch,hswitch,qswitch;
+	boolean badargs,prompt,digraph;
+	boolean zswitch,sswitch,gswitch,oswitch,nswitch,hswitch,qswitch;
 	char *infilename,*outfilename;
 	FILE *infile,*outfile;
 	nauty_counter nin;
@@ -52,9 +53,9 @@ main(int argc, char *argv[])
 	DYNALLSTAT(graph,g,g_sz);
 #endif
 
-	HELP;
+	HELP; PUTVERSION;
 
-	sswitch = gswitch = oswitch = FALSE;
+	zswitch = sswitch = gswitch = oswitch = FALSE;
 	qswitch = nswitch = hswitch = FALSE;
 	infilename = outfilename = NULL;
 	initorg = 0;
@@ -73,6 +74,7 @@ main(int argc, char *argv[])
 		    sw = *arg++;
 		         SWBOOLEAN('s',sswitch)
 		    else SWBOOLEAN('g',gswitch)
+		    else SWBOOLEAN('z',zswitch)
 		    else SWBOOLEAN('h',hswitch)
 		    else SWBOOLEAN('q',qswitch)
 		    else SWINT('o',oswitch,initorg,">E dretog -o")
@@ -89,8 +91,8 @@ main(int argc, char *argv[])
 	    }
 	}
 
-	if (sswitch && gswitch) 
-            gt_abort(">E dretog: -s and -g are incompatible\n");
+	if ((sswitch!=0) + (gswitch!=0) + (zswitch!=0) > 1) 
+            gt_abort(">E dretog: -s, -z and -g are incompatible\n");
 
 	if (labelorg < 0) gt_abort(">E dretog: negative origin forbidden\n");
 
@@ -123,13 +125,15 @@ main(int argc, char *argv[])
 	    gt_abort(NULL);
 	}
 
-	if (sswitch) outcode = SPARSE6;
-	else         outcode = GRAPH6;
+	if (sswitch)      outcode = SPARSE6;
+        else if (zswitch) outcode = DIGRAPH6;
+	else              outcode = GRAPH6;
 
 	if (hswitch)
 	{
-	    if (outcode == SPARSE6) writeline(outfile,SPARSE6_HEADER);
-	    else    		    writeline(outfile,GRAPH6_HEADER);
+	    if (outcode == SPARSE6)       writeline(outfile,SPARSE6_HEADER);
+	    else if (outcode == DIGRAPH6) writeline(outfile,DIGRAPH6_HEADER);
+	    else    		          writeline(outfile,GRAPH6_HEADER);
 	}
 
 #if HAVE_ISATTY
@@ -142,6 +146,7 @@ main(int argc, char *argv[])
 
 	labelorg = initorg;
 	nin = 0;
+        digraph = FALSE;
 
 	while (fscanf(infile,"%1s",s) == 1)
 	{
@@ -157,6 +162,8 @@ main(int argc, char *argv[])
 		if (n <= 0)
 		    gt_abort(">E dretog: n can't be <= 0\n");
 	    } 
+	    else if (s[0] == 'd')
+		digraph = TRUE;
 	    else if (s[0] == '"')
 	    {
 		while ((c = getc(infile)) != '"' && c != EOF) {}
@@ -167,7 +174,7 @@ main(int argc, char *argv[])
 	    }
 	    else if (s[0] == '$')
 	    {
-		if ((s[0] = getc(infile)) == '$')
+		if ((s[0] = (char)getc(infile)) == '$')
 		    labelorg = initorg;
 		else
 		{
@@ -192,9 +199,17 @@ main(int argc, char *argv[])
 		DYNALLOC2(graph,g,g_sz,n,m,"dretog");
 #endif
 		++nin;
-		readgraph(infile,g,FALSE,prompt,FALSE,78,m,n);
-		if (outcode == SPARSE6) writes6(outfile,g,m,n);
-		else                    writeg6(outfile,g,m,n);
+		readgraph(infile,g,digraph,prompt,FALSE,78,m,n);
+
+		if (outcode == DIGRAPH6)
+                    writed6(outfile,g,m,n);
+                else
+	        {
+		    if (digraph) fprintf(stderr,
+                           ">W writing digraph in undirected format\n");
+		    if (outcode == SPARSE6) writes6(outfile,g,m,n);
+		    else                    writeg6(outfile,g,m,n);
+		}
 	    }
 	    else if (s[0] == 'q')
 		exit(0);

@@ -1,10 +1,13 @@
 /* blisstog.c  version 1.0; B D McKay, Sep 2012. */
 
-#define USAGE "blisstog [infile]*"
+#define USAGE "blisstog [-n#:#] [infile]*"
 
 #define HELPTEXT \
 " Read files of graphs in Bliss (Dimacs) format and write\n\
-  them to stdout in sparse6 format.\n"
+  them to stdout in sparse6 format.\n\
+\n\
+  -n#:#  Specify a range of n values for output\n\
+  Input files with name *.gz are ungzipped\n"
 
 #define ZCAT "gunzip -c"  /* name of zcat command (might be "gunzip -c") */
 
@@ -133,15 +136,29 @@ int
 main(int argc, char *argv[])
 {
     FILE *infile;
-    int j;
+    int j,firstarg;
     SG_DECL(g);
     size_t flen;
     boolean ispipe;
+    int nmin,nmax;
     char zcmd[515];
 
-    HELP;
+    HELP; PUTVERSION;
 
-    if (argc == 1)
+    nmax = -1;
+    if (argc >= 2 && argv[1][0] == '-' && argv[1][1] == 'n')
+    {
+	if (sscanf(argv[1]+2,"%d:%d",&nmin,&nmax) == 2) {}
+        else if (sscanf(argv[1]+2,":%d",&nmax) == 1) { nmin = 1; }
+        else if (sscanf(argv[1]+2,"%d:",&nmin) == 1) { nmax = NAUTY_INFINITY; }
+        else  gt_abort(">E blisstog: bad -n switch\n");
+        
+	firstarg = 2;
+    }
+    else
+	firstarg = 1;
+
+    if (argc == firstarg)
     {
 	if (!readblissgraph(stdin,&g))
 	{
@@ -153,7 +170,7 @@ main(int argc, char *argv[])
     }
     else
     {
-        for (j = 1; j < argc; ++j)
+        for (j = firstarg; j < argc; ++j)
 	{
 	    flen = strlen(argv[j]);
             if (flen >= 3 && strcmp(argv[j]+flen-3,".gz") == 0)
@@ -183,8 +200,11 @@ main(int argc, char *argv[])
 	        fprintf(stderr,">E Bliss error in file %s\n",argv[j]);
 		gt_abort(NULL);
 	    }
-	    else
+	    else if (nmax < 0 || (g.nv >= nmin && g.nv <= nmax))
+            {
+		sortlists_sg(&g);
 	        writes6_sg(stdout,&g);
+	    }
 
 	    if (ispipe) pclose(infile); else fclose(infile);
         }

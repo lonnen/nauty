@@ -1,5 +1,5 @@
 /* naucompare - quick and dirty text file comparitor to compare
- * two dreadnaut outputs.
+ * two program outputs.
  */
 
 #include <stdio.h>
@@ -31,7 +31,13 @@ static char* special[] =   /* Make sure to use \n */
     ">Z %d graphs labelled from %s to %s in %*f sec.\n",
     "%d graphs altogether; cpu=%*f sec\n",
     "group time: %*f,%*f,%*f, order:%*f total:%*f "
-       "(Schreier fails: %d); exp_paths time:%*f; aut_check time:%*f\n"
+       "(Schreier fails: %d); exp_paths time:%*f; aut_check time:%*f\n",
+    "%d cell; code = %d; cpu time = %*f seconds\n",
+    "%d cells; code = %d; cpu time = %*f seconds\n",
+    ">Z %d graphs read from stdin; %d coloured graphs written to stdout; %*f sec\n",
+    ">Z %d graphs read from stdin; %d written to stdout; %*f sec\n",
+    "%d graphs altogether from %d read; cpu=%*f sec\n",
+    ">A %*s %s\n"
 };
 #define NUMSPECIALS (sizeof(special)/sizeof(*special))
 

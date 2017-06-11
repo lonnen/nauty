@@ -1,5 +1,5 @@
 1-12:2 
- 1 cell; code = 6f62; cpu time = 0.0000000 seconds
+ 1 cell; code = 1; cpu time = 0.0000000 seconds
 unit partition
 Gen #1: (1 12 11 10 9 8 7 6 5 4 3 2)
 Gen #2: (1 2)(3 12)(4 11)(5 10)(6 9)(7 8)

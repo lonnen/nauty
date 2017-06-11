@@ -140,7 +140,7 @@ main(int argc, char *argv[])
 	boolean badargs;
 	long pval1,pval2,maxin;
 
-	HELP;
+	HELP; PUTVERSION;
 
 	wswitch = pswitch = FALSE;
 	infilename = outfilename = NULL;

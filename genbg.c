@@ -1,4 +1,4 @@
-/* genbg.c : version 2.3; B D McKay, 16 Feb 2013. */
+/* genbg.c : version 2.4; B D McKay, 20 Jan 2016. */
 
 /* TODO: consider colour swaps */
 
@@ -23,7 +23,7 @@
   -L    : there is no vertex in the first class whose removal leaves\n\
           the vertices in the second class unreachable from each other\n\
   -Z#   : two vertices in the second class may have at most # common nbrs\n\
-  -A    : no vertex in the second class has a neighbourhood with is a\n\
+  -A    : no vertex in the second class has a neighbourhood whith is a\n\
           subset of another vertex in the second class\n\
   -D#   : specify an upper bound for the maximum degree\n\
           Example: -D6.  You can also give separate maxima for the\n\
@@ -88,7 +88,7 @@ PRUNE feature.
    subgraph formed by deleting n1+n2-1 has previously been passed by the
    pruning function.
 
-   Note that either PRUNE1 nor PRUNE2 are called with n2=0, even if that
+   Note that neither PRUNE1 nor PRUNE2 are called with n2=0, even if that
    is the output level.
 
    If -c is specified, the connectivity test has NOT been performed yet
@@ -113,6 +113,15 @@ OUTPROC feature.
    For backward compatibility, it is possible to instead define OUTPROC1 to
    be the name of a procedure with argument list  (FILE *f, graph *g, int n).
 
+SUMMARY
+
+   If the C preprocessor variable SUMMARY is defined at compile time, the
+   procedure SUMMARY(nauty_counter nout, double cpu) is called just before
+   the program exits.  The purpose is to allow reporting of statistics
+   collected by PRUNE or OUTPROC.  The values nout and cpu are the output
+   count and cpu time reported on the >Z line.
+   Output should be written to stderr.
+
 INSTRUMENT feature.
 
    If the C preprocessor variable INSTRUMENT is defined at compile time,
@@ -135,6 +144,7 @@ INSTRUMENT feature.
     8 Jan 2012 : add antichains -A suggested by Andrew Juell
    23 Jan 2013 : fix splitlevinc initialization
    16 Feb 2014 : add a missing call to PRUNE2
+   20 Jan 2016 : changed bigint to nauty_counter
 
 **************************************************************************/
 
@@ -151,6 +161,10 @@ INSTRUMENT feature.
 static void (*outproc)(FILE*,graph*,int,int);
 #ifdef OUTPROC
 extern void OUTPROC(FILE*,graph*,int,int);
+#endif
+
+#ifdef SUMMARY
+extern void SUMMARY(nauty_counter,double);
 #endif
 
 static FILE *outfile;           /* file for output graphs */
@@ -224,34 +238,10 @@ typedef struct
     int *xorb;           /* min orbit representative */
 } leveldata;
 
-typedef struct
-{
-    long hi,lo;
-} bigint;
-
-#define ZEROBIG(big) big.hi = big.lo = 0L
-#define ISZEROBIG(big) (big.lo == 0 && big.hi == 0)
-#define SETBIG(big,value) {big.hi = 0L; big.lo = (value);}
-#define ADDBIG(big,extra) if ((big.lo += (extra)) >= 1000000000L) \
-    { ++big.hi; big.lo -= 1000000000L;}
-#define PRINTBIG(file,big) if (big.hi == 0) \
- fprintf(file,"%ld",big.lo); else fprintf(file,"%ld%09ld",big.hi,big.lo)
-#define BIGTODOUBLE(big) (big.hi * 1000000000.0 + big.lo)
-#define SUMBIGS(big1,big2) {if ((big1.lo += big2.lo) >= 1000000000L) \
-    {big1.lo -= 1000000000L; big1.hi += big2.hi + 1L;} \
-    else big1.hi += big2.hi;}
-#define SUBBIGS(big1,big2) {if ((big1.lo -= big2.lo) < 0L) \
-    {big1.lo += 1000000000L; big1.hi -= big2.hi + 1L;} \
-    else big1.hi -= big2.hi;}
-/* Note: SUBBIGS must not allow the value to go negative.
-   SUMBIGS and SUBBIGS both permit big1 and big2 to be the same bigint. */
-#define ISEQBIG(big1,big2) (big1.lo == big2.lo && big1.hi == big2.hi)
-#define ISASBIG(big,value) (big.hi > 0 || big.lo >= (value))
-
 #define IFLE1BITS(ww)  if (!((ww)&((ww)-1)))
 
 static leveldata data[MAXN];      /* data[n] is data for n -> n+1 */
-static bigint ecount[1+MAXN*MAXN/4];  /* counts by number of edges */
+static nauty_counter ecount[1+MAXN*MAXN/4];  /* counts by number of edges */
 static int xstart[MAXN+1];  /* index into xset[] for each cardinality */
 static int *xset;           /* array of all x-sets in card order */
 static int *xcard;          /* cardinalities of all x-sets */
@@ -358,7 +348,7 @@ abcdefghijklmnopqrstuvwxyz!\"#$%&'()*-/:;<=>?@[\\]^_`{|}~";
     if (fputs(grestr,f) == EOF || ferror(f))
     {
         fprintf(stderr,">E genbg : error on writing file\n");
-        gt_abort("genbg");
+        gt_abort(NULL);
     }
 }
 
@@ -1310,7 +1300,7 @@ genextend(graph *g, int n2, int *deg, int ne, boolean rigid, int xlb, int xub)
             if (accept2(g,n2,x,gx,deg,xc > dmax))
                 if (!connec || isconnected(gx,n+1))
                 {
-                    ADDBIG(ecount[ne+xc],1);
+                    ++ecount[ne+xc];
 #ifdef INSTRUMENT
                     haschild = TRUE;
 #endif
@@ -1400,12 +1390,12 @@ main(int argc, char *argv[])
     int splitlevinc;
     graph g[MAXN1];
     int deg[MAXN1];
-    bigint nout;
+    nauty_counter nout;
     double t1,t2;
     char *outfilename;
     char msg[201];
 
-    HELP;
+    HELP; PUTVERSION;
     nauty_check(WORDSIZE,1,MAXN,NAUTYVERSIONID);
 
     if (MAXN > WORDSIZE || MAXN1 > 8*sizeof(int)-2)
@@ -1612,7 +1602,7 @@ PLUGIN_SWITCHES
 PLUGIN_INIT
 #endif
 
-    for (i = 0; i <= maxe; ++i) ZEROBIG(ecount[i]);
+    for (i = 0; i <= maxe; ++i) ecount[i] = 0;
 
     if (nooutput)
         outfile = stdout;
@@ -1679,7 +1669,7 @@ PLUGIN_INIT
     {
         if (res == 0)
         {
-            ADDBIG(ecount[0],1);
+            ++ecount[0];
             (*outproc)(outfile,g,n1,0);
         }
     }
@@ -1713,16 +1703,15 @@ PLUGIN_INIT
     }
     t2 = CPUTIME;
 
-    ZEROBIG(nout);
-    for (i = 0; i <= maxe; ++i) SUMBIGS(nout,ecount[i]);
+    nout = 0;
+    for (i = 0; i <= maxe; ++i) nout += ecount[i];
 
     if (verbose)
         for (i = 0; i <= maxe; ++i)
-            if (!ISZEROBIG(ecount[i]))
+            if (ecount[i] != 0)
             {
-                fprintf(stderr,">C ");
-                PRINTBIG(stderr,ecount[i]);
-                fprintf(stderr," graphs with %d edges\n",i);
+                fprintf(stderr,">C " COUNTER_FMT " graphs with %d edges\n",
+                     ecount[i],i);
             }
 
 #ifdef INSTRUMENT
@@ -1742,11 +1731,14 @@ PLUGIN_INIT
     fprintf(stderr,">Z %lu splitting cases at level %d; cpu=%3.2f sec\n",
             splitcases,nprune,t2-t1);
 #else
+#ifdef SUMMARY
+    SUMMARY(&nout,t2-t1);
+#endif
+
     if (!quiet)
     {
-        fprintf(stderr,">Z ");
-        PRINTBIG(stderr,nout);
-        fprintf(stderr," graphs generated in %3.2f sec\n",t2-t1);
+        fprintf(stderr,">Z " COUNTER_FMT " graphs generated in %3.2f sec\n",
+                nout,t2-t1);
     }
 #endif
 

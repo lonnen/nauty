@@ -80,7 +80,7 @@ cyclecount(graph *g, int m, int n)
 {
     if (m == 1) return cyclecount1(g,n);
 
-    gt_abort("cycle counting is only implemented for n <= WORDSIZE");
+    gt_abort(">E cycle counting is only implemented for n <= WORDSIZE\n");
     return 0;
 }
 
@@ -146,7 +146,8 @@ indcyclecount(graph *g, int m, int n)
 {
     if (m == 1) return indcyclecount1(g,n);
 
-    gt_abort("induced cycle counting is only implemented for n <= WORDSIZE");
+    gt_abort(
+      ">E induced cycle counting is only implemented for n <= WORDSIZE\n");
     return 0;
 }
 
@@ -204,6 +205,28 @@ numtriangles(graph *g, int m, int n)
 
     return total;
 }    
+
+/**************************************************************************/
+
+long
+numdirtriangles(graph *g, int m, int n)
+/* The number of directed triangles in g */
+{
+    long total;
+    int i,j,k;
+    set *gi,*gj;
+
+    total = 0;
+    for (i = 0, gi = g; i < n-2; ++i, gi += m)
+	for (j = i; (j = nextelement(gi,m,j)) >= 0;)
+	{
+	    gj = GRAPHROW(g,j,m);
+	    for (k = i; (k = nextelement(gj,m,k)) >= 0; )
+		if (k != j && ISELEMENT(GRAPHROW(g,k,m),i)) ++total;
+	}
+
+    return total;
+} 
 
 /**************************************************************************/
 
@@ -472,3 +495,64 @@ conncontent(graph *g, int m, int n)
 
     return v1 - v2;
 }
+
+boolean
+stronglyconnected(graph *g, int m, int n)
+/* test if digraph g is strongly connected */
+{
+    int sp,v,vc;
+    int numvis;
+    set *gv;
+#if MAXN
+    int num[MAXN],lowlink[MAXN],stack[MAXN];
+#else
+    DYNALLSTAT(int,num,num_sz);
+    DYNALLSTAT(int,lowlink,lowlink_sz);
+    DYNALLSTAT(int,stack,stack_sz);
+#endif
+
+#if !MAXN
+    DYNALLOC1(int,num,num_sz,n,"stronglyconnected");
+    DYNALLOC1(int,lowlink,lowlink_sz,n,"stronglyconnected");
+    DYNALLOC1(int,stack,stack_sz,n,"stronglyconnected");
+#endif
+
+    num[0] = 0;
+    for (v = 1; v < n; ++v) num[v] = -1;
+    lowlink[0] = 0;
+    numvis = 1;
+    sp = 0;
+    v = 0;
+    vc = -1;
+    gv = (set*)g;
+
+    for (;;)
+    {
+        vc = nextelement(gv,m,vc);
+        if (vc < 0)
+        {
+            if (sp == 0) break;
+            if (lowlink[v] == num[v])  return FALSE;
+            vc = v;
+            v = stack[--sp];
+            gv = GRAPHROW(g,v,m);
+            if (lowlink[vc] < lowlink[v]) lowlink[v] = lowlink[vc];
+        }
+        else if (num[vc] < 0)
+        {
+            stack[++sp] = vc;
+            v = vc;
+            gv = GRAPHROW(g,v,m);
+            vc = -1;
+            lowlink[v] = num[v] = numvis++;
+        }
+        else if (vc != v)
+        {
+            if (num[vc] < lowlink[v])  lowlink[v] = num[vc];
+        }
+    }
+
+    return numvis == n;
+}
+
+/**************************************************************************/

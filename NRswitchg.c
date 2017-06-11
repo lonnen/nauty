@@ -84,7 +84,7 @@ main(int argc, char *argv[])
 	DYNALLSTAT(graph,h,h_sz);
 #endif
 
-	HELP;
+	HELP; PUTVERSION;
 
         infilename = outfilename = NULL;
 	dolabel = quiet = FALSE;
