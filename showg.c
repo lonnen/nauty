@@ -1,4 +1,4 @@
-/* showg.c  version 1.6; B D McKay, September 2009.
+/* showg.c  version 1.7; B D McKay, September 2013.
    Formerly called readg.c.
  
    This is a stand-alone edition of listg.c that does not
@@ -42,6 +42,7 @@
 		don't cause a conflict.   June 16, 2006.
  Version 1.5: Use function prototypes.  Avoid errno.  Sep 19, 2007.
  Version 1.6: Very minor tweaks.  Hope you all have string.h. Sep 6, 2009.
+ Version 1.7: Make it work for n=0. Sep 18, 2013.
 */
 
 /*************************************************************************/
@@ -67,7 +68,7 @@ int errno = 0;
 #define ABORT(msg) {if (errno != 0) perror(msg); exit(1);}
 */
 
-extern long ftell(FILE*);
+/* extern long ftell(FILE*);   Should be in stdio.h  */
 
 #define BIAS6 63
 #define MAXBYTE 126
@@ -91,11 +92,11 @@ extern long ftell(FILE*);
 #define MAXARG 2000000000L
 #define NOLIMIT (MAXARG+1L)
 
-#define SWBOOLEAN(c,bool) if (sw==c) bool=TRUE;
-#define SWINT(c,bool,val,id) if (sw==c) \
-        {bool=TRUE;arg_int(&arg,&val,id);}
-#define SWRANGE(c,bool,val1,val2,id) if (sw==c) \
-	{bool=TRUE;arg_range(&arg,&val1,&val2,id);}
+#define SWBOOLEAN(c,boool) if (sw==c) boool=TRUE;
+#define SWINT(c,boool,val,id) if (sw==c) \
+        {boool=TRUE;arg_int(&arg,&val,id);}
+#define SWRANGE(c,boool,val1,val2,id) if (sw==c) \
+	{boool=TRUE;arg_range(&arg,&val1,&val2,id);}
 
 #define FREES free
 #define ALLOCS calloc
@@ -196,7 +197,7 @@ static long ogf_linelen;
 static void
 gt_abort(char *msg)     /* Write message and halt. */
 {
-	if (msg) fprintf(stderr,msg);
+	if (msg) fprintf(stderr,"%s",msg);
 	exit(1);
 }
 
@@ -509,7 +510,7 @@ stringtograph(char *s, graph *g, int m)
 {
 	char *p;
 	int n,i,j,k,v,x,nb;
-	long ii;
+	unsigned long ii;
 	set *gi,*gj;
 
 	n = graphsize(s);
@@ -520,8 +521,9 @@ stringtograph(char *s, graph *g, int m)
 	if (TIMESWORDSIZE(m) < n)
 	    gt_abort(">E stringtograph: impossible m value\n");
 
-	for (ii = (long)m*n; --ii >= 0;)
-	    g[ii] = 0;
+	if (n == 0) return;
+
+	for (ii = 0; ii < m*(unsigned long)n; ++ii) g[ii] = 0;
 
 	if (s[0] != ':')       /* graph6 format */
 	{
@@ -828,7 +830,7 @@ putsetx(FILE *f, set *set1, int *curlenp, int linelength, int m,
                 slen += 1 + itos(j2 + labelorg,&s[slen+1]);
             }
 
-            if (*curlenp + slen + 1 >= linelength)
+            if (*curlenp + slen + 1 >= linelength && linelength > 0)
             {
                 fprintf(f,"\n ");
                 *curlenp = 1;
@@ -896,7 +898,7 @@ putedges(FILE *f, graph *g, int linelength, int m, int n)
 	{
 	    for (j = i-1; (j = nextelement(pg,m,j)) >= 0;)
 	    { 
-		if (curlen > linelength - 10 && linelength > 0)
+		if (curlen > 0 && curlen > linelength - 10 && linelength > 0)
 		{
 		    fprintf(f,"\n");
 		    curlen = 0;
@@ -907,10 +909,10 @@ putedges(FILE *f, graph *g, int linelength, int m, int n)
 		    curlen += 2;
 		}
 		curlen += itos(i+labelorg,s);
-		fprintf(f,s);
+		fprintf(f,"%s",s);
 		fprintf(f," ");
 		curlen += 1 + itos(j+labelorg,s);
-		fprintf(f,s);
+		fprintf(f,"%s",s);
 	    }
 	}
 	fprintf(f,"\n");

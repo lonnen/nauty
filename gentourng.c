@@ -1,4 +1,4 @@
-/* gentourng.c  version 1.0; B D McKay, Nov 29, 2008. */
+/* gentourng.c  version 1.1; B D McKay, Nov 10, 2009. */
 
 #define USAGE \
 "gentourng [-cd#D#] [-ugs] [-lq] n [res/mod] [file]"
@@ -78,7 +78,7 @@ OUTPROC feature.
    and n is the number of vertices. Your procedure can be in a
    separate file so long as it is linked with gentourng. The global
    variables nooutput, and canonise (all type boolean) can be
-   used to test for the presence of the flags -u, -n, -y and -l,
+   used to test for the presence of the flags -u and -l,
    respectively. If -l is present, the group size and similar
    details can be found in the global variable nauty_stats.
 
@@ -384,7 +384,7 @@ isstrong(graph *g, int n)
 
         while (seen != allbits && (toexpand = (seen & ~expanded))) /* not == */
         {
-            i = FIRSTBIT(toexpand);
+            i = FIRSTBITNZ(toexpand);
             expanded |= bit[i];
             seen |= g[i];
         }
@@ -396,7 +396,7 @@ isstrong(graph *g, int n)
 
         while (seen != allbits && (toexpand = (seen & ~expanded))) /* not == */
         {
-            i = FIRSTBIT(toexpand);
+            i = FIRSTBITNZ(toexpand);
             expanded |= bit[i];
             seen |= (g[i] ^ allbits);
         }
@@ -477,7 +477,7 @@ makeleveldata(void)
 
             if (j != nxsets)
             {
-                fprintf(stderr,">E gentourng: j=%d mxsets=%u\n",
+                fprintf(stderr,">E gentourng: j=%u mxsets=%u\n",
                         j,(unsigned)nxsets);
                 exit(2);
             }
@@ -494,7 +494,7 @@ makeleveldata(void)
                     xw = xset[i];
                     cw = xcard[i];
                     for (j = i; xcard[j-h] > cw ||
-                                xcard[j-h] == cw && xset[j-h] > xw; )
+                                (xcard[j-h] == cw && xset[j-h] > xw); )
                     {
                         xset[j] = xset[j-h];
                         xcard[j] = xcard[j-h];
@@ -519,7 +519,7 @@ makeleveldata(void)
 /**************************************************************************/
 
 static void
-userautomproc(int count, permutation *p, int *orbits,
+userautomproc(int count, int *p, int *orbits,
               int numorbits, int stabvertex, int n)
 /* form orbits on powerset of VG
    called by nauty;  operates on data[n] */
@@ -576,7 +576,7 @@ userautomproc(int count, permutation *p, int *orbits,
 
 static void
 refinex(graph *g, int *lab, int *ptn, int level, int *numcells,
-     permutation *count, set *active, boolean goodret, int *code, int m, int n)
+     int *count, set *active, boolean goodret, int *code, int m, int n)
 {
         int i,c1,c2,labc1;
         setword x,lact;
@@ -735,7 +735,7 @@ accept1(graph *g, int n, xword x, graph *gx, int *deg, boolean *rigid)
 {
         int i;
         int lab[MAXN],ptn[MAXN],orbits[MAXN];
-        permutation count[MAXN];
+        int count[MAXN];
         graph h[MAXN];
         int nx,numcells,code;
         int i0,i1,degn;
@@ -867,7 +867,7 @@ accept2(graph *g, int n, xword x, graph *gx, int *deg, boolean nuniq)
         int degx[MAXN],invar[MAXN];
         setword vmax,gv,gxn;
         int qn,qv;
-        permutation count[MAXN];
+        int count[MAXN];
         int nx,numcells,code;
         int degn,i0,i1,j,j0,j1;
         set active[MAXM];
@@ -1138,7 +1138,7 @@ genextend(graph *g, int n, int *deg, boolean rigid)
 		if ((dcrit & x) != 0) continue;
 
                 if (accept2(g,n,x,gx,deg,
-                            xc < dmax || xc == dmax && (x & dlow) == 0))
+                            xc < dmax || (xc == dmax && (x & dlow) == 0)))
                     if (!connec || (subconnec && x != 0) || isstrong(gx,nx))
                     {
 #ifdef PRUNE

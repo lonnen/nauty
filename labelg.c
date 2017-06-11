@@ -1,6 +1,6 @@
-/* labelg.c version 1.3; B D McKay, July 2008 */
+/* labelg.c version 1.6; B D McKay, Jan 2011 */
 
-#define USAGE "labelg [-qsg] [-fxxx] [-S] [-i# -I#:# -K#] [infile [outfile]]"
+#define USAGE "labelg [-qsg] [-fxxx] [-S|-t] [-i# -I#:# -K#] [infile [outfile]]"
 
 #define HELPTEXT \
 " Canonically label a file of graphs.\n\
@@ -12,8 +12,10 @@
         format of the first input graph. Also see -S. \n\
     -S  Use sparse representation internally.\n\
          Note that this changes the canonical labelling.\n\
-         Only sparse6 output is supported in this case.\n\
          Multiple edges are not supported.  One loop per vertex is ok.\n\
+    -t  Use Traces.\n\
+         Note that this changes the canonical labelling.\n\
+         Multiple edges and loops are not supported, nor invariants.\n\
 \n\
     The output file will have a header if and only if the input file does.\n\
 \n\
@@ -32,7 +34,8 @@
     -i#  select an invariant (1 = twopaths, 2 = adjtriang(K), 3 = triples,\n\
         4 = quadruples, 5 = celltrips, 6 = cellquads, 7 = cellquins,\n\
         8 = distances(K), 9 = indsets(K), 10 = cliques(K), 11 = cellcliq(K),\n\
-       12 = cellind(K), 13 = adjacencies, 14 = cellfano, 15 = cellfano2)\n\
+       12 = cellind(K), 13 = adjacencies, 14 = cellfano, 15 = cellfano2,\n\
+       16 = refinvar(K))\n\
     -I#:#  select mininvarlevel and maxinvarlevel (default 1:1)\n\
     -K#   select invararg (default 3)\n\
 \n\
@@ -44,10 +47,11 @@
 #include "gtools.h"
 #include "nautinv.h"
 #include "gutils.h"
+#include "traces.h"
 
 static struct invarrec
 {
-    void (*entrypoint)(graph*,int*,int*,int,int,int,permutation*,
+    void (*entrypoint)(graph*,int*,int*,int,int,int,int*,
                       int,boolean,int,int);
     char *name;
 } invarproc[]
@@ -66,7 +70,9 @@ static struct invarrec
        {cellind,     "cellind"},
        {adjacencies, "adjacencies"},
        {cellfano,    "cellfano"},
-       {cellfano2,   "cellfano2"}};
+       {cellfano2,   "cellfano2"},
+       {refinvar,    "refinvar"}
+      };
 
 #define NUMINVARS ((int)(sizeof(invarproc)/sizeof(struct invarrec)))
 
@@ -87,7 +93,7 @@ main(int argc, char *argv[])
 	boolean badargs;
 	boolean sswitch,gswitch,qswitch,fswitch,Oswitch;
 	boolean iswitch,Iswitch,Kswitch,Mswitch,Sswitch;
-	boolean uswitch;
+	boolean uswitch,tswitch;
 	int inv,mininvarlevel,maxinvarlevel,invararg;
 	long minil,maxil;
 	double t;
@@ -95,10 +101,16 @@ main(int argc, char *argv[])
 	FILE *infile,*outfile;
 	nauty_counter nin;
 	int ii,secret,loops;
+	DEFAULTOPTIONS_TRACES(traces_opts);
+	TracesStats traces_stats;
 #if MAXN
 	graph h[MAXN*MAXM];
+	int lab[MAXN],ptn[MAXN],orbits[MAXN];
 #else
 	DYNALLSTAT(graph,h,h_sz);
+	DYNALLSTAT(int,lab,lab_sz);
+	DYNALLSTAT(int,ptn,ptn_sz);
+	DYNALLSTAT(int,orbits,orbits_sz);
 #endif
 
 	HELP;
@@ -108,7 +120,7 @@ main(int argc, char *argv[])
 	sswitch = gswitch = qswitch = FALSE;
 	fswitch = Oswitch = Mswitch = FALSE;
 	iswitch = Iswitch = Kswitch = FALSE;
-	uswitch = Sswitch = FALSE;
+	uswitch = Sswitch = tswitch = FALSE;
 	infilename = outfilename = NULL;
 	inv = 0;
 
@@ -129,6 +141,7 @@ main(int argc, char *argv[])
 		    else SWBOOLEAN('q',qswitch)
 		    else SWBOOLEAN('O',Oswitch)
 		    else SWBOOLEAN('S',Sswitch)
+		    else SWBOOLEAN('t',tswitch)
 		    else SWINT('i',iswitch,inv,"labelg -i")
 		    else SWINT('K',Kswitch,invararg,"labelg -K")
 		    else SWRANGE('k',":-",Iswitch,minil,maxil,"labelg -k")
@@ -155,10 +168,15 @@ main(int argc, char *argv[])
 	if (sswitch && gswitch) 
             gt_abort(">E labelg: -s and -g are incompatible\n");
 
-	if (!Sswitch && iswitch && (inv > 15))
-	    gt_abort(">E labelg: -i value must be 0..15\n");
+	if (tswitch && (fswitch || Sswitch))
+            gt_abort(">E labelg: -t is incompatible with -S and -f \n");
+
+	if (!Sswitch && iswitch && (inv > NUMINVARS))
+	    gt_abort(">E labelg: -i value must be 0..16\n");
 	if (Sswitch && iswitch && (inv != 8))
 	    gt_abort(">E labelg: only distances (-i8) is available with -S");
+	if (tswitch && iswitch)
+	    gt_abort(">E labelg: invariants are not available with -t");
 
 	if (iswitch && inv == 0) iswitch = FALSE;
 
@@ -186,11 +204,13 @@ main(int argc, char *argv[])
 	if (!qswitch)
 	{
 	    fprintf(stderr,">A labelg");
-	    if (sswitch || gswitch || fswitch || iswitch || Sswitch)
+	    if (sswitch || gswitch || fswitch || iswitch 
+			|| tswitch || Sswitch)
 		fprintf(stderr," -");
 	    if (sswitch) fprintf(stderr,"s");
 	    if (gswitch) fprintf(stderr,"g");
 	    if (Sswitch) fprintf(stderr,"S");
+	    if (tswitch) fprintf(stderr,"t");
 	    if (iswitch)
 		fprintf(stderr,"i=%s[%d:%d,%d]",invarproc[inv].name,
 		        mininvarlevel,maxinvarlevel,invararg);
@@ -219,7 +239,7 @@ main(int argc, char *argv[])
 
 	if (uswitch)
 	    outcode = 0;
-	else if (sswitch || Sswitch || !gswitch && (codetype&SPARSE6))
+	else if (sswitch || (!gswitch && (codetype&SPARSE6)))
 	    outcode = SPARSE6;
 	else 
 	    outcode = GRAPH6;
@@ -231,7 +251,6 @@ main(int argc, char *argv[])
 	    if (outcode == SPARSE6) writeline(outfile,SPARSE6_HEADER);
 	    else    		    writeline(outfile,GRAPH6_HEADER);
 	}
-
 
 	nin = 0;
 	orbtotal = 0;
@@ -255,8 +274,38 @@ main(int argc, char *argv[])
 	        orbtotal += gt_numorbits;
 	        unorbtotal += 1.0 / gt_numorbits;
 	        if (outcode == SPARSE6) writes6_sg(outfile,&sh);
-	        if (outcode == GRAPH6) 
-		    gt_abort(">E labelg: sparse graph6 output not available");
+	        else if (outcode == GRAPH6) writeg6_sg(outfile,&sh);
+	    }
+	}
+	else if (tswitch)
+	{
+	    SG_INIT(sg);
+	    SG_INIT(sh);
+	    traces_opts.getcanon = TRUE;
+	    traces_opts.writeautoms = FALSE;
+	    traces_opts.verbosity = 0;
+	    traces_opts.outfile = stdout;
+	    
+	    while (TRUE)
+	    {
+		if (read_sg_loops(infile,&sg,&loops) == NULL) break;
+		if (loops > 0) gt_abort(">E Traces does not allow loops\n");
+		++nin;
+		n = sg.nv;
+	        DYNALLOC1(int,lab,lab_sz,n,"traces@labelg");
+	        DYNALLOC1(int,ptn,ptn_sz,n,"traces@labelg");
+	        DYNALLOC1(int,orbits,orbits_sz,n,"traces@labelg");
+		SG_ALLOC(sh,n,sg.nde,"labelg");
+		for (ii = 0; ii < n; ++ii) { lab[ii] = ii; ptn[ii] = 1; }
+		ptn[n-1] = 0;
+		for (ii = 0; ii < secret; ++ii)
+		    Traces(&sg,lab,ptn,orbits,&traces_opts,&traces_stats,&sh);
+		sortlists_sg(&sh);
+	        orbtotal += gt_numorbits;
+	        unorbtotal += 1.0 / gt_numorbits;
+	        if (outcode == SPARSE6) writes6_sg(outfile,&sh);
+	        else if (outcode == GRAPH6) writeg6_sg(outfile,&sh);
+		SG_FREE(sh);
 	    }
 	}
 	else

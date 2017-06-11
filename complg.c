@@ -1,4 +1,4 @@
-/* complg.c  version 1.0; B D McKay, Jan 1997. */
+/* complg.c  version 1.1; B D McKay, Sep 2012. */
 
 #define USAGE "complg [-lrq] [infile [outfile]]"
 
@@ -56,7 +56,8 @@ main(int argc, char *argv[])
 	int j,m,n,argnum;
 	int codetype,outcode;
 	graph *g;
-	long nin,ned,ii;
+	long ii,ned;
+	nauty_counter nin;
         char *arg,sw;
 	static graph *gq;
 	double t;
@@ -188,8 +189,8 @@ main(int argc, char *argv[])
 	t = CPUTIME - t;
 
         if (!quiet)
-            fprintf(stderr,
-                    ">Z  %ld graphs converted from %s to %s in %3.2f sec.\n",
+            fprintf(stderr,">Z  " COUNTER_FMT 
+                    " graphs converted from %s to %s in %3.2f sec.\n",
                     nin,infilename,outfilename,t);
 
 	exit(0);

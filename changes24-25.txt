@@ -1,0 +1,122 @@
+
+Changes from nauty 2.4 to nauty 2.5
+-----------------------------------
+
+* Add Traces.  The main files are traces.h and traces.c, but
+  many changes were made to dreadnaut.c and nausparse.c also.
+
+* Allow thread-safe storage if requested by configure --enable-tls
+  and available.  This allows parallel running of nauty and Traces
+  in separate threads.
+
+* The makefile now creates static libraries like nauty.a in 
+  addition to object files like nauty.o.
+
+* Remove all use of types permutation, nvector, np2vector, shortish.
+  These are now int.
+
+* Add schreier.h, schreier.c and the optional use of the random
+  Schreier method in nauty.  These are also used in Traces, but
+  are not optional there.
+
+* Add large-file support to all programs, assuming it is available.
+  Now there is no longer a 4GB limit on files read or written on
+  32-bit systems.
+
+* Use gcc extensions like __builtin_clz() if available and not
+    disabled by configure --disable-clz.
+  Use FIRSTBITNZ instead of FIRSTBIT if the argument is certain
+    to be nonzero.
+
+* New macros defined in nauty.h:
+   COUNTER_FMT
+   PRINT_COUNTER
+   SETWORDSNEEDED
+   ADDONEARC
+   ADDONEEDGE
+   EMPTYGRAPH
+
+* The options structure has a new boolean field schreier.
+
+* New procedures:
+  densenauty()  in naugraph.c  - simplified dense graph interface
+  sparsenauty() in nausparse.c - simplified sparse graph interface
+  writegroupsize() in nautil.c - write two part group size
+  copy_sg() in nausparse.c     - make a copy of a sparse graph
+
+  densenauty() and sparsenauty() are now the recommended ways to
+  call nauty from a program.  See the sample programs in the package.
+
+* Use quicksort in place of shell sort in many places.  This is 
+  implemented in the file sorttemplates.c that can be used in any
+  applications.
+
+* Apply the const attribute more liberally across the code.
+
+* The sparsegraph fields nde and *v changed type from int to size_t.
+  This is to allow more than 2^31 edges on 64-bit hardware.
+
+* sparsegraph.h and sparsegraph.c:
+    Corrected definition of SG_DECL in sparsegraph.h. (The erroneous
+       definition would have worked but generated warnings.)
+    Added DEFAULTOPTIONS_SPARSEDIGRAPH.
+    Added comparelab_tr(), testcanlab_tr(), updatecan_tr() for Traces.
+
+* gtools.h and gtools.c:
+    Now gtools.h is made from gtools-h.in by configure.
+    Updated G6LEN() to work for larger graphs.
+    Use large-file functions fseeko(), ftello() if possible.
+
+* Most tools now use the random number generator in naurng.c rather
+  than that in rng.c.
+
+* gutils.h, gutil1.c and gutil2.c:
+    New procedures maxcliques(), indpathcount1(), indcyclecount1(),
+      indcyclecount().
+
+* Invariants:
+    Corrected getbigcells(), making a small change to invariants
+       celltrips, cellquins and refinvar.
+
+* dreadnaut:
+    Sparse nauty and Traces now incorported.
+    New commands: A, G, F, FF, sr, O, OO, P, PP, S, V
+    w command is now in units of 2*m.
+    Command-line can run commands using -o.
+    M command is extended; now applies to i as well as x.
+    Implement ANSI controls if requested.
+    File names for > and < can be given in "..." to allow spaces.
+ 
+* Updates to utilities:
+     listg:  add -b (Bliss format), -G (GRAPE format) and
+          -y/-Y (dotty format), -H (HCP format)
+     labelg: add -t (Traces) and -i16 (refinvar)
+     countg/pickg: add -m (vertices of min degree),
+         -M (vertices of max degree), -H (induced cycles),
+         -K (number of maximal independent sets)
+     genrang: add -t (tree)
+     genbg: add -A (antichain)
+        The makefile can also make genbgL which makes larger sizes
+     directg: add PROCESS feature
+     shortg: -S (use sparse nauty), -t (use traces), i16 (refinvar)
+
+* New utilities:
+     ranlabg: randomly relabel graphs
+     linegraphg: compute linegraphs
+     subdivideg: compute subdivision graphs
+     watercluster2: orient edges of graphs (by Gunnar Brinkmann)
+
+* Version 25r2 fixed a rare error in Traces
+  Version 25r3 fixed some problems in the configure script
+        (thanks to Daniel Grayson)
+  Versions 25r4 and 25r5 fixed other rare errors in Traces
+  Version 25r6 updated the configuration code.  Now it should work
+     in recent versions of Cygwin under Windows.
+  Version 25r7 fixed some boundary cases in Traces 
+        (thanks to Geoff Bailey, Shreedhar Hardikar, John Call, Alisa Maas), 
+        also a bug in planarg -p for n >= 65536.
+  Version 25r8 fixed g++ code in some header files, removed CPUDEFS
+        from dreadnaut.c and traces.c (already in gtools.h), and
+        increased workspace in densenauty() and sparsenauty().
+  Version 25r9 added a missing PRUNE2 call in genbg.c.  You didn't
+        meet this bug unless you wrote a plugin for genbg.c.

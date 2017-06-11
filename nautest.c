@@ -6,7 +6,7 @@ int
 main(int argc, char *argv[])
 {
 	int i,j,bad;
-	setword w;
+	setword w,ww;
 
 	printf("NAUTYVERSION=%s NAUTYVERSIONID=%d\n",
 		NAUTYVERSION,NAUTYVERSIONID);
@@ -15,10 +15,11 @@ main(int argc, char *argv[])
 	printf("sizes: short=%d int=%d long=%d double=%d\n",
 		(int)sizeof(short),(int)sizeof(int),(int)sizeof(long),
 		(int)sizeof(double));
-	printf("sizes: boolean=%d setword=%d shortish=%d\n",
-		(int)sizeof(boolean),(int)sizeof(setword),
-		(int)sizeof(shortish));
-#ifdef SETWORD_LONGLONG
+	printf("sizes: boolean=%d setword=%d\n",
+		(int)sizeof(boolean),(int)sizeof(setword));
+        printf("CLZ=%d,%d,%d\n",HAVE_CLZ,HAVE_CLZL,HAVE_CLZLL);
+
+#if SIZEOF_LONGLONG > 0
 	printf("sizeof(long long)=%d\n",sizeof(long long));
 #endif
 
@@ -27,7 +28,7 @@ main(int argc, char *argv[])
 	printf(" __STDC__");
 #endif
 #ifdef BIGNAUTY
-	printf(" BIGNAUTY");
+	printf(" BIGNAUTY(obsolete!)");
 #endif
 #ifdef SYS_UNIX
 	printf(" SYS_UNIX");
@@ -90,6 +91,12 @@ main(int argc, char *argv[])
 		printf("\n ***** FIRSTBIT(BITT) error %d *****\n\n",i);
 		++bad;
 	    }
+
+	if (FIRSTBIT((setword)0) != WORDSIZE)
+	{
+	    printf("\n ***** FIRSTBIT(0) error *****\n\n");
+	    ++bad;
+	}
 	
 	for (i = 0; i < WORDSIZE; ++i)
             if (POPCOUNT(BITT[i]) != 1)

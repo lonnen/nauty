@@ -44,7 +44,7 @@ main(int argc, char *argv[])
     boolean loop,unsymm,compl,triangle;
     char *infilename,*outfilename;
     FILE *infile,*outfile;
-    unsigned long nin;
+    nauty_counter nin;
     char s[10];
 #if MAXN
     graph g[MAXN*MAXM];
@@ -227,10 +227,11 @@ main(int argc, char *argv[])
             }
 
             if (loop) fprintf(stderr,
-                   ">E amtog: warning, loop in graph %lu\n",nin);
+                   ">E amtog: warning, loop in graph " COUNTER_FMT "\n",nin);
 
             if (unsymm) fprintf(stderr,
-                   ">E amtog: warning, graph %lu is unsymmetric\n",nin);
+                   ">E amtog: warning, graph "
+                          COUNTER_FMT " is unsymmetric\n",nin);
     
             if (outcode == SPARSE6) writes6(outfile,g,m,n);
             else                    writeg6(outfile,g,m,n);
@@ -247,7 +248,7 @@ main(int argc, char *argv[])
     }
 
     if (!qswitch)
-        fprintf(stderr,">Z  %lu graphs converted from %s to %s.\n",
+        fprintf(stderr,">Z  " COUNTER_FMT " graphs converted from %s to %s.\n",
                        nin,infilename,outfilename);
 
     exit(0);

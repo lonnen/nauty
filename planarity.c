@@ -517,8 +517,7 @@ sparseg_adjl_edges (t_ver_sparse_rep *V, int n, t_adjl_sparse_rep *A,
 #endif
 
     t_edge_sparse_rep *edges;
-    int               u, v, pos_e, *loops;
-    graph             *g;
+    int               v, pos_e, *loops;
 
     edges = (t_edge_sparse_rep *) mem_malloc(sizeof(t_edge_sparse_rep) * e);
     loops = (int *) mem_malloc(sizeof(int) * n);
@@ -898,8 +897,6 @@ sparseg_adjl_add_vertices (t_ver_sparse_rep **V, int n, int nmore)
       V is assumed to have length n 
     */
 {
-    int                  v;
-
     *V = (t_ver_sparse_rep *)
         mem_realloc(*V, sizeof(t_ver_sparse_rep) * (n + nmore));
 
@@ -960,7 +957,7 @@ sparseg_adjl_remove_vertex (t_ver_sparse_rep **V, int n,
     new_V = (t_ver_sparse_rep *)
         mem_malloc(sizeof(t_ver_sparse_rep) * (n - 1));
 
-    for (v, nv = 0; v < n; v++, nv++)
+    for (v = 0, nv = 0; v < n; v++, nv++)
     {
         if (v == w)
         {
@@ -1662,7 +1659,7 @@ embedg_VES_print_flipped_edges (t_ver_edge *embed_graph, int n, int edge_pos)
     }
 }
 
-
+#if 0
 int 
 embedg_VES_get_edge_from_ver (t_ver_edge *embed_graph, int n, int v)
     /*
@@ -1688,17 +1685,18 @@ embedg_VES_get_ver_from_edge (t_ver_edge *embed_graph, int n, int e)
 
     ASSERT(embedg_VES_is_edge(n, e));
 
-    in = embedg_VES_is_vertex(n, embed_graph[v].link[0])
-        || embedg_VES_is_virtual_vertex(n, embed_graph[v].link[0])
+    in = embedg_VES_is_vertex(n, embed_graph[e].link[0])    
+        || embedg_VES_is_virtual_vertex(n, embed_graph[e].link[0])
         ?
         0 : 1;
 
-    v = embed_graph[v].link[in];
+    v = embed_graph[e].link[in];
     ASSERT(embedg_VES_is_vertex(n, v)
            || embedg_VES_is_virtual_vertex(n, v));
 
     return v;
 }
+#endif
 
 int 
 embedg_VES_get_twin_edge (t_ver_edge *embed_graph, int n, int e)
@@ -2365,8 +2363,6 @@ embedg_dlcl_delete_rec (t_dlcl *l, t_dlcl *r)
       if r == l, set new head to right of old head
     */
 {
-    t_dlcl    *new_head;
-
     if (r == l)
     {
         return embedg_dlcl_delete_first(l);
@@ -3584,7 +3580,8 @@ embedg_merge_queue_print (t_merge_queue q)
 
     for (i = q.start; i < q.end; i++)
     {
-        fprintf(stdout, "%d:%d ", q.b[i++], q.b[i]);
+        fprintf(stdout, "%d:%d ", q.b[i], q.b[i+1]);
+	++i;
     }
     fprintf(stdout, "\n");
 }
@@ -6972,7 +6969,7 @@ embedg_VES_print_bigcomps (t_ver_edge *embed_graph, int n)
 /* aproto: header embed_graph_protos.h */
 
 /* aproto: beginstatic -- don't touch this!! */
-static embedg_init_insert_TE (t_ver_edge *, int, int *, t_dlcl *);
+static void embedg_init_insert_TE (t_ver_edge *, int, int *, t_dlcl *);
 /* aproto: endstatic -- don't touch this!! */
  
 #ifndef PLANAR_IN_MAGMA
@@ -7283,7 +7280,7 @@ embedg_planar_alg_init (
 }
 
 
-static 
+static void
 embedg_init_insert_TE (t_ver_edge *embed_graph, int n, int *edge_pos, t_dlcl *p)
     /*
       init and insert a tree edge in embed graph:

@@ -26,7 +26,7 @@
 
 #include "gtools.h"
 
-
+int
 main(int argc, char *argv[])
 {
         graph *g;
@@ -34,7 +34,7 @@ main(int argc, char *argv[])
 	char *infilename,*outfilename;
 	FILE *infile,*outfile;
 	int outcode;
-	long nin;
+	nauty_counter nin;
 	int argnum,j;
 	char *arg,sw;
 	boolean sswitch,fswitch,pswitch,qswitch,gswitch;
@@ -124,10 +124,10 @@ main(int argc, char *argv[])
 	    gt_abort(NULL);
 	}
 
-	if (sswitch || !gswitch && (codetype&SPARSE6)) outcode = SPARSE6;
-	else                                           outcode = GRAPH6;
+	if (sswitch || (!gswitch && (codetype&SPARSE6))) outcode = SPARSE6;
+	else                                             outcode = GRAPH6;
 
-	if (hswitch || !xswitch && (codetype&HAS_HEADER))
+	if (hswitch || (!xswitch && (codetype&HAS_HEADER)))
 	{
 	    if (outcode == SPARSE6) writeline(outfile,SPARSE6_HEADER);
 	    else    		    writeline(outfile,GRAPH6_HEADER);
@@ -149,7 +149,7 @@ main(int argc, char *argv[])
 	}
 
 	if (!qswitch) 
-	    fprintf(stderr,">Z  %ld graphs copied from %s to %s\n",
+	    fprintf(stderr,">Z  " COUNTER_FMT " graphs copied from %s to %s\n",
 		           nin,infilename,outfilename);
 
 	exit(0);

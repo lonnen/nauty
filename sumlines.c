@@ -3,8 +3,8 @@
 
 #ifndef GMP
 #define GMP 1  /* Non-zero if gmp multi-precise integers are allowed.
-		  In this case you need the GNU multi-precision library,
-		  available with -lgmp if it is installed. */
+                  In this case you need the GNU multi-precision library,
+                  available with -lgmp if it is installed. */
 #endif
 
 #define USAGE \
@@ -25,7 +25,7 @@
    (4) The file sumlines.fmt in the home directory (if it exists)\n\
    All these are read if they exist and the results concatenated.\n\
    Formats exactly matching earlier formats (except perhaps for flags)\n\
-	are not used.\n\
+        are not used.\n\
 \n\
    Each format occupies exactly two lines.  The first line gives a\n\
    list of flags (DEFAULT FINAL ERROR UNIQUE COUNT CONTINUE NUMERIC\n\
@@ -86,7 +86,7 @@
    %f  - matches a real number of the form ddddd.ddd or -ddddd.ddd
    %v  - same as %f but reports the average rather than the sum
    %sx - matches a string, where 'x' is any character. 
-	 If 'x' is not a space, match zero or more characters from the
+         If 'x' is not a space, match zero or more characters from the
              current position up but not including the first 'x'.
          If 'x' is a space, match one or more characters from the current
              position up to and including the first non-space character
@@ -105,7 +105,7 @@
    %#  - matches an unsigned integer.  For each format containing this
          control, a report is made of any breaks or duplicates in the
          sequence of matching numbers.  (So this is useful for checking a
-	 sequence of case numbers.)  At most one %# may appear in each format.
+         sequence of case numbers.)  At most one %# may appear in each format.
    %l  - matches a list of arbitrarily many (%d sized) integers
 
   At least one FINAL format must match in each file or a warning is given
@@ -125,6 +125,7 @@
 #include <stdlib.h>
 #include <glob.h>
 #include <limits.h>
+#include <unistd.h>
 
 #if GMP
 #include <gmp.h>
@@ -153,7 +154,7 @@ static integer maxint;   /* set by find_maxint() */
 
 #define INCR(x,inc) \
      {if ((x) > 0 && maxint-(x) < (inc) || (x) < 0 && (maxint)+(x) < -(inc)) \
-           {fprintf(stderr,">E overflow with %d or %p format\n"); exit(1);} \
+           {fprintf(stderr,">E overflow with %%d or %%p format\n"); exit(1);} \
       x += (inc);}    /*  x += inc   with safety check */
 
 typedef int boolean;
@@ -185,7 +186,7 @@ typedef union
 #define LD 6   /* Code for "list of integer" */
 
 #define MAXLINELEN 100000   /* Maximum input line size
-		 	      (longer lines are broken in bits) */
+                              (longer lines are broken in bits) */
 #define MAXVALUES 16  /* Maximum  total number of 
                              %d,%x,%p,%m,%v,%f or %l items in a format */
 
@@ -253,64 +254,64 @@ numstrcmp(char *s1, char *s2)
    numbers are considered part of the numbers.  A number in one string
    is considered less than a non-number in the other string. */
 {
-	int c1,c2;
-	char *a1,*a2;
+    int c1,c2;
+    char *a1,*a2;
 
-	while (1)
-	{
-	    for (a1 = s1; *a1 == ' '; ++a1) {}
-	    if (isdigit(*a1))
-	    {
-		for (s1 = a1+1; isdigit(*s1); ++s1) {}
-	    }
-	    else 
-	    {
-		a1 = s1;
-		++s1;
-	    }
+    while (1)
+    {
+        for (a1 = s1; *a1 == ' '; ++a1) {}
+        if (isdigit(*a1))
+        {
+            for (s1 = a1+1; isdigit(*s1); ++s1) {}
+        }
+        else 
+        {
+            a1 = s1;
+            ++s1;
+        }
 
-	    for (a2 = s2; *a2 == ' '; ++a2) {}
-            if (isdigit(*a2))
-            {   
-                for (s2 = a2+1; isdigit(*s2); ++s2) {}
-            }  
+        for (a2 = s2; *a2 == ' '; ++a2) {}
+        if (isdigit(*a2))
+        {   
+            for (s2 = a2+1; isdigit(*s2); ++s2) {}
+        }  
+        else
+        {
+            a2 = s2;
+            ++s2;
+        }
+
+        if (!isdigit(*a1))
+        {
+            if (!isdigit(*a2))
+            {
+                if (*a1 < *a2) return -1;
+                if (*a1 > *a2) return 1;
+                if (*a1 == '\0') return 0;
+            }
+            else
+                return 1;
+        }
+        else
+        {
+            if (!isdigit(*a2))
+                return -1;
             else
             {
-                a2 = s2;
-                ++s2;
+                for (; *a1 == '0'; ++a1) {}
+                for (; *a2 == '0'; ++a2) {}
+
+                if (s1-a1 < s2-a2) return -1;
+                if (s1-a1 > s2-a2) return 1;
+                for (; a1 < s1 && *a1 == *a2; ++a1, ++a2) {}
+                if (a1 < s1)
+                {
+                    if (*a1 < *a2) return -1;
+                    else           return 1;
+                }
             }
-
-	    if (!isdigit(*a1))
-	    {
-		if (!isdigit(*a2))
-		{
-		    if (*a1 < *a2) return -1;
-		    if (*a1 > *a2) return 1;
-		    if (*a1 == '\0') return 0;
-		}
-		else
-		    return 1;
-	    }
-	    else
-	    {
-		if (!isdigit(*a2))
-		    return -1;
-		else
-		{
-		    for (; *a1 == '0'; ++a1) {}
-		    for (; *a2 == '0'; ++a2) {}
-
-		    if (s1-a1 < s2-a2) return -1;
-		    if (s1-a1 > s2-a2) return 1;
-		    for (; a1 < s1 && *a1 == *a2; ++a1, ++a2) {}
-		    if (a1 < s1)
-		    {
-			if (*a1 < *a2) return -1;
-			else           return 1;
-		    }
-		}
-	    }
-	}
+        }
+    }
 }
 
 /****************************************************************************/
@@ -319,45 +320,45 @@ static void
 writeline(char *outf, number *val, unsigned long count)
 /* Write an output line with the given format and values */
 {
-	int i,n;
+    int i,n;
 
-	n = 0;
+    n = 0;
 
-	for (; *outf != '\0'; ++outf)
-	{
-	    if (*outf == '%')
-	    {
-		++outf;
-		if (*outf == '%' || *outf == '#')
-		    putchar(*outf);
-		else if (*outf == 'd' || *outf == 'x' || *outf == 'p')
-		    printf(dout,val[n++].d);
-		else if (*outf == 'f')
-		    printf(fout,val[n++].f);
-		else if (*outf == 'v')
-		    printf(vout,val[n++].f/count);
-		else if (*outf == 'l')
-		{
-		    for (i = 0; i < val[n].l->nvals; ++i)
-		    {
-			if (i > 0) printf(" ");
-			printf(dout,val[n].l->val[i]);
-		    }
-		    ++n;
-	    	}
+    for (; *outf != '\0'; ++outf)
+    {
+        if (*outf == '%')
+        {
+            ++outf;
+            if (*outf == '%' || *outf == '#')
+                putchar(*outf);
+            else if (*outf == 'd' || *outf == 'x' || *outf == 'p')
+                printf(dout,val[n++].d);
+            else if (*outf == 'f')
+                printf(fout,val[n++].f);
+            else if (*outf == 'v')
+                printf(vout,val[n++].f/count);
+            else if (*outf == 'l')
+            {
+                for (i = 0; i < val[n].l->nvals; ++i)
+                {
+                    if (i > 0) printf(" ");
+                    printf(dout,val[n].l->val[i]);
+                }
+                ++n;
+            }
 #if GMP
-		else if (*outf == 'm')
-		    mpz_out_str(NULL,10,*(val[n++].m));
+            else if (*outf == 'm')
+                mpz_out_str(NULL,10,*(val[n++].m));
 #endif
-		else
-		{
-		    fprintf(stderr,">E unknown output format %%%c\n",*outf);
-		    exit(1);
-		}
-	    }
-	    else
-		putchar(*outf);
-	}
+            else
+            {
+                fprintf(stderr,">E unknown output format %%%c\n",*outf);
+                exit(1);
+            }
+        }
+        else
+            putchar(*outf);
+    }
 }
 
 /*********************************************************************/
@@ -374,29 +375,29 @@ print_counts(countnode *root, boolean printcounts)
 
     while (p)
     {
-	switch (code)    /* deliberate flow-ons */
-	{
-	 case A:
-	    if (p->left)
-	    {
-		p = p->left;
-		break;
-	    }
-	 case L:
-	    if (printcounts) printf("%5lu: ",p->count);
-	    writeline(p->fmt,p->total,p->count);
-	    if (p->right)
-	    {
-		p = p->right;
-		code = A;
-		break;
-	    }
-	 case R:
-	    if (p->parent && p->parent->left == p) code = L;
-	    else                                   code = R;
-	    p = p->parent;
-	    break;
-	}
+        switch (code)    /* deliberate flow-ons */
+        {
+         case A:
+            if (p->left)
+            {
+                p = p->left;
+                break;
+            }
+         case L:
+            if (printcounts) printf("%5lu: ",p->count);
+            writeline(p->fmt,p->total,p->count);
+            if (p->right)
+            {
+                p = p->right;
+                code = A;
+                break;
+            }
+         case R:
+            if (p->parent && p->parent->left == p) code = L;
+            else                                   code = R;
+            p = p->parent;
+            break;
+        }
     }
 }
 
@@ -431,17 +432,17 @@ print_common(countnode *root)
                 break;
             }
          case L:
-	    t0 = t1 = p->fmt;
-	    for (i = 0; i < comm0; ++i)
-		if (s0[i] != t0[i]) break;
-	    comm0 = i;
+            t0 = t1 = p->fmt;
+            for (i = 0; i < comm0; ++i)
+                if (s0[i] != t0[i]) break;
+            comm0 = i;
 
-	    while (*t1 != '\0') ++t1;
-	    for (i = 1; i <= comm1; ++i)
-		if (s1[-i] != t1[-i]) break;
-	    comm1 = i-1;
-	    if (t1-t0 < minlen) minlen = t1-t0;
-	    if (t1-t0 > maxlen) maxlen = t1-t0;
+            while (*t1 != '\0') ++t1;
+            for (i = 1; i <= comm1; ++i)
+                if (s1[-i] != t1[-i]) break;
+            comm1 = i-1;
+            if (t1-t0 < minlen) minlen = t1-t0;
+            if (t1-t0 > maxlen) maxlen = t1-t0;
 
             if (p->right)
             {
@@ -460,10 +461,10 @@ print_common(countnode *root)
     if (comm0 + comm1 > minlen) comm1 = minlen - comm0;
 
     for (i = 0; i < comm0; ++i)
-	printf("%c",s0[i]);
+        printf("%c",s0[i]);
     if (comm0 + comm1 < maxlen) printf("*");
     for (i = comm1; i > 0; --i)
-	printf("%c",s1[-i]);
+        printf("%c",s1[-i]);
 }
 
 /*********************************************************************/
@@ -481,52 +482,52 @@ splay(countnode *p)
 
     while (p->parent)
     {
-	a = p->left;
-	b = p->right;
-	q = p->parent;
-	if (q->left == p)
-	{
-	    code = L;
-	    c = q->right;
-	}
-	else
-	{
-	    code = R;
-	    c = q->left;
-	}
-	r = q->parent;
-	if (r)
-	{
-	    if (r->left == q) code = (code == L ? LL : LR);
-	    else              code = (code == L ? RL : RR);
-	    s = r->parent;
-	    p->parent = s;
-	    if (s)
-	    {
-		if (s->left == r) s->left = p;
-		else              s->right = p;
-	    }
-	}
-	else
-	{
-	    p->parent = NULL;
-	}
-	
-	switch (code)
-	{
-	 case L:
-	    RCHILD(p,q); LCHILD(q,b); break;
-	 case R:
-	    LCHILD(p,q); RCHILD(q,a); break;
-	 case LL:
-	    RCHILD(p,q); RCHILD(q,r); LCHILD(q,b); LCHILD(r,c); break;
-	 case RR:
-	    LCHILD(p,q); LCHILD(q,r); RCHILD(r,c); RCHILD(q,a); break;
-	 case LR:
-	    LCHILD(p,q); RCHILD(p,r); RCHILD(q,a); LCHILD(r,b); break;
-	 case RL:
-	    LCHILD(p,r); RCHILD(p,q); RCHILD(r,a); LCHILD(q,b); break;
-	}
+        a = p->left;
+        b = p->right;
+        q = p->parent;
+        if (q->left == p)
+        {
+            code = L;
+            c = q->right;
+        }
+        else
+        {
+            code = R;
+            c = q->left;
+        }
+        r = q->parent;
+        if (r)
+        {
+            if (r->left == q) code = (code == L ? LL : LR);
+            else              code = (code == L ? RL : RR);
+            s = r->parent;
+            p->parent = s;
+            if (s)
+            {
+                if (s->left == r) s->left = p;
+                else              s->right = p;
+            }
+        }
+        else
+        {
+            p->parent = NULL;
+        }
+        
+        switch (code)
+        {
+         case L:
+            RCHILD(p,q); LCHILD(q,b); break;
+         case R:
+            LCHILD(p,q); RCHILD(q,a); break;
+         case LL:
+            RCHILD(p,q); RCHILD(q,r); LCHILD(q,b); LCHILD(r,c); break;
+         case RR:
+            LCHILD(p,q); LCHILD(q,r); RCHILD(r,c); RCHILD(q,a); break;
+         case LR:
+            LCHILD(p,q); RCHILD(p,r); RCHILD(q,a); LCHILD(r,b); break;
+         case RL:
+            LCHILD(p,r); RCHILD(p,q); RCHILD(r,a); LCHILD(q,b); break;
+        }
     }
 }
 
@@ -550,49 +551,49 @@ add_one(countnode **to_root, char *fmt, integer pmod, int nval,
         cmp = (numcompare ? numstrcmp(fmt,p->fmt) : strcmp(fmt,p->fmt));
         if (cmp == 0)
         {
-	    if (HAS(which,UNIQUE) && p->count == 1)
-		printf("ERROR: Multiple matches for %s",fmt);
+            if (HAS(which,UNIQUE) && p->count == 1)
+                printf("ERROR: Multiple matches for %s",fmt);
             for (i = 0; i < nval; ++i)
-		if (valtype[i] == D)
-		    {INCR(p->total[i].d,val[i].d);}
-		else if (valtype[i] == X)
-		    {if (val[i].d > p->total[i].d) p->total[i].d = val[i].d;}
-		else if (valtype[i] == P)
-		    {w = val[i].d % pmod; INCR(p->total[i].d,w);
-		      p->total[i].d %= pmod;}
-		else if (valtype[i] == LD)
-		{
-		    if (p->total[i].l->nvals < val[i].l->nvals)
-		    {
-			if ((p->total[i].l->val
-			   = (integer*)realloc(p->total[i].l->val,
-				          sizeof(integer)*val[i].l->nvals))
-				== NULL)
-			{
-			    fprintf(stderr,"Malloc failed\n");
-			    exit(1);
-			}
-		    }
-		    for (j = 0; j < p->total[i].l->nvals &&
-			        j < val[i].l->nvals; ++j)
-			INCR(p->total[i].l->val[j],val[i].l->val[j]);
-		    if (p->total[i].l->nvals < val[i].l->nvals)
-		    {
-			for (j = p->total[i].l->nvals;
-				   j < val[i].l->nvals; ++j)
-			    p->total[i].l->val[j] = val[i].l->val[j];
-			p->total[i].l->nvals = val[i].l->nvals;
-		    }
-		}
+                if (valtype[i] == D)
+                    {INCR(p->total[i].d,val[i].d);}
+                else if (valtype[i] == X)
+                    {if (val[i].d > p->total[i].d) p->total[i].d = val[i].d;}
+                else if (valtype[i] == P)
+                    {w = val[i].d % pmod; INCR(p->total[i].d,w);
+                      p->total[i].d %= pmod;}
+                else if (valtype[i] == LD)
+                {
+                    if (p->total[i].l->nvals < val[i].l->nvals)
+                    {
+                        if ((p->total[i].l->val
+                           = (integer*)realloc(p->total[i].l->val,
+                                          sizeof(integer)*val[i].l->nvals))
+                                == NULL)
+                        {
+                            fprintf(stderr,"Malloc failed\n");
+                            exit(1);
+                        }
+                    }
+                    for (j = 0; j < p->total[i].l->nvals &&
+                                j < val[i].l->nvals; ++j)
+                        INCR(p->total[i].l->val[j],val[i].l->val[j]);
+                    if (p->total[i].l->nvals < val[i].l->nvals)
+                    {
+                        for (j = p->total[i].l->nvals;
+                                   j < val[i].l->nvals; ++j)
+                            p->total[i].l->val[j] = val[i].l->val[j];
+                        p->total[i].l->nvals = val[i].l->nvals;
+                    }
+                }
 #if GMP
-		else if (valtype[i] == M) 
-		    mpz_add(*(p->total[i].m),*(p->total[i].m),*(val[i].m));
+                else if (valtype[i] == M) 
+                    mpz_add(*(p->total[i].m),*(p->total[i].m),*(val[i].m));
 #endif
-		else  
+                else  
                     p->total[i].f += val[i].f;   /* F and V */
-	    ++p->count;
-	    splay(p);
-	    *to_root = p;
+            ++p->count;
+            splay(p);
+            *to_root = p;
             return;
         }
         else if (cmp < 0)
@@ -624,38 +625,38 @@ add_one(countnode **to_root, char *fmt, integer pmod, int nval,
     for (i = 0; i < nval; ++i)
     {
 #if GMP
-	if (valtype[i] == M)
-	{
-	    if ((new_node->total[i].m
-				= (mpz_t*)malloc(sizeof(mpz_t))) == NULL)
-	    {
-		fprintf(stderr,"Malloc failed\n");
-		exit(1);
-	    }
-	    mpz_init_set(*(new_node->total[i].m),*(val[i].m));
-	}
-	else
+        if (valtype[i] == M)
+        {
+            if ((new_node->total[i].m
+                                = (mpz_t*)malloc(sizeof(mpz_t))) == NULL)
+            {
+                fprintf(stderr,"Malloc failed\n");
+                exit(1);
+            }
+            mpz_init_set(*(new_node->total[i].m),*(val[i].m));
+        }
+        else
 #endif
-	if (valtype[i] == LD)
-	{
-	    if ((new_node->total[i].l
-			= (integerlist*)malloc(sizeof(integerlist))) == NULL)
-	    {  
-	        fprintf(stderr,"Malloc failed\n");
-		exit(1);
-	    }
-	    if ((new_node->total[i].l->val
-		 = (integer*)malloc(sizeof(integer)*val[i].l->nvals)) == NULL)
-	    {  
-	        fprintf(stderr,"Malloc failed\n");
-		exit(1);
-	    }
-	    new_node->total[i].l->nvals = val[i].l->nvals;
+        if (valtype[i] == LD)
+        {
+            if ((new_node->total[i].l
+                        = (integerlist*)malloc(sizeof(integerlist))) == NULL)
+            {  
+                fprintf(stderr,"Malloc failed\n");
+                exit(1);
+            }
+            if ((new_node->total[i].l->val
+                 = (integer*)malloc(sizeof(integer)*val[i].l->nvals)) == NULL)
+            {  
+                fprintf(stderr,"Malloc failed\n");
+                exit(1);
+            }
+            new_node->total[i].l->nvals = val[i].l->nvals;
             for (j = 0; j < val[i].l->nvals; ++j)
-		new_node->total[i].l->val[j] = val[i].l->val[j];
-	}
-	else
-	    new_node->total[i] = val[i];
+                new_node->total[i].l->val[j] = val[i].l->val[j];
+        }
+        else
+            new_node->total[i] = val[i];
     }
 
     new_node->left = new_node->right = NULL;
@@ -663,17 +664,17 @@ add_one(countnode **to_root, char *fmt, integer pmod, int nval,
     if (cmp == 0)
     {
         *to_root = new_node;
-	new_node->parent = NULL;
+        new_node->parent = NULL;
     }
     else if (cmp < 0)
     {
         ppar->left = new_node;
-	new_node->parent = ppar;
+        new_node->parent = ppar;
     }
     else
     {
         ppar->right = new_node;
-	new_node->parent = ppar;
+        new_node->parent = ppar;
     }
 
     splay(new_node);
@@ -699,319 +700,319 @@ scanline(char *s, char *f, number *val, int *valtype,
    See the comments at the start of the program for more information.
 */
 {
-	int n;  		 /* Number of values assigned */
-	int fracdigits,digit;
-	boolean doass,neednonsp,neg,oflow,badgmp;
-	integer ival;
-	double dval,digval;
-	char ends,*saves;
-	static boolean gmp_warning = FALSE;
-	integer *ilist;
-	size_t ilist_sz;
-	int nilist;
+    int n;                   /* Number of values assigned */
+    int fracdigits,digit;
+    boolean doass,neednonsp,neg,oflow,badgmp;
+    integer ival;
+    double dval,digval;
+    char ends,*saves;
+    static boolean gmp_warning = FALSE;
+    integer *ilist;
+    size_t ilist_sz;
+    int nilist;
 #if GMP
-	char mp_line[MAXLINELEN+1],*mp;
+    char mp_line[MAXLINELEN+1],*mp;
 #endif
-	
-	n = 0;
-	*seqno = -1;
-	badgmp = oflow = FALSE;
+        
+    n = 0;
+    *seqno = -1;
+    badgmp = oflow = FALSE;
 
-	while (*f != '\0')
-	{
-	    if (*f == '%')
-	    {
-		++f;
-		if (*f == '*')
-		{
-		    doass = FALSE;
-		    ++f;
-		}
-		else
-		    doass = TRUE;
+    while (*f != '\0')
+    {
+        if (*f == '%')
+        {
+            ++f;
+            if (*f == '*')
+            {
+                doass = FALSE;
+                ++f;
+            }
+            else
+                doass = TRUE;
 
-		if (*f == '%')
-		{
-		    if (!doass)
-		    {
-			fprintf(stderr,"Bad format item %%*\n");
-			exit(1);
-		    }
-		    if (*s++ != '%') return -1;
-		    ++f;
-		    *outf++ = '%';
-		    *outf++ = '%';
-		}
-		else if (*f == '\n')
-		{
-                    if (!doass)
-                    {
-                        fprintf(stderr,"Bad format item %*\n");
-                        exit(1);
-                    }
-		    while (*s != '\0')
-		    {
-			if (*s != ' ' && *s != '\n') return -1;
-			++s;
-		    }
-		    --s;
-		}
-	        else if (*f == 'c')
-                {   
-		    if (*s == ' ' || *s == '\t' || *s == '\n') return -1;
-                    if (doass) *outf++ = *s;
-		    else       *outf++ = '*';
-                    ++f;
+            if (*f == '%')
+            {
+                if (!doass)
+                {
+                    fprintf(stderr,"Bad format item %%*\n");
+                    exit(1);
+                }
+                if (*s++ != '%') return -1;
+                ++f;
+                *outf++ = '%';
+                *outf++ = '%';
+            }
+            else if (*f == '\n')
+            {
+                if (!doass)
+                {
+                    fprintf(stderr,"Bad format item %%*\n");
+                    exit(1);
+                }
+                while (*s != '\0')
+                {
+                    if (*s != ' ' && *s != '\n') return -1;
                     ++s;
                 }
-		else if (*f == 's')
-		{
-		    ends = *(f+1);
-		    if (ends == ' ')
-		    {
-			while (*s == ' ' || *s == '\t')
-			{
-			    if (doass) *outf++ = *s;
-                            ++s;
-                        }
-		    }
-		    while (*s != '\n' && *s != ends)
-		    {
-			if (doass) *outf++ = *s;
-			++s;
+                --s;
+            }
+            else if (*f == 'c')
+            {   
+                if (*s == ' ' || *s == '\t' || *s == '\n') return -1;
+                if (doass) *outf++ = *s;
+                else       *outf++ = '*';
+                ++f;
+                ++s;
+            }
+            else if (*f == 's')
+            {
+                ends = *(f+1);
+                if (ends == ' ')
+                {
+                    while (*s == ' ' || *s == '\t')
+                    {
+                        if (doass) *outf++ = *s;
+                        ++s;
                     }
-		    if (!doass) *outf++ = '*';
-		    ++f;
-		}
-#if GMP 	
-		else if (*f == 'd' || *f == 'x' || *f == 'p')
-		{
+                }
+                while (*s != '\n' && *s != ends)
+                {
+                    if (doass) *outf++ = *s;
+                    ++s;
+                }
+                if (!doass) *outf++ = '*';
+                ++f;
+            }
+#if GMP         
+            else if (*f == 'd' || *f == 'x' || *f == 'p')
+            {
 #else
-		else if (*f == 'd' || *f == 'x' || *f == 'p' || *f == 'm')
-		{
-		    if (*f == 'm' && !gmp_warning)
-		    {
-			fprintf(stderr,
-                         ">W not compiled with GMP, treating %%m like %%d\n");
-			gmp_warning = TRUE;
-		    }
+            else if (*f == 'd' || *f == 'x' || *f == 'p' || *f == 'm')
+            {
+                if (*f == 'm' && !gmp_warning)
+                {
+                    fprintf(stderr,
+                     ">W not compiled with GMP, treating %%m like %%d\n");
+                    gmp_warning = TRUE;
+                }
 #endif
-		    while (*s == ' ' || *s == '\t') ++s;
-		    if (!isdigit(*s) && *s != '-' && *s != '+') return -1;
-		    neg = (*s == '-');
-		    if (*s == '-' || *s == '+') ++s;
-		    ival = 0;
-		    while (isdigit(*s))
-		    {
-			digit =  *s++ - '0';
-			if (ival > (maxint-digit)/10)
-			    oflow = TRUE;
-			else
-			    ival = ival*10 + digit;
-		    }
-		    if (doass)
-		    {
-			*outf++ = '%';
-			if (*f == 'd' || *f == 'm')
-			{
-			    *outf++ = 'd';
-			    valtype[n] = D;
-			}
-			else if (*f == 'x')
-			{
-			    *outf++ = 'x';
-			    valtype[n] = X;
-			}
-			else
-			{
-			    *outf++ = 'p';
-			    valtype[n] = P;
-			}
-			val[n++].d = (neg ? -ival : ival);
-		    }
-		    else
-			*outf++ = '*';
-		    ++f;
-		}
-		else if (*f == 'l')
-		{
-		    nilist = 0;
-		    if ((ilist = (integer*)malloc(200*sizeof(integer)))
-				== NULL)
-		    {
-			fprintf(stderr,"Malloc failed\n");
-			exit(1);
-		    }
-		    ilist_sz = 200;
-		    for (;;)
-		    {
-			saves = s;
-			while (*s == ' ' || *s == '\t') ++s;
-			if (!isdigit(*s) && *s != '-' && *s != '+')
-			{
-			    s = saves;
-			    break;
-			}
-		        neg = (*s == '-');
-		        if (*s == '-' || *s == '+') ++s;
-		        ival = 0;
-		        while (isdigit(*s))
-		        {
-			    digit =  *s++ - '0';
-			    if (ival > (maxint-digit)/10)
-			        oflow = TRUE;
-			    else
-			        ival = ival*10 + digit;
-		        }
-			if (neg) ival = -ival;
-		        if (nilist == ilist_sz)
-		        {
-			    if ((ilist
-			        = (integer*)realloc((void*)ilist,
-				           (ilist_sz+500)*sizeof(integer)))
-				    == NULL)
-			    {
-			        fprintf(stderr,"Malloc failed\n");
-			        exit(1);
-			    }
-			    ilist_sz += 500;
-		        }
-			ilist[nilist++] = ival;
-		    }
-		    if (doass)
-		    {
-			valtype[n] = LD;
-			val[n].l = &il[n];
-			val[n].l->nvals = nilist;
-			if (val[n].l->val) free(val[n].l->val);
-			val[n].l->val = ilist;
-			++n;
-			*outf++ = '%';
-			*outf++ = 'l';
-		    }
-		    else
-		    {
-			free(ilist);
-                        *outf++ = '*';
-		    }
-                    ++f;
-		}
-#if GMP
-		else if (*f == 'm')
-		{
-		    while (*s == ' ' || *s == '\t') ++s;	
-		    if (!isdigit(*s) && *s != '-' && *s != '+') return -1;
-		    mp = mp_line;
-		    if      (*s == '-') *mp++ = *s++;
-		    else if (*s == '+') s++;
-		    while (isdigit(*s)) *mp++ = *s++;
-		    *mp = '\0';	
-		    if (doass)
-		    {
-			valtype[n] = M;
-			val[n].m = &mp_value[n];
-			if (mpz_set_str(mp_value[n],mp_line,10) < 0)
-			    badgmp = TRUE;
-			++n;
-			*outf++ = '%';
-                        *outf++ = 'm';
+                while (*s == ' ' || *s == '\t') ++s;
+                if (!isdigit(*s) && *s != '-' && *s != '+') return -1;
+                neg = (*s == '-');
+                if (*s == '-' || *s == '+') ++s;
+                ival = 0;
+                while (isdigit(*s))
+                {
+                    digit =  *s++ - '0';
+                    if (ival > (maxint-digit)/10)
+                        oflow = TRUE;
+                    else
+                        ival = ival*10 + digit;
+                }
+                if (doass)
+                {
+                    *outf++ = '%';
+                    if (*f == 'd' || *f == 'm')
+                    {
+                        *outf++ = 'd';
+                        valtype[n] = D;
+                    }
+                    else if (*f == 'x')
+                    {
+                        *outf++ = 'x';
+                        valtype[n] = X;
                     }
                     else
-                        *outf++ = '*';
-                    ++f;
-		}
-#endif
-                else if (*f == '#')
+                    {
+                        *outf++ = 'p';
+                        valtype[n] = P;
+                    }
+                    val[n++].d = (neg ? -ival : ival);
+                }
+                else
+                    *outf++ = '*';
+                ++f;
+            }
+            else if (*f == 'l')
+            {
+                nilist = 0;
+                if ((ilist = (integer*)malloc(200*sizeof(integer)))
+                            == NULL)
                 {
+                    fprintf(stderr,"Malloc failed\n");
+                    exit(1);
+                }
+                ilist_sz = 200;
+                for (;;)
+                {
+                    saves = s;
                     while (*s == ' ' || *s == '\t') ++s;
-                    if (!isdigit(*s)) return -1;
+                    if (!isdigit(*s) && *s != '-' && *s != '+')
+                    {
+                        s = saves;
+                        break;
+                    }
+                    neg = (*s == '-');
+                    if (*s == '-' || *s == '+') ++s;
                     ival = 0;
                     while (isdigit(*s))
                     {
                         digit =  *s++ - '0';
                         if (ival > (maxint-digit)/10)
                             oflow = TRUE;
-			else
+                        else
                             ival = ival*10 + digit;
                     }
-		    if (*seqno >= 0)
-		    {
-			fprintf(stderr, 
-			        ">E %# can only be used once per format\n");
-			exit(1);
-		    }
-                    *seqno = ival;
-                    *outf++ = '#';
-                    ++f;
-                }
-		else if (*f == 'f' || *f == 'v')
-		{
-		    while (*s == ' ' || *s == '\t') ++s;
-
-		    if (!isdigit(*s) && *s != '.' && *s != '-' && *s != '+')
-			return -1;
-                    neg = (*s == '-');
-                    if (*s == '-' || *s == '+') ++s;
-		    dval = 0.0;
-		    while (isdigit(*s)) dval = dval*10.0 + (*s++ - '0');
-		    if (*s == '.')
-		    {
-			digval = 1.0;
-			++s;
-			while (isdigit(*s))
-			{
-			    digval /= 10.0;
-			    dval += (*s++ - '0') * digval;
-			}
-		    }
-		    if (doass)
+                    if (neg) ival = -ival;
+                    if (nilist == ilist_sz)
                     {
-			valtype[n] = (*f == 'f' ? F : V);
-                        val[n++].f = (neg ? -dval : dval);
-                        *outf++ = '%';
-                        *outf++ = *f;
+                        if ((ilist
+                            = (integer*)realloc((void*)ilist,
+                                       (ilist_sz+500)*sizeof(integer)))
+                                == NULL)
+                        {
+                            fprintf(stderr,"Malloc failed\n");
+                            exit(1);
+                        }
+                        ilist_sz += 500;
                     }
+                    ilist[nilist++] = ival;
+                }
+                if (doass)
+                {
+                    valtype[n] = LD;
+                    val[n].l = &il[n];
+                    val[n].l->nvals = nilist;
+                    if (val[n].l->val) free(val[n].l->val);
+                    val[n].l->val = ilist;
+                    ++n;
+                    *outf++ = '%';
+                    *outf++ = 'l';
+                }
+                else
+                {
+                    free(ilist);
+                    *outf++ = '*';
+                }
+                ++f;
+            }
+#if GMP
+            else if (*f == 'm')
+            {
+                while (*s == ' ' || *s == '\t') ++s;        
+                if (!isdigit(*s) && *s != '-' && *s != '+') return -1;
+                mp = mp_line;
+                if      (*s == '-') *mp++ = *s++;
+                else if (*s == '+') s++;
+                while (isdigit(*s)) *mp++ = *s++;
+                *mp = '\0'; 
+                if (doass)
+                {
+                    valtype[n] = M;
+                    val[n].m = &mp_value[n];
+                    if (mpz_set_str(mp_value[n],mp_line,10) < 0)
+                        badgmp = TRUE;
+                    ++n;
+                    *outf++ = '%';
+                    *outf++ = 'm';
+                }
+                else
+                    *outf++ = '*';
+                ++f;
+            }
+#endif
+            else if (*f == '#')
+            {
+                while (*s == ' ' || *s == '\t') ++s;
+                if (!isdigit(*s)) return -1;
+                ival = 0;
+                while (isdigit(*s))
+                {
+                    digit =  *s++ - '0';
+                    if (ival > (maxint-digit)/10)
+                        oflow = TRUE;
                     else
-                        *outf++ = '*';
-		    ++f;
-		}
-		else if (*f == ' ')
-		{
-		    while (*s == ' ' || *s == '\t') ++s;
-		    *outf++ = ' ';
-		    ++f;
-		}
-		else
-		{
-		    fprintf(stderr,"Bad format item %%%c\n",*f);
-		    exit(1);
-		}
-	    }
-	    else
-	    {
-		if (*s != *f) return -1;
-		*outf++ = *f;
-		++s;
-		++f;
-	    }
-	}
+                        ival = ival*10 + digit;
+                }
+                if (*seqno >= 0)
+                {
+                    fprintf(stderr, 
+                            ">E %%# can only be used once per format\n");
+                    exit(1);
+                }
+                *seqno = ival;
+                *outf++ = '#';
+                ++f;
+            }
+            else if (*f == 'f' || *f == 'v')
+            {
+                while (*s == ' ' || *s == '\t') ++s;
 
-	if (*s != '\0') return -1;
+                if (!isdigit(*s) && *s != '.' && *s != '-' && *s != '+')
+                    return -1;
+                neg = (*s == '-');
+                if (*s == '-' || *s == '+') ++s;
+                dval = 0.0;
+                while (isdigit(*s)) dval = dval*10.0 + (*s++ - '0');
+                if (*s == '.')
+                {
+                    digval = 1.0;
+                    ++s;
+                    while (isdigit(*s))
+                    {
+                        digval /= 10.0;
+                        dval += (*s++ - '0') * digval;
+                    }
+                }
+                if (doass)
+                {
+                    valtype[n] = (*f == 'f' ? F : V);
+                    val[n++].f = (neg ? -dval : dval);
+                    *outf++ = '%';
+                    *outf++ = *f;
+                }
+                else
+                    *outf++ = '*';
+                ++f;
+            }
+            else if (*f == ' ')
+            {
+                while (*s == ' ' || *s == '\t') ++s;
+                *outf++ = ' ';
+                ++f;
+            }
+            else
+            {
+                fprintf(stderr,"Bad format item %%%c\n",*f);
+                exit(1);
+            }
+        }
+        else
+        {
+            if (*s != *f) return -1;
+            *outf++ = *f;
+            ++s;
+            ++f;
+        }
+    }
 
-	*outf = '\0';
+    if (*s != '\0') return -1;
 
-	if (oflow)
-	{
-	    fprintf(stderr,"Integer too large\n");
-	    exit(1);
-	}
-	if (badgmp)
-	{
-	    fprintf(stderr,"Illegal multiprecision integer\n");
-	    exit(1);
-	}
+    *outf = '\0';
 
-	return n;
+    if (oflow)
+    {
+        fprintf(stderr,"Integer too large\n");
+        exit(1);
+    }
+    if (badgmp)
+    {
+        fprintf(stderr,"Illegal multiprecision integer\n");
+        exit(1);
+    }
+
+    return n;
 }
 
 /****************************************************************************/
@@ -1021,38 +1022,39 @@ find_maxint(void)
 {
 /* Put the maximum possible integer value into maxint. */
 /* Old version. */
-	integer x;
+        integer x;
 
-	x = 1;
-	while (x > 0) x <<= 1;
-	x -= 1;
+        x = 1;
+        while (x > 0) x <<= 1;
+        x -= 1;
 
-	if (x <= 0)
-	{
-	    fprintf(stderr,">E find_maxint() failed\n");
-	    exit(1);
-	}
+        if (x <= 0)
+        {
+            fprintf(stderr,">E find_maxint() failed\n");
+            exit(1);
+        }
 
-	maxint = x;
+        maxint = x;
 }
 #else
+void
 find_maxint(void)
 {
 /* Put the maximum possible integer value into maxint. */
 /* New version with no integer overflow. */
-	integer x,y;
+    integer x,y;
 
-	x = ((integer)1) << (8*sizeof(integer) - 2);
-	y = x - 1;
-	x += y;
+    x = ((integer)1) << (8*sizeof(integer) - 2);
+    y = x - 1;
+    x += y;
 
-	if (x <= 0)
-	{
-	    fprintf(stderr,">E find_maxint() failed\n");
-	    exit(1);
-	}
+    if (x <= 0)
+    {
+        fprintf(stderr,">E find_maxint() failed\n");
+        exit(1);
+    }
 
-	maxint = x;
+    maxint = x;
 }
 #endif
 
@@ -1063,40 +1065,40 @@ sort_formats(int *order, int numformats)
 /* Make order[0..numformats-1] a permutation of 0..numformats-1 being
    a good order to display the results. */
 {
-	double score[MAXFORMATS];
-	int h,i,j,iw;
+    double score[MAXFORMATS];
+    int h,i,j,iw;
 
-	for (i = 0; i < numformats; ++i)
-	{
-	    if (matching_lines[i] == 0)
-		score[i] = -1.0;
-	    else
-		score[i] = i +
-                   ((10.0*total_position[i]) / matching_lines[i]) * numformats;
-	    order[i] = i;
-	}
+    for (i = 0; i < numformats; ++i)
+    {
+        if (matching_lines[i] == 0)
+            score[i] = -1.0;
+        else
+            score[i] = i +
+               ((100.0*total_position[i]) / matching_lines[i]) * numformats;
+        order[i] = i;
+    }
 
-        j = numformats / 3;
-        h = 1;
-        do
-            h = 3 * h + 1;
-        while (h < j);
+    j = numformats / 3;
+    h = 1;
+    do
+        h = 3 * h + 1;
+    while (h < j);
 
-        do
+    do
+    {
+        for (i = h; i < numformats; ++i)
         {
-            for (i = h; i < numformats; ++i)
+            iw = order[i];
+            for (j = i; score[order[j-h]] > score[iw]; )
             {
-                iw = order[i];
-                for (j = i; score[order[j-h]] > score[iw]; )
-                {
-                    order[j] = order[j-h];
-                    if ((j -= h) < h) break;
-                }
-                order[j] = iw;
+                order[j] = order[j-h];
+                if ((j -= h) < h) break;
             }
-            h /= 3;
+            order[j] = iw;
         }
-        while (h > 0);
+        h /= 3;
+    }
+    while (h > 0);
 }
 
 /****************************************************************************/
@@ -1105,139 +1107,139 @@ static void
 read_formats(char *filename, int *numformatsp, boolean mustexist)
 /* Read formats from the given file. */
 {
-	FILE *f;
-	int i,c,flags;	
-	char flagname[52];
-	char line[MAXLINELEN+3];
-        integer pmod;
-        char *s;
-	boolean oflow,badpmod;
-	int digit;
+    FILE *f;
+    int i,c,flags,ignore;  
+    char flagname[52];
+    char line[MAXLINELEN+3];
+    integer pmod;
+    char *s;
+    boolean oflow,badpmod;
+    int digit;
 
-	if (strcmp(filename,"-") == 0)
-	    f = stdin;
-	else if ((f = fopen(filename,"r")) == NULL)
-	{
-	    if (mustexist)
-	    {
-		fprintf(stderr,">E Can't open %s for reading.\n",filename);
-		exit(1);
-	    }
-	    return;
-	}
+    if (strcmp(filename,"-") == 0)
+        f = stdin;
+    else if ((f = fopen(filename,"r")) == NULL)
+    {
+        if (mustexist)
+        {
+            fprintf(stderr,">E Can't open %s for reading.\n",filename);
+            exit(1);
+        }
+        return;
+    }
 
-	line[MAXLINELEN+2] = '\0';
+    line[MAXLINELEN+2] = '\0';
 
-	for (;;)
-	{
-	    if ((c = getc(f)) == EOF) break;
+    for (;;)
+    {
+        if ((c = getc(f)) == EOF) break;
 
-	    while (c == ' ' || c == '\t') c = getc(f);
-	    if (c == '\n') continue;
-	    if (c == EOF) break;
-	    
-	    if (c == '#')
-	    {
-		while (c != '\n' && c != EOF) c = getc(f);
-		continue;
-	    }
+        while (c == ' ' || c == '\t') c = getc(f);
+        if (c == '\n') continue;
+        if (c == EOF) break;
+        
+        if (c == '#')
+        {
+            while (c != '\n' && c != EOF) c = getc(f);
+            continue;
+        }
 
-	    ungetc(c,f);
+        ungetc(c,f);
 
-	    flags = 0;
-            pmod = 2;
-	    for (;;)
-	    {
-		while ((c = getc(f)) == ' '
-			            || c == '|' || c == ',' || c == '\t') {}
-		if (c == '#')
-		    while (c != '\n' && c != EOF) c = getc(f);
-		if (c == '\n' || c == EOF) break;
+        flags = 0;
+        pmod = 2;
+        for (;;)
+        {
+            while ((c = getc(f)) == ' '
+                                || c == '|' || c == ',' || c == '\t') {}
+            if (c == '#')
+                while (c != '\n' && c != EOF) c = getc(f);
+            if (c == '\n' || c == EOF) break;
 
-		ungetc(c,f);
+            ungetc(c,f);
 
-	     /* There appear to be some issues with the [ flag in fscanf,
-	      * as to whether a null is appended.  We'll take no chances. */
-		for (i = 0; i < 52; ++i) flagname[i] = '\0';
-		fscanf(f,"%50[A-Za-z0-9=]",flagname);
+         /* There appear to be some issues with the [ flag in fscanf,
+          * as to whether a null is appended.  We'll take no chances. */
+            for (i = 0; i < 52; ++i) flagname[i] = '\0';
+            ignore = fscanf(f,"%50[A-Za-z0-9=]",flagname);
 
-		if      (strcmp(flagname,"DEFAULT") == 0)  {}
-		else if (strcmp(flagname,"FINAL") == 0)    flags |= FINAL;
-		else if (strcmp(flagname,"ERROR") == 0)    flags |= ERROR;
-		else if (strcmp(flagname,"UNIQUE") == 0)   flags |= UNIQUE;
-		else if (strcmp(flagname,"COUNT") == 0)    flags |= COUNT;
-		else if (strcmp(flagname,"CONTINUE") == 0) flags |= CONTINUE;
-		else if (strcmp(flagname,"NUMERIC") == 0)  flags |= NUMERIC;
-		else if (strcmp(flagname,"SILENT") == 0)   flags |= SILENT;
-		else if (strcmp(flagname,"ENDFILE") == 0)  flags |= ENDFILE;
-		else if (flagname[0] == 'P' && flagname[1] == '=')
-		{
-		    pmod = 0;
-		    oflow = FALSE;
-		    badpmod = (flagname[2] == '\0');
-		    for (s = flagname+2; *s != '\0'; ++s)
-		    {
-		        if (isdigit(*s))
-			{
-			    digit =  *s - '0';
-			    if (pmod > (maxint-digit)/10)
-				oflow = TRUE;
-			    else
-				pmod = pmod*10 + digit;
-			}
-			else
-			    badpmod = TRUE;
-		    }
-		    if (badpmod)
-		    {
-			fprintf(stderr,">E Bad value for P= directive: %s\n",
-				flagname+2);
-			exit(1);
-		    }
-		    else if (oflow)
-		    {
-                        fprintf(stderr,">E Value for P= is too large\n");
-                        exit(1);
+            if      (strcmp(flagname,"DEFAULT") == 0)  {}
+            else if (strcmp(flagname,"FINAL") == 0)    flags |= FINAL;
+            else if (strcmp(flagname,"ERROR") == 0)    flags |= ERROR;
+            else if (strcmp(flagname,"UNIQUE") == 0)   flags |= UNIQUE;
+            else if (strcmp(flagname,"COUNT") == 0)    flags |= COUNT;
+            else if (strcmp(flagname,"CONTINUE") == 0) flags |= CONTINUE;
+            else if (strcmp(flagname,"NUMERIC") == 0)  flags |= NUMERIC;
+            else if (strcmp(flagname,"SILENT") == 0)   flags |= SILENT;
+            else if (strcmp(flagname,"ENDFILE") == 0)  flags |= ENDFILE;
+            else if (flagname[0] == 'P' && flagname[1] == '=')
+            {
+                pmod = 0;
+                oflow = FALSE;
+                badpmod = (flagname[2] == '\0');
+                for (s = flagname+2; *s != '\0'; ++s)
+                {
+                    if (isdigit(*s))
+                    {
+                        digit =  *s - '0';
+                        if (pmod > (maxint-digit)/10)
+                            oflow = TRUE;
+                        else
+                            pmod = pmod*10 + digit;
                     }
-	
-		}
-		else
-		{
-		    fprintf(stderr,">E Unknown flag \"%s\" in %s\n",
-			           flagname,filename);
-		    exit(1);
-		}
-	    }
-
-	    if (fgets(line,MAXLINELEN,f) == NULL)
-	    {
-		fprintf(stderr,">E Missing format in %s\n",filename);
+                    else
+                        badpmod = TRUE;
+                }
+                if (badpmod)
+                {
+                    fprintf(stderr,">E Bad value for P= directive: %s\n",
+                            flagname+2);
+                    exit(1);
+                }
+                else if (oflow)
+                {
+                    fprintf(stderr,">E Value for P= is too large\n");
+                    exit(1);
+                }
+    
+            }
+            else
+            {
+                fprintf(stderr,">E Unknown flag \"%s\" in %s\n",
+                               flagname,filename);
                 exit(1);
             }
+        }
 
-	    for (i = 0; i < *numformatsp; ++i)
-		if (strcmp(line,format[i].fmt) == 0) break;
-	    if (i < *numformatsp) continue;
+        if (fgets(line,MAXLINELEN,f) == NULL)
+        {
+            fprintf(stderr,">E Missing format in %s\n",filename);
+            exit(1);
+        }
 
-	    if (*numformatsp == MAXFORMATS)
-	    {
-		fprintf(stderr,">E Increase MAXFORMATS\n");
-		exit(1);
-	    }
+        for (i = 0; i < *numformatsp; ++i)
+            if (strcmp(line,format[i].fmt) == 0) break;
+        if (i < *numformatsp) continue;
 
-	    format[*numformatsp].flags = flags;
-	    format[*numformatsp].pmod = pmod;
-	    if ((format[*numformatsp].fmt
-				= (char*)malloc(strlen(line)+1)) == NULL)
-	    {
-		fprintf(stderr,">E malloc() failed in read_formats()\n");
-                exit(1);
-            }
-	    strcpy(format[*numformatsp].fmt,line);
-	    ++*numformatsp;
-	}
+        if (*numformatsp == MAXFORMATS)
+        {
+            fprintf(stderr,">E Increase MAXFORMATS\n");
+            exit(1);
+        }
 
-	if (f != stdin) fclose(f);
+        format[*numformatsp].flags = flags;
+        format[*numformatsp].pmod = pmod;
+        if ((format[*numformatsp].fmt
+                            = (char*)malloc(strlen(line)+1)) == NULL)
+        {
+            fprintf(stderr,">E malloc() failed in read_formats()\n");
+            exit(1);
+        }
+        strcpy(format[*numformatsp].fmt,line);
+        ++*numformatsp;
+    }
+
+    if (f != stdin) fclose(f);
 }
 
 /****************************************************************************/
@@ -1246,7 +1248,7 @@ static void
 read_local_formats(int *numformatsp)
 /* Read formats from sumlines.fmt in current directory */
 {
-	read_formats("sumlines.fmt",numformatsp,FALSE);
+        read_formats("sumlines.fmt",numformatsp,FALSE);
 }
 
 /****************************************************************************/
@@ -1255,18 +1257,18 @@ static void
 read_global_formats(int *numformatsp)
 /* Read formats from sumlines.fmt in home directory */
 {
-	struct passwd *pwd;
-	char filename[257+12];
+    struct passwd *pwd;
+    char filename[257+12];
 
-	if ((pwd = getpwuid(getuid())) < 0)
-	{
-	    fprintf(stderr,">E Can't find home directory\n");
-	    exit(1);
-	}
+    if ((pwd = getpwuid(getuid())) < 0)
+    {
+        fprintf(stderr,">E Can't find home directory\n");
+        exit(1);
+    }
 
-	sprintf(filename,"%s/sumlines.fmt",pwd->pw_dir);
+    sprintf(filename,"%s/sumlines.fmt",pwd->pw_dir);
 
-        read_formats(filename,numformatsp,FALSE);
+    read_formats(filename,numformatsp,FALSE);
 }
 
 /****************************************************************************/
@@ -1275,34 +1277,34 @@ static void
 read_env_formats(int *numformatsp)
 /* Read formats from $SUMLINES.FMT if it exists */
 {
-	char *filename;
+    char *filename;
 
-	if ((filename = getenv("SUMLINES.FMT")) != 0)
-            read_formats(filename,numformatsp,FALSE);
+    if ((filename = getenv("SUMLINES.FMT")) != 0)
+        read_formats(filename,numformatsp,FALSE);
 }
 
 /****************************************************************************/
 
 static boolean
-readline(FILE *f, char *line, int size, int *nulls)
+readoneline(FILE *f, char *line, int size, int *nulls)
 /* Get a line.  Read at most size-1 chars until EOF or \n.
    If \n is read, it is stored.  Then \0 is appended.
    *nulls is set to the number of NUL chars (which are also stored). */
 {
-	int i,c;
+    int i,c;
 
-	*nulls = 0;
-	for (i = 0; i < size-1; ++i)
-	{
-	    c = getc(f);
-	    if (c == EOF) break;
-	    line[i] = c;
-	    if (c == '\0') ++*nulls;
-	    if (c == '\n') {++i; break;}
-	}
-	line[i] = '\0';
+    *nulls = 0;
+    for (i = 0; i < size-1; ++i)
+    {
+        c = getc(f);
+        if (c == EOF) break;
+        line[i] = c;
+        if (c == '\0') ++*nulls;
+        if (c == '\n') {++i; break;}
+    }
+    line[i] = '\0';
 
-	return i > 0;
+    return i > 0;
 }
 
 /****************************************************************************/
@@ -1311,7 +1313,7 @@ static int
 pnumstrcmp(const void *a, const void *b)
 /* numstrcmp on strings pointed at by a and b */
 {
-	return numstrcmp(*(char**)a,*(char**)b);
+    return numstrcmp(*(char**)a,*(char**)b);
 }
 
 /****************************************************************************/
@@ -1321,274 +1323,275 @@ doglob(char *patt, glob_t *globlk)
 /* Find all files matching the given pattern, numeric sorting.
    Give a warning message if there are none. */
 {
-	int ret;
+    int ret;
 
-	ret = glob(patt,GLOB_FLAGS,NULL,globlk);
+    ret = glob(patt,GLOB_FLAGS,NULL,globlk);
 
-	if (ret != 0) globlk->gl_pathc = 0;
+    if (ret != 0) globlk->gl_pathc = 0;
 
-	if (ret == GLOB_NOSPACE)
-	{
-	    fprintf(stderr,"ERROR: ran out of space during glob()\n");
-	    exit(1);
-	}
-        if (ret == GLOB_ERR)
-        {
-            fprintf(stderr,"ERROR: during glob(%s)\n",patt);
-            exit(1);
-        }
-	if (ret != 0 && ret != GLOB_NOMATCH)
-	{
-            fprintf(stderr,"ERROR: value %d from glob(%s)\n",ret,patt);
-            exit(1);
-        }
+    if (ret == GLOB_NOSPACE)
+    {
+        fprintf(stderr,"ERROR: ran out of space during glob()\n");
+        exit(1);
+    }
+    if (ret == GLOB_ERR)
+    {
+        fprintf(stderr,"ERROR: during glob(%s)\n",patt);
+        exit(1);
+    }
+    if (ret != 0 && ret != GLOB_NOMATCH)
+    {
+        fprintf(stderr,"ERROR: value %d from glob(%s)\n",ret,patt);
+        exit(1);
+    }
 
 
-	if (globlk->gl_pathc == 0) printf("WARNING: no files match %s\n",patt);
-	
-	if (globlk->gl_pathc >= 2)
-	    qsort(globlk->gl_pathv,globlk->gl_pathc,sizeof(char*),pnumstrcmp);
+    if (globlk->gl_pathc == 0) printf("WARNING: no files match %s\n",patt);
+    
+    if (globlk->gl_pathc >= 2)
+        qsort(globlk->gl_pathv,globlk->gl_pathc,sizeof(char*),pnumstrcmp);
 }
 
 /****************************************************************************/
 
+int
 main(int argc, char *argv[])
 {
-	int i,j,nvals,argnum;
-	number val[MAXVALUES];
-	int valtype[MAXVALUES];
-	char line[MAXLINELEN+2];
-	char outf[MAXLINELEN+MAXVALUES+6];
-	unsigned long matched,unmatched,finalmatched;
-	unsigned long errorlines,totalerrorlines;
-	unsigned long line_number,nullcount,numfiles,ifile;
-	char *filename;
-	FILE *infile;
-	int numformats,firstarg,nulls;
-	boolean havefinal,nowarn,listformats,readfiles;
-	integer seq;
-	int order[MAXFORMATS];
-	glob_t globlk,globlk_stdin,*pglob;
-	char *glob_stdin_v[2];
-	boolean printcounts;
+    int i,j,nvals,argnum;
+    number val[MAXVALUES];
+    int valtype[MAXVALUES];
+    char line[MAXLINELEN+2];
+    char outf[MAXLINELEN+MAXVALUES+6];
+    unsigned long matched,unmatched,finalmatched;
+    unsigned long errorlines,totalerrorlines;
+    unsigned long line_number,nullcount,numfiles,ifile;
+    char *filename;
+    FILE *infile;
+    int numformats,firstarg,nulls;
+    boolean havefinal,nowarn,listformats,readfiles;
+    integer seq;
+    int order[MAXFORMATS];
+    glob_t globlk,globlk_stdin,*pglob;
+    char *glob_stdin_v[2];
+    boolean printcounts;
 
-	HELP;
+    HELP;
 
-	find_maxint();
+    find_maxint();
 
-	firstarg = 1;
-	numformats = 0;
-	nowarn = FALSE;
-	listformats = FALSE;
-	readfiles = TRUE;
-	printcounts = TRUE;
+    firstarg = 1;
+    numformats = 0;
+    nowarn = FALSE;
+    listformats = FALSE;
+    readfiles = TRUE;
+    printcounts = TRUE;
 
-	globlk_stdin.gl_pathc = 1;
-	globlk_stdin.gl_pathv = glob_stdin_v;
-	glob_stdin_v[0] = "-";
-	glob_stdin_v[1] = NULL;
+    globlk_stdin.gl_pathc = 1;
+    globlk_stdin.gl_pathv = glob_stdin_v;
+    glob_stdin_v[0] = "-";
+    glob_stdin_v[1] = NULL;
 
-	dout = DOUT;
-	fout = FOUT;
-	vout = VOUT;
+    dout = DOUT;
+    fout = FOUT;
+    vout = VOUT;
 
-	for (; firstarg < argc; ++firstarg)
-	{
-	    if (argv[firstarg][0] == '-' && argv[firstarg][1] == 'f')
-	    {
-		if (argv[firstarg][2] != '\0')
-		    read_formats(&argv[firstarg][2],&numformats,TRUE);
-		else if (firstarg == argc - 1)
-		{
-		    fprintf(stderr,">E No argument for -f\n");
-		    exit(1);
-		}
-		else
-		{
-		    ++firstarg;
-		    read_formats(argv[firstarg],&numformats,TRUE);
-		}
-	    }
-	    else if (strcmp(argv[firstarg],"-w") == 0)
-		nowarn = TRUE;
-	    else if (strcmp(argv[firstarg],"-v") == 0)
-		listformats = TRUE;
-	    else if (strcmp(argv[firstarg],"-d") == 0)
-		readfiles = FALSE;
-	    else if (strcmp(argv[firstarg],"-n") == 0)
-		printcounts = FALSE;
-	    else if (strcmp(argv[firstarg],"-V") == 0)
-		vout = argv[++firstarg];
-	    else if (strcmp(argv[firstarg],"-F") == 0)
-		fout = argv[++firstarg];
-	    else if (strcmp(argv[firstarg],"-D") == 0)
-		dout = argv[++firstarg];
-	    else
-	        break;
-	}
+    for (; firstarg < argc; ++firstarg)
+    {
+        if (argv[firstarg][0] == '-' && argv[firstarg][1] == 'f')
+        {
+            if (argv[firstarg][2] != '\0')
+                read_formats(&argv[firstarg][2],&numformats,TRUE);
+            else if (firstarg == argc - 1)
+            {
+                fprintf(stderr,">E No argument for -f\n");
+                exit(1);
+            }
+            else
+            {
+                ++firstarg;
+                read_formats(argv[firstarg],&numformats,TRUE);
+            }
+        }
+        else if (strcmp(argv[firstarg],"-w") == 0)
+            nowarn = TRUE;
+        else if (strcmp(argv[firstarg],"-v") == 0)
+            listformats = TRUE;
+        else if (strcmp(argv[firstarg],"-d") == 0)
+            readfiles = FALSE;
+        else if (strcmp(argv[firstarg],"-n") == 0)
+            printcounts = FALSE;
+        else if (strcmp(argv[firstarg],"-V") == 0)
+            vout = argv[++firstarg];
+        else if (strcmp(argv[firstarg],"-F") == 0)
+            fout = argv[++firstarg];
+        else if (strcmp(argv[firstarg],"-D") == 0)
+            dout = argv[++firstarg];
+        else
+            break;
+    }
 
 #if GMP
-	for (i = 0; i < MAXVALUES; ++i) mpz_init(mp_value[i]);
+    for (i = 0; i < MAXVALUES; ++i) mpz_init(mp_value[i]);
 #endif
-	for (i = 0; i < MAXVALUES; ++i) 
-	{
-	    il[i].nvals = 0;
-	    il[i].val = NULL;
-	}
+    for (i = 0; i < MAXVALUES; ++i) 
+    {
+        il[i].nvals = 0;
+        il[i].val = NULL;
+    }
 
-	if (readfiles) read_local_formats(&numformats);
-	if (readfiles) read_env_formats(&numformats);
-	if (readfiles) read_global_formats(&numformats);
+    if (readfiles) read_local_formats(&numformats);
+    if (readfiles) read_env_formats(&numformats);
+    if (readfiles) read_global_formats(&numformats);
 
-	if (listformats)
-	{
-	    printf("%d formats:\n",numformats);
-	    for (i = 0; i < numformats; ++i)
-	        printf("%03x %s",format[i].flags,format[i].fmt);
-	}
+    if (listformats)
+    {
+        printf("%d formats:\n",numformats);
+        for (i = 0; i < numformats; ++i)
+            printf("%03x %s",format[i].flags,format[i].fmt);
+    }
 
-	if (numformats == 0)
-	{
-	    fprintf(stderr,">E No formats\n");
-	    exit(1);
-	}
+    if (numformats == 0)
+    {
+        fprintf(stderr,">E No formats\n");
+        exit(1);
+    }
 
-	havefinal = FALSE;
-	for (i = 0; i < numformats; ++i)
-	{
-	    count_root[i] = NULL;
-	    matching_lines[i] = 0;
-	    total_position[i] = 0;
-	    if (HAS(i,FINAL)) havefinal = TRUE;
-	}
+    havefinal = FALSE;
+    for (i = 0; i < numformats; ++i)
+    {
+        count_root[i] = NULL;
+        matching_lines[i] = 0;
+        total_position[i] = 0;
+        if (HAS(i,FINAL)) havefinal = TRUE;
+    }
 
-	unmatched = totalerrorlines = 0;
-	numfiles = 0;
+    unmatched = totalerrorlines = 0;
+    numfiles = 0;
 
-	for (argnum = firstarg;
-             argnum < (argc == firstarg ? argc+1 : argc); ++argnum)
-	{
-	    if (argnum >= argc || strcmp(argv[argnum],"-") == 0)
-		pglob = &globlk_stdin;
-	    else
-	    {
-		pglob = &globlk;
-		doglob(argv[argnum],pglob);
-	    }
+    for (argnum = firstarg;
+         argnum < (argc == firstarg ? argc+1 : argc); ++argnum)
+    {
+        if (argnum >= argc || strcmp(argv[argnum],"-") == 0)
+            pglob = &globlk_stdin;
+        else
+        {
+            pglob = &globlk;
+            doglob(argv[argnum],pglob);
+        }
 
-	    for (ifile = 0; ifile < pglob->gl_pathc; ++ifile)
-	    {
-		matched = finalmatched = errorlines = 0;
-		++numfiles;
+        for (ifile = 0; ifile < pglob->gl_pathc; ++ifile)
+        {
+            matched = finalmatched = errorlines = 0;
+            ++numfiles;
 
-	   	if (strcmp(pglob->gl_pathv[ifile],"-") == 0)
-		{
-		    filename = "stdin";
-		    infile = stdin;
-		}
-	        else
-	        {
-		    filename = pglob->gl_pathv[ifile];
-		    if ((infile = fopen(filename,"r")) == NULL)
-	            {
-		        fprintf(stderr,">E Can't open %s\n",filename);
-		        exit(1);
-		    }
-	        }
+            if (strcmp(pglob->gl_pathv[ifile],"-") == 0)
+            {
+                filename = "stdin";
+                infile = stdin;
+            }
+            else
+            {
+                filename = pglob->gl_pathv[ifile];
+                if ((infile = fopen(filename,"r")) == NULL)
+                {
+                    fprintf(stderr,">E Can't open %s\n",filename);
+                    exit(1);
+                }
+            }
 
-	        line_number = 0;
-	        nullcount = 0;
-	        while (readline(infile,line,MAXLINELEN,&nulls))
-	        {
-		    nullcount += nulls;
-		    line[MAXLINELEN] = '\n';
-		    line[MAXLINELEN+1] = '\0';
-  	            if (line[0] == '\n') continue;
-		    ++line_number;
+            line_number = 0;
+            nullcount = 0;
+            while (readoneline(infile,line,MAXLINELEN,&nulls))
+            {
+                nullcount += nulls;
+                line[MAXLINELEN] = '\n';
+                line[MAXLINELEN+1] = '\0';
+                if (line[0] == '\n') continue;
+                ++line_number;
     
-	            for (i = 0; i < numformats; ++i)
-	            {
-		        nvals
-			  = scanline(line,format[i].fmt,val,valtype,&seq,outf);
-		        if (nvals >= 0)
-		        {
-			    if (HAS(i,ENDFILE)) line_number = 0;
-			    ++matched;
-			    if (HAS(i,FINAL)) ++finalmatched;
-			    if (HAS(i,ERROR)) ++errorlines;
-			    ++matching_lines[i];
-			    total_position[i] += line_number;
-		            add_one(&count_root[i],outf,format[i].pmod,nvals,
-                                 val,valtype,i,HAS(i,NUMERIC));
-			    if (matching_lines[i] > 1 && seq >= 0 
-			                           && seq != lastseq[i]+1)
-			    {
-			        printf("WARNING: Sequence number");
-			        if (seq == lastseq[i])
-			        {   
-                                    printf(" ");
-                                    printf(dout,seq);
-                                    printf(" is repeated.\n");
-                                }
-			        else if (seq != lastseq[i]+2)
-			        {
-				    printf("s ");
-				    printf(dout,lastseq[i]+1);
-				    printf("-");
-				    printf(dout,seq-1);
-				    printf(" are missing.\n");
-			        }
-			        else
-                                {
-                                    printf("  ");
-                                    printf(dout,seq-1);
-			            printf(" is missing.\n");
-                                }
-			    }
-			    lastseq[i] = seq;
-		            if (!HAS(i,CONTINUE)) break;
-		        }
-	            }
-        
-	            if (i == numformats) ++unmatched;
-	        }
-	        if (errorlines != 0)
-	            printf("ERRORS: Error lines in file %s\n",filename);
-	        else if (matched == 0 && !nowarn)
-	            printf("WARNING: No matching lines in file %s\n",filename);
-	        else if (finalmatched == 0 && havefinal && !nowarn)
-	            printf("WARNING: No final lines in file %s\n",filename);
-	        if (nullcount > 0)
-	 	    printf("WARNING: %ld NULs found in file %s\n",
-							    nullcount,filename);
-	        if (infile != stdin) fclose(infile);
+                for (i = 0; i < numformats; ++i)
+                {
+                    nvals
+                      = scanline(line,format[i].fmt,val,valtype,&seq,outf);
+                    if (nvals >= 0)
+                    {
+                        if (HAS(i,ENDFILE)) line_number = 0;
+                        ++matched;
+                        if (HAS(i,FINAL)) ++finalmatched;
+                        if (HAS(i,ERROR)) ++errorlines;
+                        ++matching_lines[i];
+                        total_position[i] += line_number;
+                        add_one(&count_root[i],outf,format[i].pmod,nvals,
+                             val,valtype,i,HAS(i,NUMERIC));
+                        if (matching_lines[i] > 1 && seq >= 0 
+                                               && seq != lastseq[i]+1)
+                        {
+                            printf("WARNING: Sequence number");
+                            if (seq == lastseq[i])
+                            {   
+                                printf(" ");
+                                printf(dout,seq);
+                                printf(" is repeated.\n");
+                            }
+                            else if (seq != lastseq[i]+2)
+                            {
+                                printf("s ");
+                                printf(dout,lastseq[i]+1);
+                                printf("-");
+                                printf(dout,seq-1);
+                                printf(" are missing.\n");
+                            }
+                            else
+                            {
+                                printf("  ");
+                                printf(dout,seq-1);
+                                printf(" is missing.\n");
+                            }
+                        }
+                        lastseq[i] = seq;
+                        if (!HAS(i,CONTINUE)) break;
+                    }
+                }
+    
+                if (i == numformats) ++unmatched;
+            }
+            if (errorlines != 0)
+                printf("ERRORS: Error lines in file %s\n",filename);
+            else if (matched == 0 && !nowarn)
+                printf("WARNING: No matching lines in file %s\n",filename);
+            else if (finalmatched == 0 && havefinal && !nowarn)
+                printf("WARNING: No final lines in file %s\n",filename);
+            if (nullcount > 0)
+                printf("WARNING: %ld NULs found in file %s\n",
+                                                        nullcount,filename);
+            if (infile != stdin) fclose(infile);
 
-	        totalerrorlines += errorlines;
-	    }
-	    if (pglob == &globlk) globfree(pglob);
-	}
+            totalerrorlines += errorlines;
+        }
+        if (pglob == &globlk) globfree(pglob);
+    }
 
-	sort_formats(order,numformats);
+    sort_formats(order,numformats);
 
-	for (j = 0; j < numformats; ++j)
-	{
-	    i = order[j];
-	    if (HAS(i,SILENT)) continue;
+    for (j = 0; j < numformats; ++j)
+    {
+        i = order[j];
+        if (HAS(i,SILENT)) continue;
 
-	    if (HAS(i,COUNT))
-	    {
-		if (matching_lines[i] > 0)
-		    printf("%5lu lines matched ",matching_lines[i]);
-		print_common(count_root[i]);
-	    }
-	    else
-	        print_counts(count_root[i],printcounts);
-	}
+        if (HAS(i,COUNT))
+        {
+            if (matching_lines[i] > 0)
+                printf("%5lu lines matched ",matching_lines[i]);
+            print_common(count_root[i]);
+        }
+        else
+            print_counts(count_root[i],printcounts);
+    }
 
-	if (unmatched > 0)
-	    printf("%5lu non-empty lines not matched\n",unmatched);
-	if (argc > firstarg) printf("%5lu files read altogether\n",numfiles);
-	if (totalerrorlines > 0) printf("%5lu errors found\n",totalerrorlines);
+    if (unmatched > 0)
+        printf("%5lu non-empty lines not matched\n",unmatched);
+    if (argc > firstarg) printf("%5lu files read altogether\n",numfiles);
+    if (totalerrorlines > 0) printf("%5lu errors found\n",totalerrorlines);
 
-	exit(0);
+    exit(0);
 }

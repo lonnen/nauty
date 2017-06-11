@@ -1,4 +1,5 @@
 /* splay.c  - code for splay trees    Version of August 18, 2001.
+ * Author: Brendan McKay  bdm@cs.anu.edu.au
 
    This file is not meant to be compiled separately, but to be
    #included into other programs.  Use it like this:

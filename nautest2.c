@@ -25,7 +25,7 @@ main(int argc, char *argv[])
 	printf(" __STDC__");
 #endif
 #ifdef BIGNAUTY
-	printf(" BIGNAUTY");
+	printf(" BIGNAUTY(obsolete!)");
 #endif
 #ifdef SYS_UNIX
 	printf(" SYS_UNIX");

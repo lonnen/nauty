@@ -125,9 +125,8 @@ seemsbad(char *s)
 
 /***********************************************************************/
 
-main(argc,argv)
-int argc;
-char *argv[];
+int
+main(int argc, char *argv[])
 {
 	int m,n,codetype;
 	char *infilename,*outfilename;

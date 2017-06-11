@@ -1,25 +1,23 @@
 /* This program prints generators for the automorphism group of an
    n-vertex polygon, where n is a number supplied by the user.
-   It needs to be linked with nauty.c, nautil.c and naugraph.c.
 
    This version uses dynamic allocation.
 */
 
-#include "nauty.h"    /* which includes <stdio.h> */
+#include "nauty.h"   
 /* MAXN=0 is defined by nauty.h, which implies dynamic allocation */
 
 int
 main(int argc, char *argv[])
 {
   /* DYNALLSTAT declares a pointer variable (to hold an array when it
-  * is allocated) and a size variable to remember how big the array is.
-  * Nothing is allocated yet.                                        */
+     is allocated) and a size variable to remember how big the array is.
+     Nothing is allocated yet.  */
  
     DYNALLSTAT(graph,g,g_sz);
     DYNALLSTAT(int,lab,lab_sz);
     DYNALLSTAT(int,ptn,ptn_sz);
     DYNALLSTAT(int,orbits,orbits_sz);
-    DYNALLSTAT(setword,workspace,workspace_sz);
     static DEFAULTOPTIONS_GRAPH(options);
     statsblk stats;
 
@@ -27,8 +25,8 @@ main(int argc, char *argv[])
     set *gv;
 
 /* Default options are set by the DEFAULTOPTIONS_GRAPH macro above.
- * Here we change those options that we want to be different from the
- * defaults.  writeautoms=TRUE causes automorphisms to be written.     */
+   Here we change those options that we want to be different from the
+   defaults.  writeautoms=TRUE causes automorphisms to be written. */
 
     options.writeautoms = TRUE;
 
@@ -39,49 +37,35 @@ main(int argc, char *argv[])
         {
 
      /* The nauty parameter m is a value such that an array of
-      * m setwords is sufficient to hold n bits.  The type setword
-      * is defined in nauty.h.  The number of bits in a setword is
-      * WORDSIZE, which is 16, 32 or 64.  Here we calculate
-      * m = ceiling(n/WORDSIZE).                                  */
+        m setwords is sufficient to hold n bits.  The type setword
+        is defined in nauty.h.  The number of bits in a setword is
+        WORDSIZE, which is 16, 32 or 64.  Here we calculate
+        m = ceiling(n/WORDSIZE). */
 
-            m = (n + WORDSIZE - 1) / WORDSIZE;
+            m = SETWORDSNEEDED(n);
 
          /* The following optional call verifies that we are linking
-          * to compatible versions of the nauty routines.            */
+            to compatible versions of the nauty routines. */
 
             nauty_check(WORDSIZE,m,n,NAUTYVERSIONID);
 
          /* Now that we know how big the graph will be, we allocate
-          * space for the graph and the other arrays we need.   */
+          * space for the graph and the other arrays we need. */
 
             DYNALLOC2(graph,g,g_sz,m,n,"malloc");
-            DYNALLOC1(setword,workspace,workspace_sz,5*m,"malloc");
             DYNALLOC1(int,lab,lab_sz,n,"malloc");
             DYNALLOC1(int,ptn,ptn_sz,n,"malloc");
             DYNALLOC1(int,orbits,orbits_sz,n,"malloc");
 
-            for (v = 0; v < n; ++v)
-            {
-                gv = GRAPHROW(g,v,m);
-
-                EMPTYSET(gv,m);
-                ADDELEMENT(gv,(v+n-1)%n);
-                ADDELEMENT(gv,(v+1)%n);
-            }
+            EMPTYGRAPH(g,m,n);
+            for (v = 0; v < n; ++v) ADDONEEDGE(g,v,(v+1)%n,m);
 
             printf("Generators for Aut(C[%d]):\n",n);
-            nauty(g,lab,ptn,NULL,orbits,&options,&stats,
-                                            workspace,5*m,m,n,NULL);
+            densenauty(g,lab,ptn,orbits,&options,&stats,m,n,NULL);
 
-    /* The size of the group is returned in stats.grpsize1 and
-     * stats.grpsize2. See dreadnaut.c for code that will write the
-     * value in a sensible format; here we will take advantage of
-     * knowing that the size cannot be very large.  Adding 0.1 is
-     * just in case the floating value is truncated instead of rounded,
-     * but that shouldn't be.                                     */
-
-        printf("Automorphism group size = %.0f",stats.grpsize1+0.1);
- 
+            printf("order = ");
+            writegroupsize(stdout,stats.grpsize1,stats.grpsize2);
+            printf("\n");
         }
         else
             break;

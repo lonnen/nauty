@@ -1,6 +1,5 @@
 /* This program demonstrates how an isomorphism is found between
-   graphs of the form in the figure above, for general size.
-   It needs to be linked with nauty.c, nautil.c and nausparse.c.
+   two graphs, using the Moebius graph as an example.
    This version uses sparse form with dynamic allocation.
 */
 
@@ -13,11 +12,12 @@ main(int argc, char *argv[])
     DYNALLSTAT(int,lab2,lab2_sz);
     DYNALLSTAT(int,ptn,ptn_sz);
     DYNALLSTAT(int,orbits,orbits_sz);
-    DYNALLSTAT(setword,workspace,workspace_sz);
     DYNALLSTAT(int,map,map_sz);
     static DEFAULTOPTIONS_SPARSEGRAPH(options);
     statsblk stats;
-    sparsegraph sg1,sg2,cg1,cg2;   /* Declare sparse graph structures */
+ /* Declare and initialize sparse graph structures */
+    SG_DECL(sg1); SG_DECL(sg2);
+    SG_DECL(cg1); SG_DECL(cg2);
 
     int n,m,i;
 
@@ -25,10 +25,7 @@ main(int argc, char *argv[])
 
     options.getcanon = TRUE;
  
- /* Initialise sparse graph structure. */
-
-    SG_INIT(sg1); SG_INIT(sg2);
-    SG_INIT(cg1); SG_INIT(cg2);
+ /* Read the number of vertices and process it */
 
     while (1)
     {
@@ -41,45 +38,48 @@ main(int argc, char *argv[])
                 continue;
             }
 
-            m = (n + WORDSIZE - 1) / WORDSIZE;
+            m = SETWORDSNEEDED(n);
             nauty_check(WORDSIZE,m,n,NAUTYVERSIONID);
 
             DYNALLOC1(int,lab1,lab1_sz,n,"malloc");
             DYNALLOC1(int,lab2,lab2_sz,n,"malloc");
             DYNALLOC1(int,ptn,ptn_sz,n,"malloc");
             DYNALLOC1(int,orbits,orbits_sz,n,"malloc");
-            DYNALLOC1(setword,workspace,workspace_sz,2*m,"malloc");
             DYNALLOC1(int,map,map_sz,n,"malloc");
 
          /* Now make the first graph */
 
             SG_ALLOC(sg1,n,3*n,"malloc");
             sg1.nv = n;              /* Number of vertices */
-            sg1.nde = 3*n;          /* Number of directed edges */
+            sg1.nde = 3*n;           /* Number of directed edges */
 
             for (i = 0; i < n; ++i)
             {
-                sg1.v[i] = 3*i;
-                sg1.d[i] = 3;
+                sg1.v[i] = 3*i;     /* Position of vertex i in v array */
+                sg1.d[i] = 3;       /* Degree of vertex i */
             }
              
-            for (i = 0; i < n; i += 2) sg1.e[sg1.v[i]] = i+1;
-            for (i = 1; i < n; i += 2) sg1.e[sg1.v[i]] = i-1;
-            for (i = 0; i < n; ++i)
+            for (i = 0; i < n; i += 2)   /* Spokes */
             {
-                sg1.e[sg1.v[i]+1] = i+2;
-                sg1.e[sg1.v[i]+2] = i-2;
+                sg1.e[sg1.v[i]] = i+1;
+                sg1.e[sg1.v[i+1]] = i;
             }
-            sg1.e[sg1.v[0]+2] = n-1;
-            sg1.e[sg1.v[1]+2] = n-2;
+
+            for (i = 0; i < n-2; ++i)  /* Clockwise edges */
+                sg1.e[sg1.v[i]+1] = i+2;
             sg1.e[sg1.v[n-2]+1] = 1;
             sg1.e[sg1.v[n-1]+1] = 0;
 
+            for (i = 2; i < n; ++i)  /* Anticlockwise edges */
+                sg1.e[sg1.v[i]+2] = i-2;
+            sg1.e[sg1.v[1]+2] = n-2;
+            sg1.e[sg1.v[0]+2] = n-1;
+                
          /* Now make the second graph */
 
             SG_ALLOC(sg2,n,3*n,"malloc");
             sg2.nv = n;              /* Number of vertices */
-            sg2.nde = 3*n;          /* Number of directed edges */
+            sg2.nde = 3*n;           /* Number of directed edges */
 
             for (i = 0; i < n; ++i)
             {
@@ -91,19 +91,17 @@ main(int argc, char *argv[])
             {
                 sg2.v[i] = 3*i;
                 sg2.d[i] = 3;
-                sg2.e[sg2.v[i]] = (i+1) % n;
-                sg2.e[sg2.v[i]+1] = (i+n-1) % n;
-                sg2.e[sg2.v[i]+2] = (i+n/2) % n;
+                sg2.e[sg2.v[i]] = (i+1) % n;      /* Clockwise */
+                sg2.e[sg2.v[i]+1] = (i+n-1) % n;  /* Anti-clockwise */
+                sg2.e[sg2.v[i]+2] = (i+n/2) % n;  /* Diagonals */
             }
 
-         /* Label sg1, result in cg1 and labelling in lab1; similarly sg1.
+         /* Label sg1, result in cg1 and labelling in lab1; similarly sg2.
             It is not necessary to pre-allocate space in cg1 and cg2, but
             they have to be initialised as we did above.  */
             
-            nauty((graph*)&sg1,lab1,ptn,NULL,orbits,&options,&stats,
-                                              workspace,2*m,m,n,(graph*)&cg1);
-            nauty((graph*)&sg2,lab2,ptn,NULL,orbits,&options,&stats,
-                                              workspace,2*m,m,n,(graph*)&cg2);
+            sparsenauty(&sg1,lab1,ptn,orbits,&options,&stats,&cg1);
+            sparsenauty(&sg2,lab2,ptn,orbits,&options,&stats,&cg2);
 
          /* Compare canonically labelled graphs */
 
@@ -117,10 +115,7 @@ main(int argc, char *argv[])
                     the map in order of labelling because it looks better. */
 
                     for (i = 0; i < n; ++i) map[lab1[i]] = lab2[i];
-                    for (i = 0; i < n; ++i)
-                    {
-                        printf(" %d-%d",i,map[i]);
-                    }
+                    for (i = 0; i < n; ++i) printf(" %d-%d",i,map[i]);
                     printf("\n");
                 }
             }

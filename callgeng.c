@@ -3,8 +3,8 @@
  * an argument list for geng's main() function.  At compile time,
  * assign a name to the macros OUTPROC and GENG_MAIN.  A typical
  * Unix-style compilation command would be:
-     gcc -o callgeng -O3 -DMAXN=32 -DOUTPROC=outproc -DGENG_MAIN=geng_main \
-       callgeng.c geng.c gtools.o nauty1.o nautil1.o naugraph1.o 
+     gcc -o callgeng -O3 -DMAXN=32 -DOUTPROC=myoutproc -DGENG_MAIN=geng_main \
+       callgeng.c geng.c gtools.o nauty1.o nautil1.o naugraph1.o schreier.o rng.o
  */
 
 #include "gtools.h"

@@ -44,7 +44,7 @@ main(int argc, char *argv[])
 	boolean sswitch,gswitch,oswitch,nswitch,hswitch,qswitch;
 	char *infilename,*outfilename;
 	FILE *infile,*outfile;
-	long nin;
+	nauty_counter nin;
 	char s[10];
 #if MAXN
 	graph g[MAXN*MAXM];
@@ -206,7 +206,8 @@ main(int argc, char *argv[])
 	}
 
 	if (!qswitch)
-	    fprintf(stderr,">Z  %ld graphs converted from %s to %s\n",
+	    fprintf(stderr,">Z  " COUNTER_FMT
+                               " graphs converted from %s to %s\n",
 			    nin,infilename,outfilename);
 
 	exit(0);

@@ -17,7 +17,7 @@
 #include "gutils.h"
 
 static FILE *outfile;
-static long nout;
+static nauty_counter nout;
 static int outcode;
 
 /*************************************************************************/
@@ -131,14 +131,13 @@ main(int argc, char *argv[])
 	int j,m,n,argnum;
 	int codetype;
 	graph *g;
-	long nin;
+	nauty_counter nin;
         char *arg,sw;
 	double t;
 
 	HELP;
 
         infilename = outfilename = NULL;
-        badargs = FALSE;
 	dolabel = quiet = FALSE;
 
 	argnum = 0;
@@ -233,7 +232,8 @@ main(int argc, char *argv[])
 
         if (!quiet)
             fprintf(stderr,
-                ">Z  %ld graphs read from %s, %ld written to %s; %3.2f sec.\n",
+                ">Z  " COUNTER_FMT " graphs read from %s, "
+                       COUNTER_FMT " written to %s; %3.2f sec.\n",
                     nin,infilename,nout,outfilename,t);
 
 	exit(0);

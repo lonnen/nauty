@@ -1,8 +1,9 @@
 /* testg.c : Find properties of graphs.  This is the source file for
    both pickg (select by property) and countg (count by property).
-   Version of Nov 19, 2003. */
+   Version of Nov 10, 2009. */
 /* TODO - write a header if input has one */
 /* TODO - USERDEF should be long, not int */
+/* TODO - Cast pointers might be too big for long */
 
 #define USAGE \
   "[pickg|countg] [-fp#:#q -V] [--keys] [-constraints -v] [ifile [ofile]]"
@@ -32,10 +33,12 @@
 \n\
      -n#  number of vertices     -e#  number of edges\n\
      -d#  minimum degree         -D#  maximum degree\n\
+     -m#  vertices of min degree -M#  vertices of max degree\n\
      -r   regular                -b   bipartite\n\
      -z#  radius                 -Z#  diameter\n\
      -g#  girth (0=acyclic)      -Y#  total number of cycles\n\
-     -T#  number of triangles\n\
+     -T#  number of triangles    -K#  number of maximal independent sets\n\
+     -H#  number of induced cycles\n\
      -E   Eulerian (all degrees are even, connectivity not required)\n\
      -a#  group size  -o# orbits  -F# fixed points  -t vertex-transitive\n\
      -c#  connectivity (only implemented for 0,1,2).\n\
@@ -60,7 +63,7 @@ How to add a new property:
  1. Add entries to constraint[], following the examples there.
     If several things are computed at the same time, link them
     together such as for z and Z.  It doesn't matter which is
-    first provided the prereq field points to the first one.
+    first, provided the prereq field points to the first one.
    
  2. Add code to compute() to compute the value(s) of the parameter.
     Probably this means calling an external procedure then setting
@@ -148,7 +151,15 @@ static struct constraint_st    /* Table of Constraints */
    {'J',0,FALSE,FALSE,CMASK(I_i),-NOLIMIT,NOLIMIT,"maxnoncn",INTTYPE,0},
 #define I_T 20
    {'T',0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"triang",INTTYPE,0},
-#define I_Q 21
+#define I_K 21
+   {'K',0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"maxlcliq",INTTYPE,0},
+#define I_H 22
+   {'H',0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"induced cycles",INTTYPE,0},
+#define I_m 23
+   {'m',0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"minverts",INTTYPE,0},
+#define I_M 24
+   {'M',0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"maxverts",INTTYPE,0},
+#define I_Q 25
 #ifdef USERDEF
    {'Q',0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,USERDEFNAME,INTTYPE,0}
 #else
@@ -342,7 +353,7 @@ printthesevals(FILE *f)
             if (VALTYPE(ki) == BOOLTYPE)
 	    {
                 if (!VAL(ki)) fprintf(f,"not %s",ID(ki));
-                else          fprintf(f,ID(ki));
+                else          fprintf(f,"%s",ID(ki));
 	    }
 	    else if (VALTYPE(ki) == GROUPSIZE)
 	    {
@@ -369,7 +380,7 @@ printkeyvals(FILE *f, long *val)
 	    if (VALTYPE(ki) == BOOLTYPE)
 	    {
 		if (!val[i]) fprintf(f,"not %s",ID(ki));
-		else         fprintf(f,ID(ki));
+		else         fprintf(f,"%s",ID(ki));
 	    }
 	    else if (VALTYPE(ki) == GROUPSIZE)
 	    {
@@ -391,14 +402,14 @@ groupstats(graph *g, int m, int n, group_node *sz,
 {
 #if MAXN
         int lab[MAXN],ptn[MAXN],orbits[MAXN];
-        permutation count[MAXN];
+        int count[MAXN];
         set active[MAXM];
         setword workspace[4*MAXM];
 #else
 	DYNALLSTAT(int,lab,lab_sz);
 	DYNALLSTAT(int,ptn,ptn_sz);
 	DYNALLSTAT(int,orbits,orbits_sz);
-	DYNALLSTAT(permutation,count,count_sz);
+	DYNALLSTAT(int,count,count_sz);
 	DYNALLSTAT(set,active,active_sz);
 	DYNALLSTAT(setword,workspace,workspace_sz);
 #endif
@@ -412,7 +423,7 @@ groupstats(graph *g, int m, int n, group_node *sz,
 	DYNALLOC1(int,lab,lab_sz,n,"groupstats");
 	DYNALLOC1(int,ptn,ptn_sz,n,"groupstats");
 	DYNALLOC1(int,orbits,orbits_sz,n,"groupstats");
-	DYNALLOC1(permutation,count,count_sz,n,"groupstats");
+	DYNALLOC1(int,count,count_sz,n,"groupstats");
 	DYNALLOC1(set,active,active_sz,m,"groupstats");
 	DYNALLOC1(setword,workspace,workspace_sz,4*m,"groupstats");
 #endif
@@ -482,8 +493,11 @@ compute(graph *g, int m, int n, int code)
 		VAL(I_D) = maxd;
 		VAL(I_E) = eul;
 		VAL(I_r) = mind == maxd;
+		VAL(I_m) = mincount;
+		VAL(I_M) = maxcount;
 		COMPUTED(I_e) = COMPUTED(I_d) = COMPUTED(I_D) = TRUE;
 	        COMPUTED(I_E) = COMPUTED(I_r) = TRUE;
+	        COMPUTED(I_m) = COMPUTED(I_M) = TRUE;
 		break;
 
 	    case I_b:
@@ -494,6 +508,11 @@ compute(graph *g, int m, int n, int code)
 	    case I_g:
 		VAL(I_g) = girth(g,m,n);
 		COMPUTED(I_g) = TRUE;
+		break;
+
+	    case I_K:
+		VAL(I_K) = maxcliques(g,m,n);
+		COMPUTED(I_K) = TRUE;
 		break;
 
 	    case I_z:
@@ -530,12 +549,19 @@ compute(graph *g, int m, int n, int code)
 	    case I_r:
 	    case I_o:
 	    case I_t:
+	    case I_m:
+	    case I_M:
 		fprintf(stderr,">E Property %d should be known already\n",code);
 		exit(1);
 
 	    case I_Y:
 		VAL(I_Y) = cyclecount(g,m,n);
 		COMPUTED(I_Y) = TRUE;
+		break;
+
+	    case I_H:
+		VAL(I_H) = indcyclecount(g,m,n);
+		COMPUTED(I_H) = TRUE;
 		break;
 
 	    case I_T:
@@ -690,7 +716,7 @@ main(int argc, char *argv[])
 	long pval1,pval2,maxin;
 	boolean fswitch,pswitch,Vswitch,vswitch,qswitch;
 	unsigned long cmask;
-	boolean havecon,neg;
+	boolean havecon,neg,doflush;
 	double t;
 
 	HELP;
@@ -701,7 +727,7 @@ main(int argc, char *argv[])
 	    exit(1);
 	}
 	vswitch = qswitch = fswitch = pswitch = FALSE;
-	Vswitch = FALSE;
+	doflush = Vswitch = FALSE;
 	infilename = outfilename = NULL;
 	numkeys = 0;
 	havecon = FALSE;
@@ -728,6 +754,7 @@ main(int argc, char *argv[])
 		    else SWBOOLEAN('f',fswitch)
 		    else SWBOOLEAN('v',vswitch)
 		    else SWBOOLEAN('V',Vswitch)
+		    else SWBOOLEAN('9',doflush)
 		    else SWRANGE('p',":-",pswitch,pval1,pval2,"-p")
 		    else if (sw == '-')
 		    {
@@ -849,8 +876,10 @@ main(int argc, char *argv[])
 	if (dofilter) countfile = stderr;
 	else          countfile = outfile;
 
+/* Output line is always the same as the input line
 	if (codetype&SPARSE6) outcode = SPARSE6;
 	else                  outcode = GRAPH6;
+*/
 
 	nin = nout = 0;
 	if (!pswitch || pval2 == NOLIMIT) maxin = NOLIMIT;
@@ -866,7 +895,11 @@ main(int argc, char *argv[])
 
 	    if (selected(g,m,n))
 	    {
-	        if (dofilter) writelast(outfile);
+	        if (dofilter)
+		{
+		    writelast(outfile);
+		    if (doflush) fflush(outfile);
+		}
 		if (Vswitch)
 		{
 		    fprintf(countfile,"Graph %6ld : ",nin);

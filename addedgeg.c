@@ -105,7 +105,6 @@ main(int argc, char *argv[])
 	HELP;
 
         infilename = outfilename = NULL;
-        badargs = FALSE;
 	Dswitch = dolabel = quiet = zswitch = FALSE;
 	bswitch = tswitch = fswitch = Fswitch = FALSE;
 

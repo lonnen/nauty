@@ -1,4 +1,4 @@
-/* deledgeg.c  version 1.2; B D McKay, March 2009. */
+/* deledgeg.c  version 1.3; B D McKay, Jan 2013. */
 
 #define USAGE "deledgeg [-lq] [-d#] [infile [outfile]]"
 
@@ -173,17 +173,11 @@ main(int argc, char *argv[])
 	}
 	t = CPUTIME - t;
 
-#if LONG_LONG_COUNTERS
         if (!quiet)
             fprintf(stderr,
-              ">Z  %lld graphs read from %s, %lld written to %s; %3.2f sec.\n",
+              ">Z  " COUNTER_FMT " graphs read from %s, "
+                          COUNTER_FMT " written to %s; %3.2f sec.\n",
                     nin,infilename,nout,outfilename,t);
-#else
-        if (!quiet)
-            fprintf(stderr,
-              ">Z  %ld graphs read from %s, %ld written to %s; %3.2f sec.\n",
-                    nin,infilename,nout,outfilename,t);
-#endif
 
 	exit(0);
 }

@@ -66,8 +66,8 @@ void ran_array(aa,n)    /* put n new random numbers in aa */
 /* after calling ran_start, get new randoms by, e.g., "x=ran_arr_next()" */
 
 #define QUALITY 1009 /* recommended quality level for high-res use */
-long ran_arr_buf[QUALITY];
-long ran_arr_dummy=-1, ran_arr_started=-1;
+static long ran_arr_buf[QUALITY];
+static long ran_arr_dummy=-1, ran_arr_started=-1;
 long *ran_arr_ptr=&ran_arr_dummy; /* the next random number, or -1 */
 
 #define TT  70   /* guaranteed separation between streams */
@@ -110,7 +110,7 @@ void
 ran_init(long seed)    /* Added by BDM: use instead of ran_start. */
                        /*  But this is less important with this version */
 {
-    ran_start(seed % (MM-2));
+    ran_start((unsigned long)seed % (MM-2));
 }
 
 #define ran_arr_next() (*ran_arr_ptr>=0? *ran_arr_ptr++: ran_arr_cycle())

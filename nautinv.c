@@ -1,8 +1,8 @@
 /*****************************************************************************
 *                                                                            *
-*  Vertex-invariants source file for nauty 2.4.                              *
+*  Vertex-invariants source file for nauty 2.5.                              *
 *                                                                            *
-*   Copyright (1989-2010) Brendan McKay.  All rights reserved.               *
+*   Copyright (1989-2013) Brendan McKay.  All rights reserved.               *
 *   Subject to waivers and disclaimers in nauty.h.                           *
 *                                                                            *
 *   CHANGE HISTORY                                                           *
@@ -32,6 +32,11 @@
 *                 - fixed comments in ind and cliq routines                  *
 *       21-Nov-01 : use NAUTYREQUIRED in nautinv_check()                     *
 *       10-Dec-06 : remove BIGNAUTY                                          *
+*       10-Nov-09 : remove types shortish and permutation                    *
+*       23-Nov-09 : add refinvar()                                           *
+*       12-Jun-10 : fixed identical errors in cellcliq() and cellind()       *
+*       15-Jan-12 : add TLS_ATTR attributes                                  *
+*       23-Aug-12 : fix getbigcells(), thanks to Fatih Demirkale             *
 *                                                                            *
 *****************************************************************************/
 
@@ -44,10 +49,19 @@
 #define M m
 #endif
 
-#define ACCUM(x,y)   x = (((x) + (y)) & 077777)
+#define MASH(l,i) ((((l) ^ 056345) + (i)) & 077777)
+    /* : expression whose long value depends only on long l and int/long i.
+	 Anything goes, preferably non-commutative. */
 
-static int fuzz1[] = {037541,061532,005257,026416};
-static int fuzz2[] = {006532,070236,035523,062437};
+#define CLEANUP(l) ((int)((l) % 077777))
+    /* : expression whose value depends on long l and is less than 077777
+	 when converted to int then short.  Anything goes. */
+
+#define ACCUM(x,y)   x = (((x) + (y)) & 077777)
+    /* : must be commutative. */
+
+static const int fuzz1[] = {037541,061532,005257,026416};
+static const int fuzz2[] = {006532,070236,035523,062437};
 
 #define FUZZ1(x) ((x) ^ fuzz1[(x)&3])
 #define FUZZ2(x) ((x) ^ fuzz2[(x)&3])
@@ -55,20 +69,26 @@ static int fuzz2[] = {006532,070236,035523,062437};
 #define MAXCLIQUE 10    /* max clique size for cliques() and maxindset() */
 
 #if MAXN
-static set workset[MAXM];
-static shortish workshort[MAXN+2];
-static set ws1[MAXM], ws2[MAXM];
-static shortish vv[MAXN],ww[MAXN];
-static set w01[MAXM],w02[MAXM],w03[MAXM],w12[MAXM],w13[MAXM],w23[MAXM];
-static set pt0[MAXM],pt1[MAXM],pt2[MAXM];
-static set wss[MAXCLIQUE-1][MAXM];
+static TLS_ATTR int workshort[MAXN+2];
+static TLS_ATTR int vv[MAXN],ww[MAXN];
+static TLS_ATTR int workperm[MAXN];
+static TLS_ATTR int bucket[MAXN+2];
+static TLS_ATTR int count[MAXN];
+static TLS_ATTR set workset[MAXM];
+static TLS_ATTR set w01[MAXM],w02[MAXM],w03[MAXM],w12[MAXM],w13[MAXM],w23[MAXM];
+static TLS_ATTR set pt0[MAXM],pt1[MAXM],pt2[MAXM];
+static TLS_ATTR set wss[MAXCLIQUE-1][MAXM];
+static TLS_ATTR set ws1[MAXM],ws2[MAXM];
 #else
-DYNALLSTAT(set,workset,workset_sz);
-DYNALLSTAT(shortish,workshort,workshort_sz);
+DYNALLSTAT(int,workshort,workshort_sz);
+DYNALLSTAT(int,vv,vv_sz);
+DYNALLSTAT(int,ww,ww_sz);
+DYNALLSTAT(int,workperm,workperm_sz);
+DYNALLSTAT(int,bucket,bucket_sz);
+DYNALLSTAT(int,count,count_sz);
 DYNALLSTAT(set,ws1,ws1_sz);
 DYNALLSTAT(set,ws2,ws2_sz);
-DYNALLSTAT(shortish,vv,vv_sz);
-DYNALLSTAT(shortish,ww,ww_sz);
+DYNALLSTAT(set,workset,workset_sz);
 DYNALLSTAT(set,w01,w01_sz);
 DYNALLSTAT(set,w02,w02_sz);
 DYNALLSTAT(set,w03,w03_sz);
@@ -142,7 +162,7 @@ DYNALLSTAT(set,wss,wss_sz);
 *             each invar[i]  (0 <= i < n)  an invariant of the 6-tuple       *
 *             (<vertex i>,g,<the partition nest to this level>,level,        *
 *               invararg,digraph)                                            *
-*             Note that invar[] is declared as a permutation.  Since the     *
+*             Note that invar[] is declared as an int array.  Since the      *
 *             absolute value of the invariant is irrelevant, only the        *
 *             comparative values, any short, int or long value can be        *
 *             assigned to the entries of invar[] without fear.  However,     *  
@@ -166,15 +186,15 @@ DYNALLSTAT(set,wss,wss_sz);
 
 void
 twopaths(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
-         permutation *invar, int invararg, boolean digraph, int m, int n)
+         int *invar, int invararg, boolean digraph, int m, int n)
 {
         int i,v,w;
-        shortish wt;
+        int wt;
         set *gv,*gw;
 
 #if !MAXN
 	DYNALLOC1(set,workset,workset_sz,m,"twopaths");
-	DYNALLOC1(shortish,workshort,workshort_sz,n+2,"twopaths");
+	DYNALLOC1(int,workshort,workshort_sz,n+2,"twopaths");
 #endif
 
         wt = 1;
@@ -212,18 +232,18 @@ twopaths(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
 
 void
 quadruples(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
-           permutation *invar, int invararg, boolean digraph, int m, int n)
+           int *invar, int invararg, boolean digraph, int m, int n)
 {
         int i,pc;
         setword sw;
         set *gw;
-        shortish wt;
+        int wt;
         int v,iv,v1,v2,v3;
         set *gv;
         long wv,wv1,wv2,wv3;
 
 #if !MAXN
-        DYNALLOC1(shortish,workshort,workshort_sz,n+2,"quadruples");
+        DYNALLOC1(int,workshort,workshort_sz,n+2,"quadruples");
 	DYNALLOC1(set,ws1,ws1_sz,m,"quadruples");
 	DYNALLOC1(set,workset,workset_sz,m,"quadruples");
 #endif
@@ -291,19 +311,19 @@ quadruples(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
 
 void
 triples(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
-        permutation *invar, int invararg, boolean digraph, int m, int n)
+        int *invar, int invararg, boolean digraph, int m, int n)
 {
         int i,pc;
         setword sw;
         set *gw;
-        shortish wt;
+        int wt;
         int v,iv,v1,v2;
         set *gv;
         long wv,wv1,wv2;
 
 #if !MAXN
         DYNALLOC1(set,workset,workset_sz,m,"triples");
-        DYNALLOC1(shortish,workshort,workshort_sz,n+2,"triples");
+        DYNALLOC1(int,workshort,workshort_sz,n+2,"triples");
 #endif
 
         for (i = n; --i >= 0;) invar[i] = 0;
@@ -359,19 +379,19 @@ triples(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
 
 void
 adjtriang(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
-          permutation *invar, int invararg, boolean digraph, int m, int n)
+          int *invar, int invararg, boolean digraph, int m, int n)
 {
         int j,pc;
         setword sw;
         set *gi;
-        shortish wt;
+        int wt;
         int i,v1,v2;
         boolean v1v2;
         set *gv1,*gv2;
 
 #if !MAXN
         DYNALLOC1(set,workset,workset_sz,m,"adjtriang");
-        DYNALLOC1(shortish,workshort,workshort_sz,n+2,"adjtriang");
+        DYNALLOC1(int,workshort,workshort_sz,n+2,"adjtriang");
 #endif
 
         for (i = n; --i >= 0;) invar[i] = 0;
@@ -389,7 +409,8 @@ adjtriang(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
             {
                 if (v2 == v1) continue;
                 v1v2 = (ISELEMENT(gv1,v2) != 0);
-                if (invararg == 0 && !v1v2 || invararg == 1 && v1v2) continue;
+                if ((invararg == 0 && !v1v2)
+			 || (invararg == 1 && v1v2)) continue;
                 wt = workshort[v1];
                 ACCUM(wt,workshort[v2]);
                 ACCUM(wt,v1v2);
@@ -425,10 +446,10 @@ adjtriang(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
 
 void
 getbigcells(int *ptn, int level, int minsize, int *bigcells,
-            shortish *cellstart, shortish *cellsize, int n)
+            int *cellstart, int *cellsize, int n)
 {
         int cell1,cell2,j;
-        shortish si,st;
+        int si,st;
         int bc,i,h;
 
         bc = 0;
@@ -436,7 +457,7 @@ getbigcells(int *ptn, int level, int minsize, int *bigcells,
         {
             for (cell2 = cell1; ptn[cell2] > level; ++cell2) {}
 
-            if (cell2 >= cell1 + 3)
+            if (cell2 >= cell1 + minsize - 1)
             {
                 cellstart[bc] = cell1;
                 cellsize[bc] = cell2 - cell1 + 1;
@@ -458,7 +479,7 @@ getbigcells(int *ptn, int level, int minsize, int *bigcells,
                 st = cellstart[i];
                 si = cellsize[i];
                 for (j = i; cellsize[j-h] > si ||
-                            cellsize[j-h] == si && cellstart[j-h] > st; )
+                            (cellsize[j-h] == si && cellstart[j-h] > st); )
                 {
                     cellsize[j] = cellsize[j-h];
                     cellstart[j] = cellstart[j-h];
@@ -484,20 +505,20 @@ getbigcells(int *ptn, int level, int minsize, int *bigcells,
 
 void
 celltrips(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
-          permutation *invar, int invararg, boolean digraph, int m, int n)
+          int *invar, int invararg, boolean digraph, int m, int n)
 {
         int i,pc;
         setword sw;
         set *gw;
-        shortish wt;
+        int wt;
         int v,iv,v1,iv1,v2,iv2;
         int icell,bigcells,cell1,cell2;
-        shortish *cellstart,*cellsize;
+        int *cellstart,*cellsize;
         set *gv;
 
 #if !MAXN
         DYNALLOC1(set,workset,workset_sz,m,"celltrips");
-        DYNALLOC1(shortish,workshort,workshort_sz,n+2,"celltrips");
+        DYNALLOC1(int,workshort,workshort_sz,n+2,"celltrips");
 #endif
 
         for (i = n; --i >= 0;) invar[i] = 0;
@@ -552,20 +573,20 @@ celltrips(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
 
 void
 cellquads(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
-          permutation *invar, int invararg, boolean digraph, int m, int n)
+          int *invar, int invararg, boolean digraph, int m, int n)
 {
         int i,pc;
         setword sw;
         set *gw;
-        shortish wt;
+        int wt;
         int v,iv,v1,iv1,v2,iv2,v3,iv3;
         int icell,bigcells,cell1,cell2;
-        shortish *cellstart,*cellsize;
+        int *cellstart,*cellsize;
         set *gv;
 
 #if !MAXN
         DYNALLOC1(set,workset,workset_sz,m,"cellquads");
-        DYNALLOC1(shortish,workshort,workshort_sz,n+2,"cellquads");
+        DYNALLOC1(int,workshort,workshort_sz,n+2,"cellquads");
 	DYNALLOC1(set,ws1,ws1_sz,m,"cellquads");
 #endif
 
@@ -628,20 +649,20 @@ cellquads(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
 
 void
 cellquins(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
-          permutation *invar, int invararg, boolean digraph, int m, int n)
+          int *invar, int invararg, boolean digraph, int m, int n)
 {
         int i,pc;
         setword sw;
         set *gw;
-        shortish wt;
+        int wt;
         int v,iv,v1,iv1,v2,iv2,v3,iv3,v4,iv4;
         int icell,bigcells,cell1,cell2;
-        shortish *cellstart,*cellsize;
+        int *cellstart,*cellsize;
         set *gv;
 
 #if !MAXN
         DYNALLOC1(set,workset,workset_sz,m,"cellquins");
-        DYNALLOC1(shortish,workshort,workshort_sz,n+2,"cellquins");
+        DYNALLOC1(int,workshort,workshort_sz,n+2,"cellquins");
 	DYNALLOC1(set,ws1,ws1_sz,m,"cellquins");
 	DYNALLOC1(set,ws2,ws2_sz,m,"cellquins");
 #endif
@@ -716,7 +737,7 @@ uniqinter(set *s1, set *s2, int m)
 	{
 	    if ((w = s1[i] & s2[i]) != 0)
 	    {
-		j = FIRSTBIT(w);
+		j = FIRSTBITNZ(w);
 		if (w != BITT[j]) return -1;
 		j += TIMESWORDSIZE(i);
 		for (++i; i < M; ++i)
@@ -740,23 +761,23 @@ uniqinter(set *s1, set *s2, int m)
 
 void 
 cellfano2(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
-          permutation *invar, int invararg, boolean digraph, int m, int n)
+          int *invar, int invararg, boolean digraph, int m, int n)
 {
         int i,pc;
         setword sw;
-        shortish wt;
+        int wt;
         int v0,v1,v2,v3,iv0,iv1,iv2,iv3;
         int icell,bigcells,cell1,cell2;
-        shortish *cellstart,*cellsize;
+        int *cellstart,*cellsize;
 	int nw,x01,x02,x03,x12,x13,x23;
 	int pnt0,pnt1,pnt2;
 	set *gv0,*gv1,*gv2,*gv3;
 	set *gp0,*gp1,*gp2;
 
 #if !MAXN
-        DYNALLOC1(shortish,workshort,workshort_sz,n+2,"cellfano2");
-	DYNALLOC1(shortish,vv,vv_sz,n,"cellfano2");
-	DYNALLOC1(shortish,ww,ww_sz,n,"cellfano2");
+        DYNALLOC1(int,workshort,workshort_sz,n+2,"cellfano2");
+	DYNALLOC1(int,vv,vv_sz,n,"cellfano2");
+	DYNALLOC1(int,ww,ww_sz,n,"cellfano2");
 #endif
 
         for (i = n; --i >= 0;) invar[i] = 0;
@@ -889,18 +910,18 @@ setnbhd(graph *g, int m, int n, set *w, set *wn)
 
 void 
 cellfano(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
-         permutation *invar, int invararg, boolean digraph, int m, int n)
+         int *invar, int invararg, boolean digraph, int m, int n)
 {
         int i,pc;
         setword sw;
-        shortish wt;
+        int wt;
         int v0,v1,v2,v3,iv0,iv1,iv2,iv3;
         int icell,bigcells,cell1,cell2;
-        shortish *cellstart,*cellsize;
+        int *cellstart,*cellsize;
 	set *gv0,*gv1,*gv2,*gv3;
 
 #if !MAXN
-        DYNALLOC1(shortish,workshort,workshort_sz,n+2,"cellfano");
+        DYNALLOC1(int,workshort,workshort_sz,n+2,"cellfano");
 	DYNALLOC1(set,w01,w01_sz,m,"cellfano");
 	DYNALLOC1(set,w02,w02_sz,m,"cellfano");
 	DYNALLOC1(set,w03,w03_sz,m,"cellfano");
@@ -999,17 +1020,17 @@ cellfano(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
 
 void
 distances(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
-          permutation *invar, int invararg, boolean digraph, int m, int n)
+          int *invar, int invararg, boolean digraph, int m, int n)
 {
         int i;
         set *gw;
-        shortish wt;
+        int wt;
         int d,dlim,cell1,cell2,iv,v,w;
         boolean success;
 
 #if !MAXN
         DYNALLOC1(set,workset,workset_sz,m,"distances");
-        DYNALLOC1(shortish,workshort,workshort_sz,n+2,"distances");
+        DYNALLOC1(int,workshort,workshort_sz,n+2,"distances");
 	DYNALLOC1(set,ws1,ws1_sz,m,"distances");
 	DYNALLOC1(set,ws2,ws2_sz,m,"distances"); 
 #endif
@@ -1076,10 +1097,10 @@ distances(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
 
 void
 indsets(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
-        permutation *invar, int invararg, boolean digraph, int m, int n)
+        int *invar, int invararg, boolean digraph, int m, int n)
 {
         int i;
-        shortish wt;
+        int wt;
         set *gv;
         int ss,setsize;
         int v[MAXCLIQUE];
@@ -1087,7 +1108,7 @@ indsets(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
         set *s0,*s1;
 
 #if !MAXN
-        DYNALLOC1(shortish,workshort,workshort_sz,n+2,"indsets");
+        DYNALLOC1(int,workshort,workshort_sz,n+2,"indsets");
 	DYNALLOC2(set,wss,wss_sz,m,MAXCLIQUE-1,"indsets");
 #endif
 
@@ -1151,10 +1172,10 @@ indsets(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
 
 void
 cliques(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
-        permutation *invar, int invararg, boolean digraph, int m, int n)
+        int *invar, int invararg, boolean digraph, int m, int n)
 {
         int i;
-        shortish wt;
+        int wt;
         set *gv;
         int ss,setsize;
         int v[MAXCLIQUE];
@@ -1162,7 +1183,7 @@ cliques(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
 	set *ns;
 
 #if !MAXN
-        DYNALLOC1(shortish,workshort,workshort_sz,n+2,"cliques");
+        DYNALLOC1(int,workshort,workshort_sz,n+2,"cliques");
 	DYNALLOC2(set,wss,wss_sz,m,MAXCLIQUE-1,"cliques");
 #else
 	set wss[MAXCLIQUE-1][MAXM];
@@ -1227,22 +1248,22 @@ cliques(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
 
 void
 cellcliq(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
-         permutation *invar, int invararg, boolean digraph, int m, int n)
+         int *invar, int invararg, boolean digraph, int m, int n)
 {
         int i;
-        shortish wt;
+        int wt;
         set *gv;
         int ss,setsize;
         int v[MAXCLIQUE];
         set *ns;
-        shortish *cellstart,*cellsize;
+        int *cellstart,*cellsize;
         int iv,icell,bigcells,cell1,cell2;
         int pc;
         setword sw;
 
 #if !MAXN
         DYNALLOC1(set,workset,workset_sz,m,"cellcliq");
-        DYNALLOC1(shortish,workshort,workshort_sz,n+2,"cellcliq");
+        DYNALLOC1(int,workshort,workshort_sz,n+2,"cellcliq");
 	DYNALLOC2(set,wss,wss_sz,m,MAXCLIQUE-1,"cellcliq");
 #endif
 
@@ -1306,7 +1327,7 @@ cellcliq(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
                 }
             }
             wt = invar[lab[cell1]];
-            for (iv = cell1; iv <= cell2; ++iv)
+            for (iv = cell1 + 1; iv <= cell2; ++iv)
                 if (invar[lab[iv]] != wt) return;
         }
 }
@@ -1323,22 +1344,22 @@ cellcliq(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
 
 void
 cellind(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
-        permutation *invar, int invararg, boolean digraph, int m, int n)
+        int *invar, int invararg, boolean digraph, int m, int n)
 {
         int i;
-        shortish wt;
+        int wt;
         set *gv;
         int ss,setsize;
         int v[MAXCLIQUE];
         set *ns;
-        shortish *cellstart,*cellsize;
+        int *cellstart,*cellsize;
         int iv,icell,bigcells,cell1,cell2;
         int pc;
         setword sw;
 
 #if !MAXN
         DYNALLOC1(set,workset,workset_sz,m,"cellind");
-        DYNALLOC1(shortish,workshort,workshort_sz,n+2,"cellind");
+        DYNALLOC1(int,workshort,workshort_sz,n+2,"cellind");
 	DYNALLOC2(set,wss,wss_sz,m,MAXCLIQUE-1,"cellind");
 #endif
 
@@ -1402,7 +1423,7 @@ cellind(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
                 }
             }
             wt = invar[lab[cell1]];
-            for (iv = cell1; iv <= cell2; ++iv)
+            for (iv = cell1 + 1; iv <= cell2; ++iv)
                 if (invar[lab[iv]] != wt) return;
         }
 }
@@ -1418,14 +1439,14 @@ cellind(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
 
 void
 adjacencies(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
-            permutation *invar, int invararg, boolean digraph, int m, int n)
+            int *invar, int invararg, boolean digraph, int m, int n)
 {
         int i,v,w;
-        shortish vwt,wwt;
+        int vwt,wwt;
         set *gv;
 
 #if !MAXN
-        DYNALLOC1(shortish,workshort,workshort_sz,n+2,"adjacencies");
+        DYNALLOC1(int,workshort,workshort_sz,n+2,"adjacencies");
 #endif
 
         vwt = 1;
@@ -1514,4 +1535,217 @@ nautinv_freedyn(void)
 	DYNFREE(pt2,pt2_sz);
 	DYNFREE(wss,wss_sz);
 #endif
+}
+
+/*===================================================================*/
+
+
+/*****************************************************************************
+*                                                                            *
+*  semirefine(g,lab,ptn,level,numcells,strength,active,m,n) performs a       *
+*  refinement operation on the partition at the specified level of the       *
+*  partition nest (lab,ptn).  *numcells is assumed to contain the number of  *
+*  cells on input, and is updated.  The initial set of active cells (alpha   *
+*  in the paper) is specified in the set active.  Precisely, x is in active  *
+*  iff the cell starting at index x in lab is active.                        *
+*  *code is set to a value which depends on the fine detail of the           *
+*  algorithm, but which is independent of the labelling of the graph.        *
+*                                                                            *
+*****************************************************************************/
+
+static int
+semirefine(graph *g, int *lab, int *ptn, int level, int *numcells,
+           int strength, set *active, int m, int n)
+{
+	int i,c1,c2,labc1;
+	setword x;
+	set *set1,*set2;
+	int split1,split2,cell1,cell2;
+	int cnt,bmin,bmax;
+	long longcode;
+	set *gptr;
+	int maxcell,maxpos,hint;
+
+#if !MAXN
+	DYNALLOC1(int,workperm,workperm_sz,n,"refine");
+	DYNALLOC1(set,workset,workset_sz,m,"refine");
+	DYNALLOC1(int,bucket,bucket_sz,n+2,"refine");
+	DYNALLOC1(int,count,count_sz,n,"refine");
+#endif
+
+	longcode = *numcells;
+	split1 = -1;
+	hint = 0;
+	while (*numcells < n && ((split1 = hint, ISELEMENT(active,split1))
+                             || (split1 = nextelement(active,M,split1)) >= 0
+	                     || (split1 = nextelement(active,M,-1)) >= 0))
+	{
+	    DELELEMENT(active,split1);
+	    for (split2 = split1; ptn[split2] > level; ++split2) {}
+	    longcode = MASH(longcode,split1+split2);
+	    if (split1 == split2)       /* trivial splitting cell */
+	    {
+	        gptr = GRAPHROW(g,lab[split1],M);
+	        for (cell1 = 0; cell1 < n; cell1 = cell2 + 1)
+	        {
+	            for (cell2 = cell1; ptn[cell2] > level; ++cell2) {}
+	            if (cell1 == cell2) continue;
+	            c1 = cell1;
+	            c2 = cell2;
+	            while (c1 <= c2)
+	            {
+	                labc1 = lab[c1];
+	                if (ISELEMENT(gptr,labc1))
+	                    ++c1;
+	                else
+	                {
+	                    lab[c1] = lab[c2];
+	                    lab[c2] = labc1;
+	                    --c2;
+	                }
+	            }
+	            if (c2 >= cell1 && c1 <= cell2)
+	            {
+	                ptn[c2] = level;
+	                longcode = MASH(longcode,FUZZ1(c2));
+	                ++*numcells;
+			if (ISELEMENT(active,cell1) || c2-cell1 >= cell2-c1)
+			{
+     			    ADDELEMENT(active,c1);
+			    if (c1 == cell2) hint = c1;
+			}
+			else
+			{
+     			    ADDELEMENT(active,cell1);
+			    if (c2 == cell1) hint = cell1;
+			}
+	            }
+	        }
+	    }
+	    else        /* nontrivial splitting cell */
+	    {
+	        EMPTYSET(workset,m);
+	        for (i = split1; i <= split2; ++i)
+	            ADDELEMENT(workset,lab[i]);
+	        longcode = MASH(longcode,FUZZ2(split2-split1+1));
+
+	        for (cell1 = 0; cell1 < n; cell1 = cell2 + 1)
+	        {
+	            for (cell2 = cell1; ptn[cell2] > level; ++cell2) {}
+	            if (cell1 == cell2) continue;
+	            i = cell1;
+	            set1 = workset;
+	            set2 = GRAPHROW(g,lab[i],m);
+	            cnt = 0;
+	            for (c1 = m; --c1 >= 0;)
+	                if ((x = (*set1++) & (*set2++)) != 0)
+	                    cnt += POPCOUNT(x);
+
+	            count[i] = bmin = bmax = cnt;
+	            bucket[cnt] = 1;
+	            while (++i <= cell2)
+	            {
+	                set1 = workset;
+	                set2 = GRAPHROW(g,lab[i],m);
+	                cnt = 0;
+	                for (c1 = m; --c1 >= 0;)
+	                    if ((x = (*set1++) & (*set2++)) != 0)
+	                        cnt += POPCOUNT(x);
+
+	                while (bmin > cnt) bucket[--bmin] = 0;
+	                while (bmax < cnt) bucket[++bmax] = 0;
+	                ++bucket[cnt];
+	                count[i] = cnt;
+	            }
+	            if (bmin == bmax)
+	            {
+	                longcode = MASH(longcode,FUZZ1(bmin+cell1));
+	                continue;
+	            }
+	            c1 = cell1;
+		    maxcell = -1;
+	            for (i = bmin; i <= bmax; ++i)
+	                if (bucket[i])
+	                {
+	                    c2 = c1 + bucket[i];
+	                    bucket[i] = c1;
+	                    longcode = MASH(longcode,i+c1);
+			    if (c2-c1 > maxcell)
+			    {
+				maxcell = c2-c1;
+				maxpos = c1;
+			    }
+	                    if (c1 != cell1)
+	                    {
+	                        ADDELEMENT(active,c1);
+			        if (c2-c1 == 1) hint = c1;
+	                        ++*numcells;
+	                    }
+	                    if (c2 <= cell2) ptn[c2-1] = level;
+	                    c1 = c2;
+	                }
+	            for (i = cell1; i <= cell2; ++i)
+	                workperm[bucket[count[i]]++] = lab[i];
+	            for (i = cell1; i <= cell2; ++i) lab[i] = workperm[i];
+		    if (!ISELEMENT(active,cell1))
+		    {
+     			ADDELEMENT(active,cell1);
+     			DELELEMENT(active,maxpos);     /* check maxpos is alwas defined */
+		    }
+	        }
+	    }
+	    if (--strength == 0) break;   /* negative is fine! */
+	}
+
+	longcode = MASH(longcode,FUZZ2(*numcells));
+	return CLEANUP(longcode);
+}
+
+void 
+refinvar(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
+          int *invar, int invararg, boolean digraph, int m, int n)
+{
+        int i,j;
+        int wt;
+        int icell,bigcells,cell1,cell2;
+        int *cellstart,*cellsize;
+	int newnumcells;
+
+#if !MAXN
+        DYNALLOC1(int,workshort,workshort_sz,n+2,"refinvar");
+        DYNALLOC1(int,vv,vv_sz,n,"refinvar");
+        DYNALLOC1(int,ww,ww_sz,n,"refinvar");
+        DYNALLOC1(set,ws1,ws1_sz,n,"refinvar");
+#endif
+
+        for (i = n; --i >= 0;) invar[i] = 0;
+
+        cellstart = workshort;
+        cellsize = workshort + (n/2);
+        getbigcells(ptn,level,2,&bigcells,cellstart,cellsize,n);
+
+        for (icell = 0; icell < bigcells; ++icell)
+        {
+            cell1 = cellstart[icell];
+            cell2 = cell1 + cellsize[icell] - 1;
+            for (i = cell1; i <= cell2; ++i)
+            {
+		for (j = 0; j < n; ++j)
+		{
+		    vv[j] = lab[j];
+		    ww[j] = ptn[j];
+		}
+		newnumcells = numcells + 1;
+		ww[cell1] = level;
+		EMPTYSET(ws1,m);
+		ADDELEMENT(ws1,cell1);
+		vv[i] = lab[cell1];
+		vv[cell1] = lab[i];
+		invar[lab[i]] = semirefine(g,vv,ww,level,&newnumcells,
+						invararg,ws1,m,n);
+            }
+            wt = invar[lab[cell1]];
+            for (i = cell1 + 1; i <= cell2; ++i)
+                if (invar[lab[i]] != wt) return;
+        }
 }

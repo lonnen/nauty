@@ -41,7 +41,9 @@
 #define mem_free free
 
 #include "naututil.h"
+#ifdef CPUDEFS
 CPUDEFS
+#endif
 #define time_current_user() CPUTIME
 
 #endif  /* not  PLANAR_IN_MAGMA */
@@ -228,6 +230,10 @@ typedef struct graph_sparse_rep {
 /*
  * embed_graph_protos.h
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* aproto: file embed_graph/sparseg_adjl_pred.c */
 extern boolean sparseg_adjl_dir_edge_exists (t_ver_sparse_rep *, int, t_adjl_sparse_rep *, int, int);
@@ -444,5 +450,9 @@ extern void sparseg_adjl_bfs (t_ver_sparse_rep *, int, t_adjl_sparse_rep *, bool
 extern void sparseg_adjl_walk_proper_face (int, t_adjl_sparse_rep *, t_embed_sparse_rep *, int, boolean, int, int *, t_edge_sparse_rep *);
 extern void sparseg_adjl_get_face_edges (int, t_adjl_sparse_rep *, int, t_embed_sparse_rep *, int, t_edge_sparse_rep **, int *, boolean, int);
 /* aproto: endfile */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  /* _PLANARITY_H_ */

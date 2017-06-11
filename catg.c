@@ -1,4 +1,4 @@
-/* catg.c version 1.1; B D McKay, Dec 2009 */
+/* catg.c version 1.2; B D McKay, Mar 14 2011 */
 
 #define USAGE "catg [-xv] [infile]..."
 
@@ -80,7 +80,10 @@ openfile_head(char *filename, char **header)
         head[i] = '\0';
     }
     else
+    {
+	ungetc(c,f);
         head[0] = '\0';
+    }
 
     *header = head;
 

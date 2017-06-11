@@ -87,6 +87,72 @@ cyclecount(graph *g, int m, int n)
 /**************************************************************************/
 
 long
+indpathcount1(graph *g, int start, setword body, setword last)
+/* Number of induced paths in g starting at start, extravertices within
+ * body and ending in last.
+ * {start}, body and last should be disjoint. */
+{
+    long count;
+    setword gs,w;
+    int i;
+
+    gs = g[start];
+    w = gs & last;
+    count = POPCOUNT(w);
+
+    w = gs & body;
+    while (w)
+    {
+	TAKEBIT(i,w);
+	count += indpathcount1(g,i,body&~gs,last&~bit[i]&~gs);
+    }
+
+    return count;
+}
+
+/**************************************************************************/
+
+long
+indcyclecount1(graph *g, int n)
+/* The total number of induced cycles in g (assumed no loops), m=1 only */
+{
+    setword body,last,cni;
+    long total;
+    int i,j;
+
+    body = ALLMASK(n);
+    total = 0;
+
+    for (i = 0; i < n-2; ++i)
+    {
+	body ^= bit[i];
+	last = g[i] & body;
+	cni = g[i] | bit[i];
+	while (last)
+	{
+	    TAKEBIT(j,last);
+	    total += indpathcount1(g,j,body&~cni,last);
+	}
+    }
+
+    return total;
+}
+
+/**************************************************************************/
+
+long
+indcyclecount(graph *g, int m, int n)
+/* The total number of induced cycles in g (assumed no loops) */
+{
+    if (m == 1) return indcyclecount1(g,n);
+
+    gt_abort("induced cycle counting is only implemented for n <= WORDSIZE");
+    return 0;
+}
+
+/**************************************************************************/
+
+long
 numtriangles1(graph *g, int n)
 /* The number of triangles in g */
 {
@@ -250,8 +316,8 @@ contract1(graph *g, graph *h, int v, int w, int n)
 
 /**************************************************************************/
 
-static int knm[18][16];  /* knm[n,m] = conncontent(K_n - m*K_2) */
-static boolean knm_computed = FALSE;
+static TLS_ATTR int knm[18][16];  /* knm[n,m] = conncontent(K_n - m*K_2) */
+static TLS_ATTR boolean knm_computed = FALSE;
 
 int
 conncontent(graph *g, int m, int n)
@@ -359,8 +425,8 @@ conncontent(graph *g, int m, int n)
 
     if (mindeg == 2)
     {
-	x = FIRSTBIT(g[minv]);
-	y = FIRSTBIT(g[minv]^bit[x]);
+	x = FIRSTBITNZ(g[minv]);
+	y = FIRSTBITNZ(g[minv]^bit[x]);
 	if (x > minv) --x;
 	if (y > minv) --y;
 	delete1(g,h,minv,n);
@@ -377,7 +443,7 @@ conncontent(graph *g, int m, int n)
 
     if (3*ne > n*n-n) 
     {
-	j = FIRSTBIT(g[minv] ^ bit[minv] ^ ALLMASK(n));   /* non-neighbour */
+	j = FIRSTBITNZ(g[minv] ^ bit[minv] ^ ALLMASK(n));   /* non-neighbour */
 
 	g[minv] ^= bit[j];
         g[j] ^= bit[minv];
@@ -393,7 +459,7 @@ conncontent(graph *g, int m, int n)
  
 /* All remaining cases */
 
-    j = FIRSTBIT(g[minv]);     /* neighbour */
+    j = FIRSTBITNZ(g[minv]);     /* neighbour */
 
     g[minv] ^= bit[j];
     g[j] ^= bit[minv];
@@ -406,5 +472,3 @@ conncontent(graph *g, int m, int n)
 
     return v1 - v2;
 }
-
-

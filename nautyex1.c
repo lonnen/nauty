@@ -1,6 +1,5 @@
 /* This program prints generators for the automorphism group of an
    n-vertex polygon, where n is a number supplied by the user.
-   It needs to be linked with nauty.c, nautil.c and naugraph.c.
 
    This version uses a fixed limit for MAXN.
 */
@@ -15,14 +14,12 @@ main(int argc, char *argv[])
     int lab[MAXN],ptn[MAXN],orbits[MAXN];
     static DEFAULTOPTIONS_GRAPH(options);
     statsblk stats;
-    setword workspace[5*MAXM];
 
     int n,m,v;
-    set *gv;
 
  /* Default options are set by the DEFAULTOPTIONS_GRAPH macro above.
- *  Here we change those options that we want to be different from the
- *  defaults.  writeautoms=TRUE causes automorphisms to be written.     */
+    Here we change those options that we want to be different from the
+    defaults.  writeautoms=TRUE causes automorphisms to be written.     */
 
     options.writeautoms = TRUE;
 
@@ -39,50 +36,37 @@ main(int argc, char *argv[])
         }
 
      /* The nauty parameter m is a value such that an array of
-      * m setwords is sufficient to hold n bits.  The type setword
-      * is defined in nauty.h.  The number of bits in a setword is
-      * WORDSIZE, which is 16, 32 or 64.  Here we calculate
-      * m = ceiling(n/WORDSIZE).                                  */
+        m setwords is sufficient to hold n bits.  The type setword
+        is defined in nauty.h.  The number of bits in a setword is
+        WORDSIZE, which is 16, 32 or 64.  Here we calculate
+        m = ceiling(n/WORDSIZE).                                  */
 
-        m = (n + WORDSIZE - 1) / WORDSIZE;
+        m = SETWORDSNEEDED(n);
 
      /* The following optional call verifies that we are linking
-      * to compatible versions of the nauty routines.            */
+        to compatible versions of the nauty routines.            */
 
         nauty_check(WORDSIZE,m,n,NAUTYVERSIONID);
 
-     /* Now we create the cycle.  For each v, we add the edges
-      * (v,v+1) and (v,v-1), where values are mod n.  gv is set to
-      * the position in g[] where row v starts, EMPTYSET zeros it,
-      * then ADDELEMENT adds one bit (a directed edge) to it.  */
+     /* Now we create the cycle.  First we zero the graph, than for
+        each v, we add the edge (v,v+1), where values are mod n. */
 
-        for (v = 0; v < n; ++v)
-        {
-            gv = GRAPHROW(g,v,m);
-
-            EMPTYSET(gv,m);
-            ADDELEMENT(gv,(v+n-1)%n);
-            ADDELEMENT(gv,(v+1)%n);
-        }
+        EMPTYGRAPH(g,m,n);
+        for (v = 0; v < n; ++v)  ADDONEEDGE(g,v,(v+1)%n,m);
 
         printf("Generators for Aut(C[%d]):\n",n);
 
      /* Since we are not requiring a canonical labelling, the last
-      * parameter to nauty() is noit required and can be NULL. 
-      * Similarly, we are not using a fancy active[] value, so we
-      * can pass NULL to ask nauty() to use the default.          */
+        parameter to densenauty() is not required and can be NULL. */
 
-        nauty(g,lab,ptn,NULL,orbits,&options,&stats,
-                                            workspace,5*MAXM,m,n,NULL);
+        densenauty(g,lab,ptn,orbits,&options,&stats,m,n,NULL);
 
      /* The size of the group is returned in stats.grpsize1 and
-      * stats.grpsize2. See dreadnaut.c for code that will write the
-      * value in a sensible format; here we will take advantage of
-      * knowing that the size cannot be very large.  Adding 0.1 is
-      * just in case the floating value is truncated instead of rounded,
-      * but that shouldn't be.                                     */
+        stats.grpsize2. */
 
-        printf("Automorphism group size = %.0f",stats.grpsize1+0.1);
+        printf("Automorphism group size = ");
+        writegroupsize(stdout,stats.grpsize1,stats.grpsize2);
+        printf("\n");
     }
 
     exit(0);

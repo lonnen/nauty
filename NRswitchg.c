@@ -73,7 +73,7 @@ main(int argc, char *argv[])
 	int j,m,n,v,argnum;
 	int codetype,outcode;
 	graph *g;
-	long nin,nout;
+	nauty_counter nin,nout;
         char *arg,sw;
 	static graph *gq;
 	double t;
@@ -87,7 +87,6 @@ main(int argc, char *argv[])
 	HELP;
 
         infilename = outfilename = NULL;
-        badargs = FALSE;
 	dolabel = quiet = FALSE;
 
 	argnum = 0;
@@ -191,7 +190,8 @@ main(int argc, char *argv[])
 
         if (!quiet)
             fprintf(stderr,
-                ">Z  %ld graphs read from %s, %ld written to %s; %3.2f sec.\n",
+                ">Z  " COUNTER_FMT " graphs read from %s, "
+                       COUNTER_FMT " written to %s; %3.2f sec.\n",
                     nin,infilename,nout,outfilename,t);
 
 	exit(0);

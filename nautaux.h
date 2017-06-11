@@ -1,8 +1,8 @@
 /*****************************************************************************
 *                                                                            *
-* This is the header file for version 2.3 of nautaux.c.                      *
+* This is the header file for version 2.5 of nautaux.c.                      *
 *                                                                            *
-*   Copyright (1984-2005) Brendan McKay.  All rights reserved.               *
+*   Copyright (1984-2013) Brendan McKay.  All rights reserved.               *
 *   Subject to the waivers and disclaimers in nauty.h.                       *
 *                                                                            *
 *   CHANGE HISTORY                                                           *
@@ -14,6 +14,7 @@
 *       19-Apr-95 : added prototype wrapper for C++                          *
 *       16-Nov-00 : made changes listed in nauty.h.                          *
 *        3-Nov-04 : declared nautaux_freedyn and nautaux_check               *
+*       21-Aug-12 : remove nvector                                           *
 *                                                                            *
 *****************************************************************************/
 
@@ -24,8 +25,8 @@ extern "C" {
 #endif
 
 extern int component(graph*,int,set*,int,int);
-extern boolean equitable(graph*,nvector*,nvector*,int,int,int);
-extern long ptncode(graph*,nvector*,nvector*,int,int,int);
+extern boolean equitable(graph*,int*,int*,int,int,int);
+extern long ptncode(graph*,int*,int*,int,int,int);
 extern void nautaux_freedyn(void);
 extern void nautaux_check(int,int,int,int);
 #ifdef __cplusplus

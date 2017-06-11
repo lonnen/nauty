@@ -1,4 +1,4 @@
-/* biplabg.c  version 1.0; B D McKay, Nov 19, 2003. */
+/* biplabg.c  version 1.1; B D McKay, Nov 10, 2009. */
 
 #define USAGE "biplabg [-q] [infile [outfile]]"
 
@@ -15,6 +15,7 @@
 /*************************************************************************/
 
 #include "gtools.h" 
+#include "gutils.h"
 
 /**************************************************************************/
 
@@ -25,13 +26,13 @@ biplabel(graph *g, int m, int n, graph *h)
 	int i,j;
 #if MAXN
 	int colour[MAXN];
-	permutation lab[MAXN];
+	int lab[MAXN];
 #else
 	DYNALLSTAT(int,colour,colour_sz);
-	DYNALLSTAT(permutation,lab,lab_sz);
+	DYNALLSTAT(int,lab,lab_sz);
 
 	DYNALLOC1(int,colour,colour_sz,n,"biplabg");
-	DYNALLOC1(permutation,lab,lab_sz,n,"biplabg");
+	DYNALLOC1(int,lab,lab_sz,n,"biplabg");
 #endif
 
 	if (!twocolouring(g,colour,m,n)) return FALSE;
@@ -56,7 +57,7 @@ main(int argc, char *argv[])
 	int j,m,n,argnum;
 	int codetype,outcode;
 	graph *g;
-	long nin,nout;
+	nauty_counter nin,nout;
         char *arg,sw;
 	double t;
 #if MAXN
@@ -159,7 +160,8 @@ main(int argc, char *argv[])
 
         if (!quiet)
             fprintf(stderr,
-                ">Z  %ld graphs read from %s; %ld written to %s; %3.2f sec.\n",
+                ">Z  " COUNTER_FMT " graphs read from %s; "
+                       COUNTER_FMT " written to %s; %3.2f sec.\n",
                     nin,infilename,nout,outfilename,t);
 
 	exit(0);

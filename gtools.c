@@ -1,5 +1,5 @@
 /* gtools.c : Common routines for gtools programs. */
-/* Version 2.4, Nov 2006. */
+/* Version 2.6, Jan 2011. */
 
 /* Todo: size check if MAXN>0; option to free memory */
 
@@ -11,12 +11,21 @@
 #define SEEK_END 2
 #endif
 
-size_t ogf_linelen;
-boolean is_pipe;
+TLS_ATTR size_t ogf_linelen;
+TLS_ATTR boolean is_pipe;
 
+#if HAVE_FSEEKO
+#define FSEEK_VER fseeko
+#define FTELL_VER ftello
+#define OFF_T_VER off_t
+#else
 #if !FTELL_DEC
 extern long ftell(FILE*);
 extern int fseek(FILE*,long,int);
+#endif
+#define FSEEK_VER fseek
+#define FTELL_VER ftell
+#define OFF_T_VER long
 #endif
 
 #if !POPEN_DEC
@@ -37,47 +46,14 @@ extern FILE *popen(const char*,const char*);
   Version 1.8: Add gtools_check()
   Version 1.9: Add writepc_sg(), readpc_sg() and readpcle_sg()
                Add planar_code options to opengraphfile()
-  Version 2.4: Add writeec_sg(), readec_sg()
+  Version 2.4: Add writeec_sg(), readec_sg()  (MISSING!)
                Add edge_code options to opengraphfile()
+  Version 2.5: Remove sortints(), not used
+  Version 2.6: Add sgtog6() and writeg6_sg()
 */
 
 #define B(i) (1 << ((i)-1))
 #define M(i) ((1 << (i))-1)
-
-/*****************************************************************************
-*                                                                            *
-*  sortints(x,n) - sort x[0..n-1] according to numerical values              *
-*                                                                            *
-*****************************************************************************/
-
-static void
-sortints(int *x, int n)
-{
-    int i,j,h;
-    int xi;
-
-    j = n / 3;
-    h = 1;
-    do
-        h = 3 * h + 1;
-    while (h < j);
-
-    do
-    {
-        for (i = h; i < n; ++i)
-        {
-            xi = x[i];
-            for (j = i; x[j-h] > xi; )
-            {
-                x[j] = x[j-h];
-                if ((j -= h) < h) break;
-            }
-            x[j] = xi;
-        }
-        h /= 3;
-    }
-    while (h > 0);
-}
 
 /*********************************************************************
 opengraphfile(filename,codetype,assumefixed,position) 
@@ -119,7 +95,8 @@ opengraphfile(char *filename, int *codetype, int assumefixed, long position)
 {
     FILE *f;
     int c,bl,firstc;
-    long i,l,pos,pos1,pos2;
+    long i,l;
+    OFF_T_VER pos,pos1,pos2;
     boolean bad_header;
 
     is_pipe = FALSE;
@@ -273,7 +250,7 @@ opengraphfile(char *filename, int *codetype, int assumefixed, long position)
 
     if (position <= 1) return f;
 
-    if (*codetype&PLANARCODE)
+    if (*codetype&PLANARCODEANY)
     {
 	fprintf(stderr,
       ">E opengraphfile: planar_code files can only be opened at the start\n");
@@ -313,7 +290,7 @@ opengraphfile(char *filename, int *codetype, int assumefixed, long position)
     }
     else
     {
-        pos1 = ftell(f);
+        pos1 = FTELL_VER(f);
         if (pos1 < 0)
         {
             fprintf(stderr,">E opengraphfile: error on first ftell\n");
@@ -331,7 +308,7 @@ opengraphfile(char *filename, int *codetype, int assumefixed, long position)
             return NULL;
         }
         
-        pos2 = ftell(f);
+        pos2 = FTELL_VER(f);
         if (pos2 < 0)
         {
             fprintf(stderr,">E opengraphfile: error on second ftell\n");
@@ -339,7 +316,7 @@ opengraphfile(char *filename, int *codetype, int assumefixed, long position)
         }
 
         pos = pos1 + (position-1)*(pos2-pos1);
-        if (fseek(f,pos,SEEK_SET) < 0)
+        if (FSEEK_VER(f,pos,SEEK_SET) < 0)
         {
             fprintf(stderr,">E opengraphfile: seek failed\n");
             return NULL;
@@ -366,6 +343,9 @@ writeline(FILE *f, char *s)
 }
 
 /*********************************************************************/
+/* This function used to be called getline(), but this was changed due
+   to too much confusion with the GNU function of that name.
+*/
 
 char*
 gtools_getline(FILE *f)     /* read a line with error checking */
@@ -410,28 +390,28 @@ getecline(FILE *f)     /* read an edge_code line */
 
     if (c1 > 0)
     {
-	bodysize = c1;
+        bodysize = c1;
         edgesize = 1;
-	headsize = 1;
+        headsize = 1;
     }
     else
     {
-	if ((c = GETC(f)) == EOF)
-	    gt_abort("Incomplete edge_code line");
-	else
-	{
-	    sizesize = c >> 4;
-	    edgesize = c & 0xF;
-	    bodysize = 0;
-	    for (i = 0; i < sizesize; ++i)
-	    {
-		if ((c = GETC(f)) == EOF)
+        if ((c = GETC(f)) == EOF)
+            gt_abort("Incomplete edge_code line");
+        else
+        {
+            sizesize = c >> 4;
+            edgesize = c & 0xF;
+            bodysize = 0;
+            for (i = 0; i < sizesize; ++i)
+            {
+                if ((c = GETC(f)) == EOF)
                     gt_abort("Incomplete edge_code line");
-		else
-		    bodysize = (bodysize << 8) + c;
-	    }
-	    headsize = 2 + sizesize;
-	}
+                else
+                    bodysize = (bodysize << 8) + c;
+            }
+            headsize = 2 + sizesize;
+        }
     }
 
     DYNALLOC1(unsigned char,s,s_sz,headsize+bodysize,"getecline");
@@ -439,13 +419,13 @@ getecline(FILE *f)     /* read an edge_code line */
     s[0] = c1;
     if (c1 == 0)
     {
-	s[1] = (sizesize << 4) + edgesize;
-	for (i = 0; i < sizesize; ++i)
-	    s[headsize-1-i] = (bodysize >> 8*i) & 0xFF;
+        s[1] = (sizesize << 4) + edgesize;
+        for (i = 0; i < sizesize; ++i)
+            s[headsize-1-i] = (bodysize >> 8*i) & 0xFF;
     }
 
     if (bodysize > 0 && fread(s+headsize,bodysize,1,f) != bodysize)
-	gt_abort("Incomplete edge_code line");
+        gt_abort("Incomplete edge_code line");
 
     FUNLOCKFILE(f);
     return (char*)s;
@@ -464,21 +444,21 @@ graphsize(char *s)
 
     if (n > SMALLN) 
     {
-	n = *p++ - BIAS6;
-	if (n > SMALLN)
-	{
+        n = *p++ - BIAS6;
+        if (n > SMALLN)
+        {
             n = *p++ - BIAS6;
             n = (n << 6) | (*p++ - BIAS6);
             n = (n << 6) | (*p++ - BIAS6);
             n = (n << 6) | (*p++ - BIAS6);
             n = (n << 6) | (*p++ - BIAS6);
             n = (n << 6) | (*p++ - BIAS6);
-	}
-	else
-	{
+        }
+        else
+        {
             n = (n << 6) | (*p++ - BIAS6);
             n = (n << 6) | (*p++ - BIAS6);
-	}
+        }
     }
     return n;
 }
@@ -535,7 +515,7 @@ stringcounts(char *s, int *pn, size_t *pe)
  
     if (s[0] == ':')  /* sparse6 */
     {
-	count = 0;
+        count = 0;
 
         for (i = n-1, nb = 0; i != 0 ; i >>= 1, ++nb) {}
         k = 0;
@@ -786,7 +766,8 @@ stringtosparsegraph(char *s, sparsegraph *sg, int *nloops)
 {
     char *p,*q;
     int n,nde,i,j,k,vv,x,nb,need;
-    int *v,*d,*e;
+    int *d,*e;
+    size_t *v;
     int loops;
     boolean done;
 
@@ -796,7 +777,7 @@ stringtosparsegraph(char *s, sparsegraph *sg, int *nloops)
 
     sg->nv = n;
 
-    DYNALLOC1(int,sg->v,sg->vlen,n,"stringtosparsegraph");
+    DYNALLOC1(size_t,sg->v,sg->vlen,n,"stringtosparsegraph");
     DYNALLOC1(int,sg->d,sg->dlen,n,"stringtosparsegraph");
 
     v = sg->v;
@@ -1070,9 +1051,9 @@ read_sg(FILE *f, sparsegraph *sg)
 /****************************************************************************/
 
 DYNALLSTAT(char,gcode,gcode_sz);  /* Used by ntog6, ntos6 and sgtos6 */
-size_t s6len;
-int readg_code;
-char *readg_line;
+TLS_ATTR size_t s6len;
+TLS_ATTR int readg_code;
+TLS_ATTR char *readg_line;
 
 /****************************************************************************/
 
@@ -1241,19 +1222,19 @@ sgtos6(sparsegraph *sg)
   It is null-terminated and its address (static memory) is returned.
   The length, not including the null, is put in s6len. */
 {
-    int *v,*d,*e;
+    int *d,*e;
     int i,j,n;
     char *p,x,*plim;
     int nb,topbit;
-    int vj,dj,k,lastj;
-    int r,rr,l;
-    size_t ii;
+    int dj,k,lastj;
+    int r,rr;
+    size_t ii,*v,vj,l;
 
     SG_VDE(sg,v,d,e);
     n = sg->nv;
     for (i = n-1, nb = 0; i != 0 ; i >>= 1, ++nb) {}
 
-    ii = (nb+1)*(n/6+sg->nde/3);
+    ii = (size_t)(nb+1)*(n/6+sg->nde/3);
     DYNALLOC1(char,gcode,gcode_sz,ii+1000,"ntos6");
     plim = gcode + gcode_sz - 20;
 
@@ -1269,53 +1250,23 @@ sgtos6(sparsegraph *sg)
     lastj = 0;
     for (j = 0; j < n; ++j)
     {
-    vj = v[j];
-    dj = d[j];
-    for (l = 0; l < dj; ++l)
-    {
-        i = e[vj+l];
-        if (i <= j)
+        vj = v[j];
+        dj = d[j];
+        for (l = 0; l < dj; ++l)
         {
-            if (p >= plim)
+            i = e[vj+l];
+            if (i <= j)
             {
-                ii = p - gcode;
-                DYNREALLOC(char,gcode,gcode_sz,
-                        5*(gcode_sz/4)+1000,"sgtos6");
-                p = gcode + ii;
-                plim = gcode + gcode_sz - 20;
-            }
-            if (j == lastj)
-            {
-                x <<= 1;
-                if (--k == 0)
+                if (p >= plim)
                 {
-                    *p++ = BIAS6 + x;
-                    k = 6;
-                    x = 0;
+                    ii = p - gcode;
+                    DYNREALLOC(char,
+                               gcode,gcode_sz,5*(gcode_sz/4)+1000,"sgtos6");
+                    p = gcode + ii;
+                    plim = gcode + gcode_sz - 20;
                 }
-            }
-            else
-            {
-                x = (x << 1) | 1;
-                if (--k == 0)
+                if (j == lastj)
                 {
-                    *p++ = BIAS6 + x;
-                    k = 6;
-                    x = 0;
-                }
-                if (j > lastj+1)
-                {
-                    for (r = 0, rr = j; r < nb; ++r, rr <<= 1)
-                    {
-                        if (rr & topbit) x = (x << 1) | 1;
-                        else             x <<= 1;
-                        if (--k == 0)
-                        {
-                            *p++ = BIAS6 + x;
-                            k = 6;
-                            x = 0;
-                        }
-                    }
                     x <<= 1;
                     if (--k == 0)
                     {
@@ -1324,21 +1275,51 @@ sgtos6(sparsegraph *sg)
                         x = 0;
                     }
                 }
-                lastj = j;
-            }
-            for (r = 0, rr = i; r < nb; ++r, rr <<= 1)
-            {
-                if (rr & topbit) x = (x << 1) | 1;
-                else             x <<= 1;
-                if (--k == 0)
+                else
                 {
-                    *p++ = BIAS6 + x;
-                    k = 6;
-                    x = 0;
+                    x = (x << 1) | 1;
+                    if (--k == 0)
+                    {
+                        *p++ = BIAS6 + x;
+                        k = 6;
+                        x = 0;
+                    }
+                    if (j > lastj+1)
+                    {
+                        for (r = 0, rr = j; r < nb; ++r, rr <<= 1)
+                        {
+                            if (rr & topbit) x = (x << 1) | 1;
+                            else             x <<= 1;
+                            if (--k == 0)
+                            {
+                                *p++ = BIAS6 + x;
+                                k = 6;
+                                x = 0;
+                            }
+                        }
+                            x <<= 1;
+                        if (--k == 0)
+                        {
+                            *p++ = BIAS6 + x;
+                            k = 6;
+                            x = 0;
+                        }
+                    }
+                    lastj = j;
+                }
+                for (r = 0, rr = i; r < nb; ++r, rr <<= 1)
+                {
+                    if (rr & topbit) x = (x << 1) | 1;
+                    else             x <<= 1;
+                    if (--k == 0)
+                    {
+                        *p++ = BIAS6 + x;
+                        k = 6;
+                        x = 0;
+                    }
                 }
             }
         }
-    }
     }
 
     if (k != 6)
@@ -1352,6 +1333,50 @@ sgtos6(sparsegraph *sg)
     *p++ = '\n';
     *p = '\0';
     s6len = p - gcode;
+    return gcode;
+}
+
+/*************************************************************************/
+
+char*
+sgtog6(sparsegraph *sg)
+/* Convert undirected sparse graph to graph6 string including '\n','\0'.
+  It is null-terminated and its address (static memory) is returned. */
+{
+    int *d,*e,*ei;
+    int i,j,k,n;
+    char *p,x;
+    size_t ii,*v,bodylen,org;
+    static char g6bit[] = {32,16,8,4,2,1};
+
+    SG_VDE(sg,v,d,e);
+    n = sg->nv;
+
+    ii = G6LEN(n)+3;
+
+    DYNALLOC1(char,gcode,gcode_sz,ii,"sgtog6");
+
+    p = gcode;
+    encodegraphsize(n,&p);
+
+    bodylen = ((n * (size_t)(n-1)) / 2 + 5) / 6;
+    for (ii = 0; ii < bodylen; ++ii) p[ii] = 0;
+    p[bodylen] = '\n';
+    p[bodylen+1] = '\0';
+
+    for (i = 0, org = 0; i < n;  org += i, ++i)
+    {
+	ei = e + v[i];
+	for (j = 0; j < d[i]; ++j)
+	    if (ei[j] < i)
+	    {
+		ii = ei[j] + org;
+		p[ii/6] |= g6bit[ii%6];
+	    }
+    }
+
+    for (ii = 0; ii < bodylen; ++ii) p[ii] += BIAS6;
+
     return gcode;
 }
 
@@ -1381,6 +1406,15 @@ writes6(FILE *f, graph *g, int m, int n)
 /**************************************************************************/
 
 void
+writeg6_sg(FILE *f, sparsegraph *g)
+/* write undirected sparse graph to file in sparse6 format */
+{
+    writeline(f,sgtog6(g));
+}
+
+/**************************************************************************/
+
+void
 writes6_sg(FILE *f, sparsegraph *g)
 /* write undirected sparse graph to file in sparse6 format */
 {
@@ -1404,9 +1438,9 @@ writepc_sg(FILE *f, sparsegraph *sg)
 */
 {
     int bytes;
-    size_t i,j,len,k;
+    size_t i,j,len,k,*v,vi;
     unsigned int w;
-    int n,*v,*d,*e,vi,di;
+    int n,*d,*e,di;
 
 #define BEPUT1(x) buff[j++]=(x);
 #define BEPUT2(x) w=(x); buff[j++]=(w>>8)&0xFF; buff[j++]=w&0xff;
@@ -1488,7 +1522,8 @@ readpc_sg(FILE *f,sparsegraph *sg)
                  else x = (w1<<24) | (w2<<16) | (w3<<8) | w4; }
     int w1,w2,w3,w4;
     int bytes,n;
-    int i,j,*v,*d,*e,vi,di;
+    int i,j,*d,*e,di;
+    size_t *v,vi;
 
     BEGET1(n);
     if (n == EOF || n < 0) return NULL;
@@ -1520,7 +1555,7 @@ readpc_sg(FILE *f,sparsegraph *sg)
         SG_INIT(*sg);
     }
 
-    SG_ALLOC(*sg,n,2*n,"readpc_sg");
+    SG_ALLOC(*sg,n,2*(size_t)n,"readpc_sg");
     SG_VDE(sg,v,d,e);
 
     vi = 0;
@@ -1575,7 +1610,8 @@ readpcle_sg(FILE *f,sparsegraph *sg)
                  else x = (w1<<24) | (w2<<16) | (w3<<8) | w4; }
     int w1,w2,w3,w4;
     int bytes,n;
-    int i,j,*v,*d,*e,vi,di;
+    int i,j,*d,*e,di;
+    size_t *v,vi;
 
     LEGET1(n);
     if (n == EOF || n < 0) return NULL;
@@ -1607,7 +1643,7 @@ readpcle_sg(FILE *f,sparsegraph *sg)
         SG_INIT(*sg);
     }
 
-    SG_ALLOC(*sg,n,2*n,"readpcle_sg");
+    SG_ALLOC(*sg,n,2*(size_t)n,"readpcle_sg");
     SG_VDE(sg,v,d,e);
 
     vi = 0;
@@ -1648,7 +1684,7 @@ readpcle_sg(FILE *f,sparsegraph *sg)
 
 void
 writelast(FILE *f)
-/* write last graph read by readg() assuming no intervening getline() */
+/* write last graph read by readg() assuming no intervening gtools_getline() */
 {
     writeline(f,readg_line);
 }
@@ -1828,7 +1864,7 @@ writerange(FILE *f, int c, long lo, long hi)    /* Write a range. */
 void
 gt_abort(char *msg)     /* Write message and halt. */
 {
-    if (msg) fprintf(stderr,msg);
+    if (msg) fprintf(stderr,"%s",msg);
     ABORT(">E gtools");
 }
 
@@ -1862,29 +1898,29 @@ stringcopy(char *s)   /* duplicate string */
 void
 gtools_check(int wordsize, int m, int n, int version)
 {
-        if (wordsize != WORDSIZE)
-        {
-            fprintf(ERRFILE,"Error: WORDSIZE mismatch in gtools.c\n");
-            exit(1);
-        }
+    if (wordsize != WORDSIZE)
+    {
+        fprintf(ERRFILE,"Error: WORDSIZE mismatch in gtools.c\n");
+        exit(1);
+    }
 
 #if MAXN
-        if (m > MAXM)
-        {
-            fprintf(ERRFILE,"Error: MAXM inadequate in gtools.c\n");
-            exit(1);
-        }
+    if (m > MAXM)
+    {
+        fprintf(ERRFILE,"Error: MAXM inadequate in gtools.c\n");
+        exit(1);
+    }
 
-        if (n > MAXN)
-        {
-            fprintf(ERRFILE,"Error: MAXN inadequate in gtools.c\n");
-            exit(1);
-        }
+    if (n > MAXN)
+    {
+        fprintf(ERRFILE,"Error: MAXN inadequate in gtools.c\n");
+        exit(1);
+    }
 #endif
 
-        if (version < NAUTYREQUIRED)
-        {
-            fprintf(ERRFILE,"Error: gtools.c version mismatch\n");
-            exit(1);
-        }
+    if (version < NAUTYREQUIRED)
+    {
+        fprintf(ERRFILE,"Error: gtools.c version mismatch\n");
+        exit(1);
+    }
 }
