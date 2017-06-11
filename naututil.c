@@ -1,9 +1,9 @@
 /*****************************************************************************
 *                                                                            *
-* miscellaneous utilities for use with nauty 2.0.                            *
+* miscellaneous utilities for use with nauty 2.4.                            *
 * None of these procedures are needed by nauty, but all are by dreadnaut.    *
 *                                                                            *
-*   Copyright (1984-2000) Brendan McKay.  All rights reserved.               *
+*   Copyright (1984-2010) Brendan McKay.  All rights reserved.               *
 *   Subject to waivers and disclaimers in nauty.h.                           *
 *                                                                            *
 *   CHANGE HISTORY                                                           *
@@ -47,11 +47,20 @@
 *       10-Dec-97 : - KRAN now initialises automatically                     *
 *        9-Jan-00 : - added naututil_check()                                 *
 *       12-Feb-00 : - some minor code formatting                             *
+*       16-Nov-00 : - changes as listed in nauty.h                           *
+*       23-Apr-01 : changes for version 2.1 :                                *
+*                   - removed EXTDEFS                                        *
+*        2-Jun-01 : - added converse()                                       *
+*       21-Nov-01 : use NAUTYREQUIRED in naututil_check()                    *
+*       11-Apr-03 : changes for version 2.2 :                                *
+*                   - added rangraph2()                                      *
+*       17-Nov-03 : changed INFINITY to NAUTY_INFINITY                       *
+*       10-Dec-06 : removed BIGNAUTY                                         *
 *                                                                            *
 *****************************************************************************/
 
-#define  EXTDEFS 1
-#include "naututil.h"          /* which includes "nauty.h" and <stdio.h> */
+#define ONE_WORD_SETS
+#include "naututil.h"    /* which includes nauty.h, nautinv.h and stdio.h */
 
 #if  MAXM==1
 #define M 1
@@ -89,24 +98,19 @@ static set workset[MAXM];              /* used for scratch purposes */
 *****************************************************************************/
 
 int
-setinter(set1,set2,m)
-register set *set1,*set2;
-int m;
+setinter(set *set1, set *set2, int m)
 {
-        register setword x;
+        setword x;
 
 #if  MAXM==1
-        if (x = *set1 & *set2)
-            return POPCOUNT(x);
-        else
-            return 0;
+        if (x = *set1 & *set2) return POPCOUNT(x);
+        else                   return 0;
 #else
-        register int count,i;
+        int count,i;
 
         count = 0;
         for (i = m; --i >= 0;)
-            if (x = (*set1++) & (*set2++))     /* not == */
-                count += POPCOUNT(x);
+            if ((x = (*set1++) & (*set2++)) != 0) count += POPCOUNT(x);
 
         return count;
 #endif
@@ -119,24 +123,19 @@ int m;
 *****************************************************************************/
 
 int
-setsize(set1,m)
-register set *set1;
-int m;
+setsize(set *set1, int m)
 {
 
 #if  MAXM==1
-        if (set1 != 0)
-            return POPCOUNT(*set1);
-        else
-            return 0;
+        if (set1 != 0) return POPCOUNT(*set1);
+        else           return 0;
 #else
-        register int count,i;
-        register setword x;
+        int count,i;
+        setword x;
 
         count = 0;
         for (i = m; --i >= 0;)
-            if (x = *set1++)             /* not == */
-                count += POPCOUNT(x);
+            if ((x = *set1++) != 0) count += POPCOUNT(x);
 
         return count;
 #endif
@@ -150,8 +149,7 @@ int m;
 *****************************************************************************/
 
 void
-flushline(f)
-FILE *f;
+flushline(FILE *f)
 {
         boolean msg;
         int c;
@@ -167,8 +165,7 @@ FILE *f;
                 msg = TRUE;
                 fprintf(ERRFILE,"input skipped : '%c",(char)c);
             }
-        if (msg)
-            fprintf(ERRFILE,"'\n\n");
+        if (msg) fprintf(ERRFILE,"'\n\n");
 }
 
 /*****************************************************************************
@@ -180,17 +177,14 @@ FILE *f;
 *****************************************************************************/
 
 boolean
-readinteger(f,p)
-FILE *f;
-int *p;
+readinteger(FILE *f, int *p)
 {
-        register int c,ans,minus;
+        int c,ans,minus;
 
         GETNWL(c,f);
         if (!ISDIGIT(c) && c != '-' && c != '+')
         {
-            if (c != EOF)
-                ungetc((char)c,f);
+            if (c != EOF) ungetc((char)c,f);
             return FALSE;
         }
 
@@ -205,8 +199,7 @@ int *p;
             c = getc(f);
         }
 
-        if (c != EOF)
-            ungetc((char)c,f);
+        if (c != EOF) ungetc((char)c,f);
 
         *p = (minus ? -ans : ans);
         return TRUE;
@@ -223,13 +216,10 @@ int *p;
 *****************************************************************************/
 
 boolean
-readstring(f,s,slen)
-FILE *f;
-register char *s;
-int slen;
+readstring(FILE *f, char *s, int slen)
 {
-        register int c;
-	register char *slim;
+        int c;
+	char *slim;
 
 	slim = s + slen - 1;
         GETNWL(c,f);
@@ -250,8 +240,7 @@ int slen;
         else           *slim = '\0';
 
 
-        if (c != EOF)
-            ungetc((char)c,f);
+        if (c != EOF) ungetc((char)c,f);
         return TRUE;
 }
 
@@ -263,19 +252,15 @@ int slen;
 *****************************************************************************/
 
 int
-getint(f)
-FILE *f;
+getint(FILE *f)
 {
         int i,c;
 
         GETNWL(c,f);
-        if (c != '=')
-            ungetc((char)c,f);
+        if (c != '=') ungetc((char)c,f);
 
-        if (readinteger(f,&i))
-            return i;
-        else
-            return -1;
+        if (readinteger(f,&i)) return i;
+        else                   return -1;
 }
 
 /*****************************************************************************
@@ -293,11 +278,8 @@ FILE *f;
 *****************************************************************************/
 
 void
-putset(f,set1,curlenp,linelength,m,compress)
-FILE *f;
-set *set1;
-int linelength,m,*curlenp;
-boolean compress;
+putset(FILE *f, set *set1, int *curlenp, int linelength,
+       int m, boolean compress)
 {
         int slen,j1,j2;
         char s[40];
@@ -308,10 +290,8 @@ boolean compress;
             j2 = j1;
             if (compress)
             {
-                while (nextelement(set1,m,j2) == j2 + 1)
-                    ++j2;
-                if (j2 == j1+1)
-                    j2 = j1;
+                while (nextelement(set1,m,j2) == j2 + 1) ++j2;
+                if (j2 == j1+1) j2 = j1;
             }
             slen = itos(j1+labelorg,s);
             if (j2 >= j1 + 2)
@@ -356,20 +336,16 @@ boolean compress;
 *****************************************************************************/
 
 void
-readgraph(f,g,digraph,prompt,edit,linelength,m,n)
-FILE *f;
-register graph *g;
-boolean digraph,prompt,edit;
-int linelength,m,n;
+readgraph(FILE *f, graph *g, boolean digraph, boolean prompt,
+          boolean edit, int linelength, int m, int n)
 {
-        register int v,c;
+        int v,c;
         int curlen,w;
-        register graph *gv;
+        graph *gv;
         boolean neg;
 
         if (!edit)
-            for (v = 0, gv = g; v < n; ++v, gv += M)
-                EMPTYSET(gv,m);
+            for (v = 0, gv = g; v < n; ++v, gv += M) EMPTYSET(gv,m);
 
         v = 0;
         gv = g;
@@ -392,8 +368,7 @@ int linelength,m,n;
                     else
                     {
                         DELELEMENT(gv,w);
-                        if (!digraph)
-                            DELELEMENT(GRAPHROW(g,w,M),v);
+                        if (!digraph) DELELEMENT(GRAPHROW(g,w,M),v);
                     }
                 }
                 else
@@ -418,8 +393,7 @@ int linelength,m,n;
                         else
                         {
                             ADDELEMENT(gv,w);
-                            if (!digraph)
-                                ADDELEMENT(GRAPHROW(g,w,M),v);
+                            if (!digraph) ADDELEMENT(GRAPHROW(g,w,M),v);
                         }
                     }
                 }
@@ -429,8 +403,7 @@ int linelength,m,n;
                 case ';':
                     neg = FALSE;
                     ++v;
-                    if (v >= n)
-                        return;
+                    if (v >= n) return;
                     gv = GRAPHROW(g,v,M);
                     break;
                 case '?':
@@ -442,8 +415,7 @@ int linelength,m,n;
                     break;
                 case '\n':
                     neg = FALSE;
-                    if (prompt)
-                        fprintf(PROMPTFILE,"%2d : ",v+labelorg);
+                    if (prompt) fprintf(PROMPTFILE,"%2d : ",v+labelorg);
                     break;
                 case EOF:
                 case '.':
@@ -455,8 +427,7 @@ int linelength,m,n;
                     do
                         c = getc(f);
                     while (c != '\n' && c != EOF);
-                    if (c == '\n')
-                        ungetc((char)c,f);
+                    if (c == '\n') ungetc((char)c,f);
                     break;
                 default :
                     fprintf(ERRFILE,"illegal char '%c' - use '.' to exit\n\n",
@@ -477,10 +448,7 @@ int linelength,m,n;
 *****************************************************************************/
 
 void
-putgraph(f,g,linelength,m,n)
-FILE *f;
-graph *g;
-int linelength,m,n;
+putgraph(FILE *f, graph *g, int linelength, int m, int n)
 {
         int i,curlen;
         set *pg;
@@ -507,10 +475,8 @@ int linelength,m,n;
 *****************************************************************************/
 
 void
-putmapping(f,lab1,org1,lab2,org2,linelength,n)
-FILE *f;
-nvector *lab1,*lab2;
-int org1,org2,linelength,n;
+putmapping(FILE *f, int *lab1, int org1,int *lab2, int org2,
+           int linelength, int n)
 {
         int i,curlen,slen;
         char s[60];
@@ -519,8 +485,7 @@ int org1,org2,linelength,n;
 	DYNALLOC1(permutation,workperm,workperm_sz,n+2,"putmapping");
 #endif
 
-        for (i = 0; i < n; ++i)
-            workperm[lab1[i]] = lab2[i];
+        for (i = 0; i < n; ++i) workperm[lab1[i]] = lab2[i];
 
         curlen = 0;
         for (i = 0; i < n; ++i)
@@ -553,12 +518,9 @@ int org1,org2,linelength,n;
 *****************************************************************************/
 
 void
-putorbits(f,orbits,linelength,n)
-FILE *f;
-nvector *orbits;
-int linelength,n;
+putorbits(FILE *f, int *orbits, int linelength, int n)
 {
-        register int i,j;
+        int i,j;
         int m,curlen;
 
         m = (n + WORDSIZE - 1) / WORDSIZE;
@@ -567,8 +529,7 @@ int linelength,n;
 	DYNALLOC1(set,workset,workset_sz,m,"putorbits");
 #endif
 
-        for (i = n; --i >= 0;)
-            workperm[i] = 0;
+        for (i = n; --i >= 0;) workperm[i] = 0;
         for (i = n; --i >= 0;)
             if ((j = orbits[i]) < i)
             {
@@ -611,13 +572,10 @@ int linelength,n;
 *****************************************************************************/
 
 void
-putquotient(f,g,lab,ptn,level,linelength,m,n)
-FILE *f;
-graph *g;
-nvector *lab,*ptn;
-int level,linelength,m,n;
+putquotient(FILE *f, graph *g, int *lab, int *ptn, int level,
+            int linelength, int m, int n)
 {
-        register int i;
+        int i;
         char s[50];
         int ic,curlen,v,w,cell1,cell2,numcells,jc,csize,k;
         set *gw;
@@ -630,22 +588,18 @@ int level,linelength,m,n;
         numcells = 0;
         for (cell1 = 0; cell1 < n; cell1 = cell2 + 1)
         {
-            for (cell2 = cell1; ptn[cell2] > level; ++cell2)
-                {}
+            for (cell2 = cell1; ptn[cell2] > level; ++cell2) {}
             w = lab[cell1];
             for (i = cell1 + 1; i <= cell2; ++i)
-                if (lab[i] < w)
-                    w = lab[i];
+                if (lab[i] < w) w = lab[i];
             workperm[numcells++] = w;
         }
 
         for (ic = cell1 = 0; ic < numcells; ++ic, cell1 = cell2 + 1)
         {
-            for (cell2 = cell1; ptn[cell2] > level; ++cell2)
-                {}
+            for (cell2 = cell1; ptn[cell2] > level; ++cell2) {}
             EMPTYSET(workset,M);
-            for (i = cell1; i <= cell2; ++i)
-                ADDELEMENT(workset,lab[i]);
+            for (i = cell1; i <= cell2; ++i) ADDELEMENT(workset,lab[i]);
             v = workperm[ic];
             csize = cell2 - cell1 + 1;
             if (v + labelorg < 10)
@@ -682,10 +636,8 @@ int level,linelength,m,n;
                         fprintf(f,"\n    ");
                         curlen = 4;
                     }
-                    if (k == 0)
-                        fprintf(f," -");
-                    else
-                        fprintf(f," *");
+                    if (k == 0) fprintf(f," -");
+                    else        fprintf(f," *");
                     curlen += 2;
                 }
                 else
@@ -717,12 +669,9 @@ int level,linelength,m,n;
 *****************************************************************************/
 
 void
-putptn(f,lab,ptn,level,linelength,n)
-FILE *f;
-nvector *lab,*ptn;
-int level,linelength,n;
+putptn(FILE *f, int *lab, int *ptn, int level, int linelength, int n)
 {
-        register int i;
+        int i;
         int curlen,m;
 
         m = (n + WORDSIZE - 1) / WORDSIZE;
@@ -739,10 +688,8 @@ int level,linelength,n;
             while (TRUE)
             {
                 ADDELEMENT(workset,lab[i]);
-                if (ptn[i] > level)
-                    ++i;
-                else
-                    break;
+                if (ptn[i] > level) ++i;
+                else                break;
             }
             putset(f,workset,&curlen,linelength-2,m,TRUE);
             if (i < n-1)
@@ -767,20 +714,15 @@ int level,linelength,n;
 *****************************************************************************/
 
 void
-putcanon(f,canonlab,canong,linelength,m,n)
-FILE *f;
-nvector *canonlab;
-graph *canong;
-int linelength,m,n;
+putcanon(FILE *f, int *canonlab, graph *canong, int linelength, int m, int n)
 {
-        register int i;
+        int i;
 
 #if !MAXN
         DYNALLOC1(permutation,workperm,workperm_sz,n+2,"putcanon");
 #endif
 
-        for (i = 0; i < n; ++i)
-            workperm[i] = canonlab[i];
+        for (i = 0; i < n; ++i) workperm[i] = canonlab[i];
         writeperm(f,workperm,TRUE,linelength,n);
         putgraph(f,canong,linelength,m,n);
 }
@@ -796,13 +738,9 @@ int linelength,m,n;
 *****************************************************************************/
 
 void
-readptn(f,lab,ptn,numcells,prompt,n)
-FILE *f;
-nvector *lab,*ptn;
-int *numcells,n;
-boolean prompt;
+readptn(FILE *f, int *lab, int *ptn, int *numcells, boolean prompt, int n)
 {
-        register int i,j;
+        int i,j;
         int c,v1,v2,m;
 
         m = (n + WORDSIZE - 1) / WORDSIZE;
@@ -811,8 +749,7 @@ boolean prompt;
 #endif
 
         GETNW(c,f);
-        if (c == '=')
-            GETNW(c,f);
+        if (c == '=') GETNW(c,f);
         if (ISDIGIT(c))
         {
             ungetc((char)c,f);
@@ -837,8 +774,7 @@ boolean prompt;
         }
         EMPTYSET(workset,m);
         *numcells = 0;
-        for (i = 0; i < n; ++i)
-            ptn[i] = INFINITY;
+        for (i = 0; i < n; ++i) ptn[i] = NAUTY_INFINITY;
         i = 0;
         j = -1;
         while (TRUE)
@@ -892,16 +828,14 @@ boolean prompt;
                     i = j + 1;
                     ++*numcells;
                     for (j = 0; j < n; ++j)
-                        if (!ISELEMENT(workset,j))
-                            lab[i++] = j;
+                        if (!ISELEMENT(workset,j)) lab[i++] = j;
                     ptn[n-1] = 0;
                     return;
                 }
             }
             else if (c == '\n')
             {
-                if (prompt)
-                    fprintf(PROMPTFILE,"] ");
+                if (prompt) fprintf(PROMPTFILE,"] ");
             }
             else
                 fprintf(ERRFILE,"illegal character '%c' in partition\n\n",c);
@@ -915,16 +849,14 @@ boolean prompt;
 *****************************************************************************/
 
 void
-unitptn(lab,ptn,numcells,n)
-nvector *lab,*ptn;
-int *numcells,n;
+unitptn(int *lab,int *ptn, int *numcells, int n)
 {
-        register int i;
+        int i;
 
         for (i = 0; i < n; ++i)
         {
             lab[i] = i;
-            ptn[i] = INFINITY;
+            ptn[i] = NAUTY_INFINITY;
         }
         ptn[n-1] = 0;
         *numcells = 1;
@@ -938,20 +870,16 @@ int *numcells,n;
 *****************************************************************************/
 
 void
-cellstarts(ptn,level,cell,m,n)
-nvector *ptn;
-int level,m,n;
-set *cell;
+cellstarts(int *ptn, int level, set *cell, int m, int n)
 {
-        register int i;
+        int i;
 
         EMPTYSET(cell,m);
         i = 0;
         while (i < n)
         {
             ADDELEMENT(cell,i);
-            while (ptn[i] > level)
-                ++i;
+            while (ptn[i] > level) ++i;
             ++i;
         }
 }
@@ -965,11 +893,9 @@ set *cell;
 *****************************************************************************/
 
 void
-fixit(lab,ptn,numcells,fixedvertex,n)
-nvector *lab,*ptn;
-int *numcells,fixedvertex,n;
+fixit(int *lab, int *ptn, int *numcells, int fixedvertex, int n)
 {
-        register int i;
+        int i;
 
         for (i = 1; i < n; ++i)
         {
@@ -981,10 +907,8 @@ int *numcells,fixedvertex,n;
         lab[fixedvertex] = 0;
         ptn[0] = 0;
         ptn[n-1] = 0;
-        if (n == 1)
-            *numcells = 1;
-        else
-            *numcells = 2;
+        if (n == 1) *numcells = 1;
+        else        *numcells = 2;
 }
 
 /*****************************************************************************
@@ -999,14 +923,11 @@ int *numcells,fixedvertex,n;
 *****************************************************************************/
 
 long
-sethash(s,n,seed,key)
-set *s;
-int n,key;
-long seed;
+sethash(set *s, int n, long seed, int key)
 {
-	register int i,j,lsh,rsh;
-	register long l,res,salt,lshmask;
-	register setword si;
+	int i,j,lsh,rsh;
+	long l,res,salt,lshmask;
+	setword si;
 
 	lsh = key & 0xF;
 	rsh = 28 - lsh;
@@ -1052,19 +973,17 @@ long seed;
 *                                                                            *
 *****************************************************************************/
 
-long hash(setarray,length,key)
-register set *setarray;
-long length;
-int key;
+long
+hash(set *setarray, long length, int key)
 {
-        register long code;
-        register set *sptr;
+        long code;
+        set *sptr;
 
         code = length;
         sptr = setarray + length;
 
         while (--sptr >= setarray)
-            code = (code<<key) ^ (code>>(32-key)) + *sptr;
+            code = (code<<key) ^ ((code>>(32-key)) + *sptr);
 
         return code;
 }
@@ -1077,11 +996,7 @@ int key;
 *****************************************************************************/
 
 void
-readperm(f,perm,prompt,n)
-FILE *f;
-permutation *perm;
-int n;
-boolean prompt;
+readperm(FILE *f, permutation *perm, boolean prompt, int n)
 {
 	int nv;
 
@@ -1100,13 +1015,9 @@ boolean prompt;
 *****************************************************************************/
 
 void
-readvperm(f,perm,prompt,n,nv)
-FILE *f;
-permutation *perm;
-int n,*nv;
-boolean prompt;
+readvperm(FILE *f, permutation *perm, boolean prompt, int n, int *nv)
 {
-        register int i;
+        int i;
         int m,c,v1,v2;
 
         m = (n + WORDSIZE - 1) / WORDSIZE;
@@ -1121,8 +1032,7 @@ boolean prompt;
         while (TRUE)
         {
             GETNWC(c,f);
-            if (c == ';' || c == EOF)
-                break;
+            if (c == ';' || c == EOF) break;
             if (ISDIGIT(c))
             {
                 ungetc((char)c,f);
@@ -1181,8 +1091,7 @@ boolean prompt;
 	*nv = i;
 
         for (v1 = 0; v1 < n; ++v1)
-            if (!ISELEMENT(workset,v1))
-                perm[i++] = v1;
+            if (!ISELEMENT(workset,v1)) perm[i++] = v1;
 }
 
 /*****************************************************************************
@@ -1192,14 +1101,11 @@ boolean prompt;
 *****************************************************************************/
 
 void
-ranperm(perm,n)
-permutation *perm;
-int n;
+ranperm(permutation *perm, int n)
 {
         int i,j,t;
 
-        for (i = n; --i >= 0; )
-            perm[i] = i;
+        for (i = n; --i >= 0; ) perm[i] = i;
 
         for (i = n; --i > 0; )
         {
@@ -1221,25 +1127,18 @@ int n;
 *****************************************************************************/
 
 void
-relabel(g,lab,perm,workg,m,n)
-graph *g,*workg;
-nvector *lab;
-permutation *perm;
-int m,n;
+relabel(graph *g, int *lab, permutation *perm, graph *workg, int m, int n)
 {
-        register long li;
-        register int i;
+        long li;
+        int i;
 
-        for (li = (long)M * (long)n; --li >= 0;)
-            workg[li] = g[li];
+        for (li = (long)M * (long)n; --li >= 0;) workg[li] = g[li];
 
         updatecan(workg,g,perm,0,M,n);
-        if (lab != (nvector*)NULL)
+        if (lab != NULL)
         {
-            for (i = 0; i < n; ++i)
-                workperm[perm[i]] = i;
-            for (i = 0; i < n; ++i)
-                lab[i] = workperm[lab[i]];
+            for (i = 0; i < n; ++i) workperm[perm[i]] = i;
+            for (i = 0; i < n; ++i) lab[i] = workperm[lab[i]];
         }
 }
 
@@ -1252,23 +1151,18 @@ int m,n;
 *****************************************************************************/
 
 void
-sublabel(g,perm,nperm,workg,m,n)
-graph *g,*workg;
-permutation *perm;
-int nperm,m,n;
+sublabel(graph *g, permutation *perm, int nperm, graph *workg, int m, int n)
 {
-        register long li;
-        register int i,j,k;
+        long li;
+        int i,j,k;
 	int newm;
-	register set *gi,*wgi;
+	set *gi,*wgi;
 
-        for (li = (long)m * (long)n; --li >= 0;)
-            workg[li] = g[li];
+        for (li = (long)m * (long)n; --li >= 0;) workg[li] = g[li];
 
 	newm = (nperm + WORDSIZE - 1) / WORDSIZE;
 
-	for (li = (long)newm * (long)nperm; --li >= 0;)
-	    g[li] = 0;
+	for (li = (long)newm * (long)nperm; --li >= 0;) g[li] = 0;
 
 	for (i = 0, gi = (set*)g; i < nperm; ++i, gi += newm)
 	{
@@ -1291,11 +1185,9 @@ int nperm,m,n;
 *****************************************************************************/
 
 void
-copycomment(fin,fout,delimiter)
-FILE *fin,*fout;
-int delimiter;
+copycomment(FILE *fin, FILE *fout, int delimiter)
 {
-        register int c,backslash;
+        int c,backslash;
 
         backslash = FALSE;
 
@@ -1350,16 +1242,13 @@ int delimiter;
 *****************************************************************************/
 
 void
-mathon(g1,m1,n1,g2,m2,n2)
-graph *g1,*g2;
-int m1,n1,m2,n2;
+mathon(graph *g1, int m1, int n1, graph *g2, int m2, int n2)
 {
-        register int i,j,ii,jj;
+        int i,j,ii,jj;
         long li;
-        register set *rowptr,*gp;
+        set *rowptr,*gp;
 
-        for (li = (long)m2 * (long)n2; --li >= 0;)
-            g2[li] = 0;
+        for (li = (long)m2 * (long)n2; --li >= 0;) g2[li] = 0;
 
         for (i = 1; i <= n1; ++i)
         {
@@ -1405,28 +1294,55 @@ int m1,n1,m2,n2;
 *****************************************************************************/
 
 void
-rangraph(g,digraph,invprob,m,n)
-register graph *g;
-boolean digraph;
-int invprob,m,n;
+rangraph(graph *g, boolean digraph, int invprob, int m, int n)
 {
-        register int i,j;
+        int i,j;
         long li;
         set *row,*col;
 
-        for (li = (long)m * (long)n; --li >= 0;)
-                g[li] = 0;
+        for (li = (long)m * (long)n; --li >= 0;) g[li] = 0;
 
         for (i = 0, row = g; i < n; ++i, row += m)
             if (digraph)
             {
                 for (j = 0; j < n; ++j)
-                    if (KRAN(invprob) == 0)
-                        ADDELEMENT(row,j);
+                    if (KRAN(invprob) == 0) ADDELEMENT(row,j);
             }
             else
                 for (j = i + 1, col = GRAPHROW(g,j,m); j < n; ++j, col += m)
                     if (KRAN(invprob) == 0)
+                    {
+                        ADDELEMENT(row,j);
+                        ADDELEMENT(col,i);
+                    }
+}
+
+
+/*****************************************************************************
+*                                                                            *
+*  rangraph2(g,digraph,p1,p2,m,n) makes a random graph (or digraph if        *
+*  digraph!=FALSE) with edge probability p1/p2.                              *
+*                                                                            *
+*****************************************************************************/
+
+void
+rangraph2(graph *g, boolean digraph, int p1, int p2, int m, int n)
+{
+        int i,j;
+        long li;
+        set *row,*col;
+
+        for (li = (long)m * (long)n; --li >= 0;) g[li] = 0;
+
+        for (i = 0, row = g; i < n; ++i, row += m)
+            if (digraph)
+            {
+                for (j = 0; j < n; ++j)
+                    if (KRAN(p2) < p1) ADDELEMENT(row,j);
+            }
+            else
+                for (j = i + 1, col = GRAPHROW(g,j,m); j < n; ++j, col += m)
+                    if (KRAN(p2) < p1)
                     {
                         ADDELEMENT(row,j);
                         ADDELEMENT(col,i);
@@ -1445,10 +1361,7 @@ int invprob,m,n;
 *****************************************************************************/
 
 void
-putdegs(f,g,linelength,m,n)
-FILE *f;
-graph *g;
-int linelength,m,n;
+putdegs(FILE *f, graph *g, int linelength, int m, int n)
 {
         char s[60];
         int i,j,v1,v2,deg,curlen;
@@ -1467,8 +1380,7 @@ int linelength,m,n;
         {
             deg = workperm[v1];
             v2 = v1;
-            for (v2 = v1; v2 < n - 1 && workperm[v2+1] == deg; ++v2)
-            {}
+            for (v2 = v1; v2 < n - 1 && workperm[v2+1] == deg; ++v2) {}
             j = itos(v1+labelorg,s);
             if (v2 > v1)
             {
@@ -1500,13 +1412,11 @@ int linelength,m,n;
 *****************************************************************************/
 
 void
-complement(g,m,n)
-register graph *g;
-int m,n;
+complement(graph *g, int m, int n)
 {
         boolean loops;
-        register int i,j;
-        register graph *gp;
+        int i,j;
+        graph *gp;
 
 #if !MAXN
         DYNALLOC1(set,workset,workset_sz,m,"complement");
@@ -1514,20 +1424,38 @@ int m,n;
 
         loops = FALSE;
         for (i = 0, gp = g; i < n && !loops; ++i, gp += M)
-            if (ISELEMENT(gp,i))
-                loops = TRUE;
+            if (ISELEMENT(gp,i)) loops = TRUE;
 
         EMPTYSET(workset,m);
-        for (i = 0; i < n; ++ i)
-            ADDELEMENT(workset,i);
+        for (i = 0; i < n; ++ i) ADDELEMENT(workset,i);
 
         for (i = 0, gp = g; i < n; ++i, gp += M)
         {
-            for (j = 0; j < M; ++j)
-                gp[j] = workset[j] & ~gp[j];
-            if (!loops)
-                DELELEMENT(gp,i);
+            for (j = 0; j < M; ++j) gp[j] = workset[j] & ~gp[j];
+            if (!loops) DELELEMENT(gp,i);
         }
+}
+
+/*****************************************************************************
+*                                                                            *
+*  converse(g,m,n) replaces the digraph g by its converse.                   *
+*  There is no effect on an undirected graph.                                *
+*                                                                            *
+*****************************************************************************/
+
+void
+converse(graph *g, int m, int n)
+{
+        int i,j;
+        graph *gi,*gj;
+
+        for (i = 0, gi = g; i < n; ++i, gi += M)
+            for (j = i+1, gj = gi+M; j < n; ++j, gj += M)
+	        if ((ISELEMENT(gi,j)!=0) + (ISELEMENT(gj,i)!=0) == 1)
+	        {
+		    FLIPELEMENT(gi,j);
+		    FLIPELEMENT(gj,i);
+	        }
 }
 
 /*****************************************************************************
@@ -1538,8 +1466,7 @@ int m,n;
 *****************************************************************************/
 
 void
-naututil_check(wordsize,m,n,version)
-int wordsize,m,n,version;
+naututil_check(int wordsize, int m, int n, int version)
 {
         if (wordsize != WORDSIZE)
         {
@@ -1561,17 +1488,24 @@ int wordsize,m,n,version;
         }
 #endif
 
-#ifdef BIGNAUTY
-        if ((version & 1) == 0)
-        {   
-            fprintf(ERRFILE,"Error: BIGNAUTY mismatch in naututil.c\n");
+        if (version < NAUTYREQUIRED)
+        {
+            fprintf(ERRFILE,"Error: naututil.c version mismatch\n");
             exit(1);
         }
-#else
-        if ((version & 1) == 1)
-        {   
-            fprintf(ERRFILE,"Error: BIGNAUTY mismatch in naututil.c\n");
-            exit(1);
-        }
+}
+
+/*****************************************************************************
+*                                                                            *
+*  naututil_freedyn() - free the dynamic memory in this module               *
+*                                                                            *
+*****************************************************************************/
+
+void
+naututil_freedyn(void)
+{
+#if !MAXN
+        DYNFREE(workperm,workperm_sz);
+        DYNFREE(workset,workset_sz);
 #endif
 }

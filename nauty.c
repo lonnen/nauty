@@ -1,8 +1,8 @@
 /*****************************************************************************
 *                                                                            *
-*  Main source file for version 2.0 of nauty.                                *
+*  Main source file for version 2.4 of nauty.                                *
 *                                                                            *
-*   Copyright (1984-2000) Brendan McKay.  All rights reserved.  Permission   *
+*   Copyright (1984-2010) Brendan McKay.  All rights reserved.  Permission   *
 *   Subject to the waivers and disclaimers in nauty.h.                       *
 *                                                                            *
 *   CHANGE HISTORY                                                           *
@@ -41,18 +41,57 @@
 *       27-May-00 : - fixed error introduced on Feb 12.                      *
 *                   - dynamic allocations in nauty() are now deallocated     *
 *                     before return if n >= 320.                             *
+*       16-Nov-00 : - use function prototypes, change UPROC to void.         *
+*                   - added argument to tcellproc(), removed nvector         *
+*                   - now use options.dispatch, options.groupopts is gone.   *
+*       22-Apr-01 : - Added code for compilation into Magma                  *
+*                   - Removed nauty_null() and EXTDEFS                       *
+*        2-Oct-01 : - Improved error message for bad dispatch vector         *
+*       21-Nov-01 : - use NAUTYREQUIRED in nauty_check()                     *
+*       20-Dec-02 : changes for version 2.2:                                 *
+*                   - made tcnode0 global                                    *
+*                   - added nauty_freedyn()                                  *
+*       17-Nov-03 : changed INFINITY to NAUTY_INFINITY                       *
+*       14-Sep-04 : extended prototypes even to recursive functions          *
+*       16-Oct-04 : disallow NULL dispatch vector                            *
+*       11-Nov-05 : changes for version 2.3:                                 *
+*                   - init() and cleanup() optional calls                    *
+*       23-Nov-06 : changes for version 2.4:                                 *
+*                   - use maketargetcell() instead of tcellproc()            *
+*       29-Nov-06 : add extra_autom, extra_level, extra_options              *
+*       10-Dec-06 : remove BIGNAUTY                                          *
 *                                                                            *
 *****************************************************************************/
 
-#define EXTDEFS 1
+#define ONE_WORD_SETS
 #include "nauty.h"
 
-static int  firstpathnode();
-static void firstterminal();
-static int  othernode();
-static int  processnode();
-static void recover();
-static void writemarker();
+#ifdef NAUTY_IN_MAGMA
+#include "cleanup.e"
+#define NAUTY_ABORT (-11)
+#endif
+
+typedef struct tcnode_struct
+{
+	struct tcnode_struct *next;
+	set *tcellptr;
+} tcnode;
+
+/* aproto: header new_nauty_protos.h */
+
+#ifndef NAUTY_IN_MAGMA
+#if !MAXN
+static int firstpathnode0(int*, int*, int, int, tcnode*);
+static int othernode0(int*, int*, int, int, tcnode*);
+#else
+static int firstpathnode(int*, int*, int, int);
+static int othernode(int*, int*, int, int);
+#endif
+static void firstterminal(int*, int);
+static int processnode(int*, int*, int, int);
+static void recover(int*, int);
+static void writemarker(int, int, int, int, int, int);
+#endif
 
 #if  MAXM==1
 #define M 1
@@ -60,22 +99,27 @@ static void writemarker();
 #define M m
 #endif
 
-#define OPTCALL(proc) if (proc != NILFUNCTION) (*proc)
+#define OPTCALL(proc) if (proc != NULL) (*proc)
 
     /* copies of some of the options: */
 static boolean getcanon,digraph,writeautoms,domarkers,cartesian;
 static int linelength,tc_level,mininvarlevel,maxinvarlevel,invararg;
-static UPROC (*usernodeproc)(),(*userautomproc)(),(*userlevelproc)(),
-             (*refproc)(),(*tcellproc)(),(*invarproc)();
+static void (*usernodeproc)(graph*,int*,int*,int,int,int,int,int,int);
+static void (*userautomproc)(int,permutation*,int*,int,int,int);
+static void (*userlevelproc)
+              (int*,int*,int,int*,statsblk*,int,int,int,int,int,int);
+static void (*invarproc)
+	      (graph*,int*,int*,int,int,int,permutation*,int,boolean,int,int);
 static FILE *outfile;
+static dispatchvec dispatch;
 
     /* local versions of some of the arguments: */
 static int m,n;
 static graph *g,*canong;
-static nvector *orbits;
+static int *orbits;
 static statsblk *stats;
     /* temporary versions of some stats: */
-static long invapplics,invsuccesses;
+static unsigned long invapplics,invsuccesses;
 static int invarsuclevel;
 
     /* working variables: <the "bsf leaf" is the leaf which is best guess so
@@ -96,7 +140,7 @@ static int gca_first,     /* level of greatest common ancestor of current
                                 <,==,> that for bsf leaf.  Also used for
                                 similar purpose during leaf processing */
            samerows,      /* number of rows of canong which are correct for
-                                the bsf leaf  BDM:correct? */
+                                the bsf leaf  BDM:correct description? */
            canonlevel,    /* level of bsf leaf */
            stabvertex,    /* point fixed in ancestor of first leaf at level
                                 gca_canon */
@@ -124,11 +168,9 @@ DYNALLSTAT(set,active,active_sz);
    tcnodes and tcells are kept between calls to nauty, except that
    they are freed and reallocated if m gets bigger than alloc_m.  */
 
-typedef struct tcnode_struct
-{
-	struct tcnode_struct *next;
-	set *tcellptr;
-} tcnode;
+static tcnode tcnode0 = {NULL,NULL};
+static int alloc_m = 0;
+
 #else
 static set defltwork[2*MAXM];        /* workspace in case none provided */
 static permutation workperm[MAXN];   /* various scratch uses */
@@ -147,7 +189,6 @@ static set *workspace,*worktop;      /* first and just-after-last addresses of
                                         work area to hold automorphism data */
 static set *fmptr;                   /* pointer into workspace */
 
-static int alloc_m = 0;
 
 /*****************************************************************************
 *                                                                            *
@@ -168,7 +209,7 @@ static int alloc_m = 0;
 *                  corresponding to canong.  This does not change the        *
 *                  initial colouring of g as defined by (lab,ptn), since     *
 *                  the labelling is consistent with the colouring.           *
-*     active  <r>  - If this is not NILSET and options->defaultptn==FALSE,   *
+*     active  <r>  - If this is not NULL and options->defaultptn==FALSE,     *
 *                  it is a set indicating the initial set of active colours. *
 *                  See the Guide for details.                                *
 *     orbits  <w>  - On return, orbits[i] contains the number of the         *
@@ -187,45 +228,63 @@ static int alloc_m = 0;
 *                  at most MAXN.                                             *
 *     canong  <w>  - The canononically labelled isomorph of g.  This is      *
 *                  only produced if options->getcanon!=FALSE, and can be     *
-*                  given as NILGRAPH otherwise.                              *
+*                  given as NULL otherwise.                                  *
 *                                                                            *
 *  FUNCTIONS CALLED: firstpathnode(),updatecan()                             *
 *                                                                            *
 *****************************************************************************/
 
 void
-nauty(g_arg,lab,ptn,active_arg,orbits_arg,options,stats_arg,
-                ws_arg,worksize,m_arg,n_arg,canong_arg)
-graph *g_arg,*canong_arg;
-set *active_arg,*ws_arg;
-nvector *lab,*ptn,*orbits_arg;
-int worksize,m_arg,n_arg;
-optionblk *options;
-statsblk *stats_arg;
+nauty(graph *g_arg, int *lab, int *ptn, set *active_arg,
+      int *orbits_arg, optionblk *options, statsblk *stats_arg,
+      set *ws_arg, int worksize, int m_arg, int n_arg, graph *canong_arg)
 {
-        register int i;
+        int i;
         int numcells;
+	int retval;
+	int initstatus;
 #if !MAXN
 	tcnode *tcp,*tcq;
-	static tcnode tcnode0 = {NULL,NULL};
 #endif
+
+    /* determine dispatch vector */
+
+	if (options->dispatch == NULL)
+	{
+            fprintf(ERRFILE,">E nauty: null dispatch vector\n");
+	    fprintf(ERRFILE,"Maybe you need to recompile\n");
+            exit(1);
+        }
+	else
+	    dispatch = *(options->dispatch);
+
+	if (options->userrefproc) 
+	    dispatch.refine = options->userrefproc;
+	else if (dispatch.refine1 && m_arg == 1)
+            dispatch.refine = dispatch.refine1;
+
+	if (dispatch.refine == NULL || dispatch.updatecan == NULL
+		|| dispatch.targetcell == NULL || dispatch.cheapautom == NULL)
+	{
+	    fprintf(ERRFILE,">E bad dispatch vector\n");
+	    exit(1);
+	}
 
     /* check for excessive sizes: */
 
 #if !MAXN
-        if (m_arg > INFINITY/WORDSIZE+1)
+        if (m_arg > NAUTY_INFINITY/WORDSIZE+1)
         {
             stats_arg->errstatus = MTOOBIG;
             fprintf(ERRFILE,"nauty: need m <= %d, but m=%d\n\n",
-		    INFINITY/WORDSIZE+1,m_arg);
+		    NAUTY_INFINITY/WORDSIZE+1,m_arg);
             return;
         }
-        if (n_arg > INFINITY-2 || n_arg > WORDSIZE * m_arg)
+        if (n_arg > NAUTY_INFINITY-2 || n_arg > WORDSIZE * m_arg)
         {
             stats_arg->errstatus = NTOOBIG;
-            fprintf(ERRFILE,
-                    "nauty: need n <= min(%d,%d*m), but n=%d\n\n",
-		    INFINITY-2,WORDSIZE,n_arg);
+            fprintf(ERRFILE,"nauty: need n <= min(%d,%d*m), but n=%d\n\n",
+		    NAUTY_INFINITY-2,WORDSIZE,n_arg);
             return;
         }
 #else
@@ -243,7 +302,7 @@ statsblk *stats_arg;
             return;
         }
 #endif
-	if (n_arg == 0)   /* Special code for Wendy */
+	if (n_arg == 0)   /* Special code for zero-sized graph */
 	{
 	    stats_arg->grpsize1 = 1.0;
 	    stats_arg->grpsize2 = 0;
@@ -266,6 +325,7 @@ statsblk *stats_arg;
         n = n_arg;
 
 	nautil_check(WORDSIZE,m,n,NAUTYVERSIONID);
+	OPTCALL(dispatch.check)(WORDSIZE,m,n,NAUTYVERSIONID);
 
 #if !MAXN
 	DYNALLOC1(set,defltwork,defltwork_sz,2*m,"nauty");
@@ -292,7 +352,7 @@ statsblk *stats_arg;
         }
 #endif
 
-        g = g_arg;
+       /* OLD g = g_arg; */
         orbits = orbits_arg;
         stats = stats_arg;
 
@@ -302,28 +362,12 @@ statsblk *stats_arg;
         domarkers = options->writemarkers;
         cartesian = options->cartesian;
         linelength = options->linelength;
-        if (digraph)
-            tc_level = 0;
-        else
-            tc_level = options->tc_level;
-        outfile = (options->outfile == (FILE*)NULL ?
-                   stdout : options->outfile);
+        if (digraph) tc_level = 0;
+        else         tc_level = options->tc_level;
+        outfile = (options->outfile == NULL ? stdout : options->outfile);
         usernodeproc = options->usernodeproc;
         userautomproc = options->userautomproc;
         userlevelproc = options->userlevelproc;
-
-        if (options->userrefproc == NILFUNCTION)
-            if (m == 1)
-                refproc = refine1;
-            else
-                refproc = refine;
-        else
-            refproc = options->userrefproc;
-
-        if (options->usertcellproc == NILFUNCTION)
-            tcellproc = targetcell;
-        else
-            tcellproc = options->usertcellproc;
 
         invarproc = options->invarproc;
         if (options->mininvarlevel < 0 && options->getcanon)
@@ -337,23 +381,22 @@ statsblk *stats_arg;
         invararg = options->invararg;
 
         if (getcanon)
-            if (canong_arg == NILGRAPH)
+            if (canong_arg == NULL)
             {
                 stats_arg->errstatus = CANONGNIL;
                 fprintf(ERRFILE,
-                      "nauty: canong=NILGRAPH but options.getcanon=TRUE\n\n");
+                      "nauty: canong=NULL but options.getcanon=TRUE\n\n");
                 return;
             }
-            else
-                canong = canong_arg;
 
     /* initialize everything: */
+
         if (options->defaultptn)
         {
             for (i = 0; i < n; ++i)   /* give all verts same colour */
             {
                 lab[i] = i;
-                ptn[i] = INFINITY;
+                ptn[i] = NAUTY_INFINITY;
             }
             ptn[n-1] = 0;
             EMPTYSET(active,m);
@@ -365,27 +408,35 @@ statsblk *stats_arg;
             ptn[n-1] = 0;
             numcells = 0;
             for (i = 0; i < n; ++i)
-                if (ptn[i] != 0)
-                    ptn[i] = INFINITY;
-                else
-                    ++numcells;
-            if (active_arg == NILSET)
+                if (ptn[i] != 0) ptn[i] = NAUTY_INFINITY;
+                else             ++numcells;
+            if (active_arg == NULL)
             {
                 EMPTYSET(active,m);
                 for (i = 0; i < n; ++i)
                 {
                     ADDELEMENT(active,i);
-                    while (ptn[i])
-                        ++i;
+                    while (ptn[i]) ++i;
                 }
             }
             else
-                for (i = 0; i < M; ++i)
-                    active[i] = active_arg[i];
+                for (i = 0; i < M; ++i) active[i] = active_arg[i];
         }
 
-        for (i = 0; i < n; ++i)
-            orbits[i] = i;
+	g = canong = NULL;
+	initstatus = 0;
+	OPTCALL(dispatch.init)(g_arg,&g,canong_arg,&canong,
+		lab,ptn,active,options,&initstatus,m,n);
+	if (initstatus)
+	{
+	    stats->errstatus = initstatus;
+	    return;
+	}
+
+	if (g == NULL) g = g_arg;
+	if (canong == NULL) canong = canong_arg;
+
+        for (i = 0; i < n; ++i) orbits[i] = i;
         stats->grpsize1 = 1.0;
         stats->grpsize2 = 0;
         stats->numgenerators = 0;
@@ -411,51 +462,42 @@ statsblk *stats_arg;
     /* here goes: */
         stats->errstatus = 0;
         needshortprune = FALSE;
-        invarsuclevel = INFINITY;
+        invarsuclevel = NAUTY_INFINITY;
         invapplics = invsuccesses = 0;
 
 #if !MAXN
-        firstpathnode(lab,ptn,1,numcells,&tcnode0);
+        retval = firstpathnode0(lab,ptn,1,numcells,&tcnode0);
 #else   
-        firstpathnode(lab,ptn,1,numcells);
+        retval = firstpathnode(lab,ptn,1,numcells);
 #endif  
 
-        if (getcanon)
-        {
-            updatecan(g,canong,canonlab,samerows,M,n);
-            for (i = 0; i < n; ++i)
-                lab[i] = canonlab[i];
-        }
-        stats->invarsuclevel =
-             (invarsuclevel == INFINITY ? 0 : invarsuclevel);
-        stats->invapplics = invapplics;
-        stats->invsuccesses = invsuccesses;
+#ifdef NAUTY_IN_MAGMA
+	if (retval != NAUTY_ABORT)
+#endif
+	{
+            if (getcanon)
+            {
+                (*dispatch.updatecan)(g,canong,canonlab,samerows,M,n);
+                for (i = 0; i < n; ++i) lab[i] = canonlab[i];
+            }
+            stats->invarsuclevel =
+                 (invarsuclevel == NAUTY_INFINITY ? 0 : invarsuclevel);
+            stats->invapplics = invapplics;
+            stats->invsuccesses = invsuccesses;
+	}
 
 #if !MAXN
+#ifndef NAUTY_IN_MAGMA
         if (n >= 320)
+#endif
         {   
 	    nautil_freedyn();
-            tcp = tcnode0.next;
-            while (tcp != NULL)
-            {   
-                tcq = tcp->next;
-                FREES(tcp->tcellptr);
-                FREES(tcp);
-                tcp = tcq;
-            }
-            alloc_m = 0;
-            tcnode0.next = NULL;
-            DYNFREE(firsttc,firsttc_sz);
-            DYNFREE(canoncode,canoncode_sz);
-            DYNFREE(firstcode,firstcode_sz);
-            DYNFREE(workperm,workperm_sz);
-            DYNFREE(canonlab,canonlab_sz);
-            DYNFREE(firstlab,firstlab_sz);
-	    DYNFREE(defltwork,defltwork_sz);
-	    DYNFREE(fixedpts,fixedpts_sz);
-	    DYNFREE(active,active_sz);
+	    OPTCALL(dispatch.freedyn)();
+	    nauty_freedyn();
         }
 #endif  
+	OPTCALL(dispatch.cleanup)(g_arg,&g,canong_arg,&canong,
+		                               lab,ptn,options,stats,m,n);
 }
 
 /*****************************************************************************
@@ -479,15 +521,13 @@ statsblk *stats_arg;
 
 static int
 #if !MAXN
-firstpathnode(lab,ptn,level,numcells,tcnode_parent)
-tcnode *tcnode_parent;
+firstpathnode0(int *lab, int *ptn, int level, int numcells,
+              tcnode *tcnode_parent)
 #else
-firstpathnode(lab,ptn,level,numcells)
+firstpathnode(int *lab, int *ptn, int level, int numcells)
 #endif
-nvector *lab,*ptn;
-int level,numcells;
 {
-        register int tv;
+        int tv;
         int tv1,index,rtnlevel,tcellsize,tc,childcount,qinvar,refcode;
 #if !MAXN
         set *tcell;
@@ -512,7 +552,7 @@ int level,numcells;
 
     /* refine partition : */
         doref(g,lab,ptn,level,&numcells,&qinvar,workperm,
-              active,&refcode,refproc,invarproc,
+              active,&refcode,dispatch.refine,invarproc,
               mininvarlevel,maxinvarlevel,invararg,digraph,M,n);
         firstcode[level] = (short)refcode;
         if (qinvar > 0)
@@ -521,12 +561,9 @@ int level,numcells;
             if (qinvar == 2)
             {
                 ++invsuccesses;
-                if (mininvarlevel < 0)
-                    mininvarlevel = level;
-                if (maxinvarlevel < 0)
-                    maxinvarlevel = level;
-                if (level < invarsuclevel)
-                    invarsuclevel = level;
+                if (mininvarlevel < 0) mininvarlevel = level;
+                if (maxinvarlevel < 0) maxinvarlevel = level;
+                if (level < invarsuclevel) invarsuclevel = level;
             }
         }
 
@@ -535,8 +572,8 @@ int level,numcells;
         {
      /* locate new target cell, setting tc to its position in lab, tcell
                           to its contents, and tcellsize to its size: */
-            (*tcellproc)(g,lab,ptn,level,numcells,tcell,&tcellsize,
-                                                        &tc,tc_level,-1,M,n);
+            maketargetcell(g,lab,ptn,level,tcell,&tcellsize,
+                            &tc,tc_level,digraph,-1,dispatch.targetcell,M,n);
             stats->tctotal += tcellsize;
         }
         firsttc[level] = tc;
@@ -552,7 +589,8 @@ int level,numcells;
             return level-1;
         }
 
-        if (noncheaplevel >= level && !cheapautom(ptn,level,digraph,n))
+        if (noncheaplevel >= level
+                             && !(*dispatch.cheapautom)(ptn,level,digraph,n))
             noncheaplevel = level + 1;
 
     /* use the elements of the target cell to produce the children: */
@@ -568,7 +606,7 @@ int level,numcells;
                 if (tv == tv1)
                 {
 #if !MAXN
-                    rtnlevel = firstpathnode(lab,ptn,level+1,numcells+1,
+                    rtnlevel = firstpathnode0(lab,ptn,level+1,numcells+1,
                                              tcnode_this);
 #else
                     rtnlevel = firstpathnode(lab,ptn,level+1,numcells+1);
@@ -580,7 +618,7 @@ int level,numcells;
                 else
                 {
 #if !MAXN
-                    rtnlevel = othernode(lab,ptn,level+1,numcells+1,
+                    rtnlevel = othernode0(lab,ptn,level+1,numcells+1,
                                          tcnode_this);
 #else
                     rtnlevel = othernode(lab,ptn,level+1,numcells+1);
@@ -627,15 +665,13 @@ int level,numcells;
 
 static int
 #if !MAXN
-othernode(lab,ptn,level,numcells,tcnode_parent)
-tcnode *tcnode_parent;
+othernode0(int *lab, int *ptn, int level, int numcells,
+          tcnode *tcnode_parent)
 #else
-othernode(lab,ptn,level,numcells)
+othernode(int *lab, int *ptn, int level, int numcells)
 #endif
-nvector *lab,*ptn;
-int level,numcells;
 {
-        register int tv;
+        int tv;
         int tv1,refcode,rtnlevel,tcellsize,tc,qinvar;
         short code;
 #if !MAXN
@@ -657,11 +693,15 @@ int level,numcells;
         set tcell[MAXM];
 #endif
 
+#ifdef NAUTY_IN_MAGMA
+        if (main_seen_interrupt) return NAUTY_ABORT;
+#endif
+
         ++stats->numnodes;
 
     /* refine partition : */
         doref(g,lab,ptn,level,&numcells,&qinvar,workperm,active,
-              &refcode,refproc,invarproc,mininvarlevel,maxinvarlevel,
+              &refcode,dispatch.refine,invarproc,mininvarlevel,maxinvarlevel,
               invararg,digraph,M,n);
         code = (short)refcode;
         if (qinvar > 0)
@@ -670,8 +710,7 @@ int level,numcells;
             if (qinvar == 2)
             {
                 ++invsuccesses;
-                if (level < invarsuclevel)
-                    invarsuclevel = level;
+                if (level < invarsuclevel) invarsuclevel = level;
             }
         }
 
@@ -691,8 +730,7 @@ int level,numcells;
                     eqlev_canon = level;
                 }
             }
-            if (comp_canon > 0)
-                canoncode[level] = code;
+            if (comp_canon > 0) canoncode[level] = code;
         }
 
         tc = -1;
@@ -704,14 +742,13 @@ int level,numcells;
         {
             if (!getcanon || comp_canon < 0)
             {
-                (*tcellproc)(g,lab,ptn,level,numcells,tcell,&tcellsize,
-                                            &tc,tc_level,firsttc[level],M,n);
-                if (tc != firsttc[level])
-                    eqlev_first = level - 1;
+                maketargetcell(g,lab,ptn,level,tcell,&tcellsize,&tc,
+                      tc_level,digraph,firsttc[level],dispatch.targetcell,M,n);
+                if (tc != firsttc[level]) eqlev_first = level - 1;
             }
             else
-                (*tcellproc)(g,lab,ptn,level,numcells,tcell,&tcellsize,
-                                                    &tc,tc_level,-1,M,n);
+                maketargetcell(g,lab,ptn,level,tcell,&tcellsize,&tc,
+                      tc_level,digraph,-1,dispatch.targetcell,M,n);
             stats->tctotal += tcellsize;
         }
 
@@ -729,7 +766,7 @@ int level,numcells;
             shortprune(tcell,fmptr-M,M);
         }
 
-        if (!cheapautom(ptn,level,digraph,n))
+        if (!(*dispatch.cheapautom)(ptn,level,digraph,n))
             noncheaplevel = level + 1;
 
     /* use the elements of the target cell to produce the children: */
@@ -739,22 +776,20 @@ int level,numcells;
             breakout(lab,ptn,level+1,tc,tv,active,M);
             ADDELEMENT(fixedpts,tv);
 #if !MAXN   
-            rtnlevel = othernode(lab,ptn,level+1,numcells+1,tcnode_this);
+            rtnlevel = othernode0(lab,ptn,level+1,numcells+1,tcnode_this);
 #else
             rtnlevel = othernode(lab,ptn,level+1,numcells+1);
 #endif
             DELELEMENT(fixedpts,tv);
 
-            if (rtnlevel < level)
-                return rtnlevel;
+            if (rtnlevel < level) return rtnlevel;
     /* use stored automorphism data to prune target cell: */
             if (needshortprune)
             {
                 needshortprune = FALSE;
                 shortprune(tcell,fmptr-M,M);
             }
-            if (tv == tv1)
-                longprune(tcell,fixedpts,workspace,fmptr,M);
+            if (tv == tv1) longprune(tcell,fixedpts,workspace,fmptr,M);
 
             recover(ptn,level);
         }
@@ -771,29 +806,24 @@ int level,numcells;
 *****************************************************************************/
 
 static void
-firstterminal(lab,level)
-nvector *lab;
-register int level;
+firstterminal(int *lab, int level)
 {
-        register int i;
+        int i;
 
         stats->maxlevel = level;
         gca_first = allsamelevel = eqlev_first = level;
         firstcode[level+1] = 077777;
         firsttc[level+1] = -1;
 
-        for (i = 0; i < n; ++i)
-            firstlab[i] = lab[i];
+        for (i = 0; i < n; ++i) firstlab[i] = lab[i];
 
         if (getcanon)
         {
             canonlevel = eqlev_canon = gca_canon = level;
             comp_canon = 0;
             samerows = 0;
-            for (i = 0; i < n; ++i)
-                canonlab[i] = lab[i];
-            for (i = 0; i <= level; ++i)
-                canoncode[i] = firstcode[i];
+            for (i = 0; i < n; ++i) canonlab[i] = lab[i];
+            for (i = 0; i <= level; ++i) canoncode[i] = firstcode[i];
             canoncode[level+1] = 077777;
             stats->canupdates = 1;
         }
@@ -832,11 +862,9 @@ register int level;
 *****************************************************************************/
 
 static int
-processnode(lab,ptn,level,numcells)
-nvector *lab,*ptn;
-int level,numcells;
+processnode(int *lab, int *ptn, int level, int numcells)
 {
-        register int i,code,save,newlevel;
+        int i,code,save,newlevel;
         boolean ispruneok;
         int sr;
 
@@ -847,11 +875,10 @@ int level,numcells;
         {
             if (eqlev_first == level)
             {
-                for (i = 0; i < n; ++i)
-                    workperm[firstlab[i]] = lab[i];
+                for (i = 0; i < n; ++i) workperm[firstlab[i]] = lab[i];
 
                 if (gca_first >= noncheaplevel ||
-                                    isautom(g,workperm,digraph,M,n))
+                                   (*dispatch.isautom)(g,workperm,digraph,M,n))
                     code = 1;
             }
             if (code == 0)
@@ -864,16 +891,16 @@ int level,numcells;
                             comp_canon = 1;
                         else
                         {
-                            updatecan(g,canong,canonlab,
-                                                samerows,M,n);
+                            (*dispatch.updatecan)
+                                              (g,canong,canonlab,samerows,M,n);
                             samerows = n;
-                            comp_canon = testcanlab(g,canong,lab,&sr,M,n);
+                            comp_canon
+                                = (*dispatch.testcanlab)(g,canong,lab,&sr,M,n);
                         }
                     }
                     if (comp_canon == 0)
                     {
-                        for (i = 0; i < n; ++i)
-                            workperm[canonlab[i]] = lab[i];
+                        for (i = 0; i < n; ++i) workperm[canonlab[i]] = lab[i];
                         code = 2;
                     }
                     else if (comp_canon > 0)
@@ -885,8 +912,7 @@ int level,numcells;
                     code = 4;
         }
 
-        if (code != 0 && level > stats->maxlevel)
-            stats->maxlevel = level;
+        if (code != 0 && level > stats->maxlevel) stats->maxlevel = level;
 
         switch (code)
         {
@@ -894,8 +920,7 @@ int level,numcells;
             return level;
 
         case 1:                 /* lab is equivalent to firstlab */
-            if (fmptr == worktop)
-                fmptr -= 2 * M;
+            if (fmptr == worktop) fmptr -= 2 * M;
             fmperm(workperm,fmptr,fmptr+M,M,n);
             fmptr += 2 * M;
             if (writeautoms)
@@ -907,16 +932,14 @@ int level,numcells;
             return gca_first;
 
         case 2:                 /* lab is equivalent to canonlab */
-            if (fmptr == worktop)
-                fmptr -= 2 * M;
+            if (fmptr == worktop) fmptr -= 2 * M;
             fmperm(workperm,fmptr,fmptr+M,M,n);
             fmptr += 2 * M;
             save = stats->numorbits;
             stats->numorbits = orbjoin(orbits,workperm,n);
             if (stats->numorbits == save)
             {
-                if (gca_canon != gca_first)
-                    needshortprune = TRUE;
+                if (gca_canon != gca_first) needshortprune = TRUE;
                 return gca_canon;
             }
             if (writeautoms)
@@ -932,8 +955,7 @@ int level,numcells;
 
         case 3:                 /* lab is better than canonlab */
             ++stats->canupdates;
-            for (i = 0; i < n; ++i)
-                canonlab[i] = lab[i];
+            for (i = 0; i < n; ++i) canonlab[i] = lab[i];
             canonlevel = eqlev_canon = gca_canon = level;
             comp_canon = 0;
             canoncode[level+1] = 077777;
@@ -949,8 +971,7 @@ int level,numcells;
         if (level != noncheaplevel)
         {
             ispruneok = TRUE;
-            if (fmptr == worktop)
-                fmptr -= 2 * M;
+            if (fmptr == worktop) fmptr -= 2 * M;
             fmptn(lab,ptn,noncheaplevel,fmptr,fmptr+M,M,n);
             fmptr += 2 * M;
         }
@@ -960,8 +981,7 @@ int level,numcells;
         save = (allsamelevel > eqlev_canon ? allsamelevel-1 : eqlev_canon);
         newlevel = (noncheaplevel <= save ? noncheaplevel-1 : save);
 
-        if (ispruneok && newlevel != gca_first)
-            needshortprune = TRUE;
+        if (ispruneok && newlevel != gca_first) needshortprune = TRUE;
         return newlevel;
  }
 
@@ -975,24 +995,18 @@ int level,numcells;
 *****************************************************************************/
 
 static void
-recover(ptn,level)
-register nvector *ptn;
-register int level;
+recover(int *ptn, int level)
 {
-        register int i;
+        int i;
 
         for (i = 0; i < n; ++i)
-            if (ptn[i] > level)
-                ptn[i] = INFINITY;
+            if (ptn[i] > level) ptn[i] = NAUTY_INFINITY;
 
-        if (level < noncheaplevel)
-            noncheaplevel = level + 1;
-        if (level < eqlev_first)
-            eqlev_first = level;
+        if (level < noncheaplevel) noncheaplevel = level + 1;
+        if (level < eqlev_first) eqlev_first = level;
         if (getcanon)
         {
-            if (level < gca_canon)
-                gca_canon = level;
+            if (level < gca_canon) gca_canon = level;
             if (level <= eqlev_canon)
             {
                 eqlev_canon = level;
@@ -1024,8 +1038,8 @@ register int level;
 *****************************************************************************/
 
 static void
-writemarker(level,tv,index,tcellsize,numorbits,numcells)
-int level,tv,index,tcellsize,numorbits,numcells;
+writemarker(int level, int tv, int index, int tcellsize,
+            int numorbits, int numcells)
 {
         char s[30];
 
@@ -1039,17 +1053,13 @@ int level,tv,index,tcellsize,numorbits,numcells;
         {
             PUTINT(numcells);
             PUTSTR(" cell");
-            if (numcells == 1)
-                PUTSTR("; ");
-            else
-                PUTSTR("s; ");
+            if (numcells == 1) PUTSTR("; ");
+            else               PUTSTR("s; ");
         }
-            PUTINT(numorbits);
+        PUTINT(numorbits);
         PUTSTR(" orbit");
-        if (numorbits == 1)
-        PUTSTR("; ");
-        else
-            PUTSTR("s; ");
+        if (numorbits == 1) PUTSTR("; ");
+        else                PUTSTR("s; ");
         PUTINT(tv+labelorg);
         PUTSTR(" fixed; index ");
         PUTINT(index);
@@ -1063,25 +1073,13 @@ int level,tv,index,tcellsize,numorbits,numcells;
 
 /*****************************************************************************
 *                                                                            *
-*  nauty_null() does nothing.                                                *
-*                                                                            *
-*****************************************************************************/
-
-void
-nauty_null()
-{
-}
-
-/*****************************************************************************
-*                                                                            *
 *  nauty_check() checks that this file is compiled compatibly with the       *
 *  given parameters.   If not, call exit(1).                                 *
 *                                                                            *
 *****************************************************************************/
 
 void
-nauty_check(wordsize,m,n,version)
-int wordsize,m,n,version;
+nauty_check(int wordsize, int m, int n, int version)
 {
         if (wordsize != WORDSIZE)
         {
@@ -1103,17 +1101,78 @@ int wordsize,m,n,version;
         }
 #endif
 
-#ifdef BIGNAUTY
-        if ((version & 1) == 0)
+	if (version < NAUTYREQUIRED)
+	{
+	    fprintf(ERRFILE,"Error: nauty.c version mismatch\n");
+	    exit(1);
+	}
+}
+
+/*****************************************************************************
+*                                                                            *
+*  extra_autom(p,n)  - add an extra automophism, hard to do correctly        *
+*                                                                            *
+*****************************************************************************/
+
+void
+extra_autom(permutation *p, int n)
+{
+        if (writeautoms)
+            writeperm(outfile,p,cartesian,linelength,n);
+        stats->numorbits = orbjoin(orbits,p,n);
+        ++stats->numgenerators;
+        OPTCALL(userautomproc)(stats->numgenerators,p,orbits,
+                                        stats->numorbits,stabvertex,n);
+}
+
+/*****************************************************************************
+*                                                                            *
+*  extra_level(level,lab,ptn,numcells,tv1,index,tcellsize,childcount)        *
+*     creates an artificial level in the search.  This is dangerous.         *
+*                                                                            *
+*****************************************************************************/
+
+void
+extra_level(int level, int *lab, int *ptn, int numcells, int tv1, int index,
+            int tcellsize, int childcount, int n)
+{
+        MULTIPLY(stats->grpsize1,stats->grpsize2,index);
+        if (domarkers)
+            writemarker(level,tv1,index,tcellsize,stats->numorbits,numcells);
+        OPTCALL(userlevelproc)(lab,ptn,level,orbits,stats,tv1,index,tcellsize,
+                                                        numcells,childcount,n);
+}
+
+/*****************************************************************************
+*                                                                            *
+*  nauty_freedyn() frees all the dynamic memory used in this module.         *
+*                                                                            *
+*****************************************************************************/
+
+void
+nauty_freedyn(void)
+{
+#if !MAXN
+	tcnode *tcp,*tcq;
+
+        tcp = tcnode0.next;
+        while (tcp != NULL)
         {   
-            fprintf(ERRFILE,"Error: BIGNAUTY mismatch in nauty.c\n");
-            exit(1);
+            tcq = tcp->next;
+            FREES(tcp->tcellptr);
+            FREES(tcp);
+            tcp = tcq;
         }
-#else
-        if ((version & 1) == 1)
-        {   
-            fprintf(ERRFILE,"Error: BIGNAUTY mismatch in nauty.c\n");
-            exit(1);
-        }
-#endif
+        alloc_m = 0;
+        tcnode0.next = NULL;
+        DYNFREE(firsttc,firsttc_sz);
+        DYNFREE(canoncode,canoncode_sz);
+        DYNFREE(firstcode,firstcode_sz);
+        DYNFREE(workperm,workperm_sz);
+        DYNFREE(canonlab,canonlab_sz);
+        DYNFREE(firstlab,firstlab_sz);
+        DYNFREE(defltwork,defltwork_sz);
+	DYNFREE(fixedpts,fixedpts_sz);
+	DYNFREE(active,active_sz);
+#endif  
 }

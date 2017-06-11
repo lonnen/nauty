@@ -1,6 +1,6 @@
 /**************************************************************************
 *    This is the header file for Version 2.4 of nauty().                  *
-*    nauty.h.  Generated from nauty-h.in by configure.
+*    @configure_input@
 **************************************************************************/
 
 #ifndef  _NAUTY_H_    /* only process this file once */
@@ -12,23 +12,23 @@ it is necessary to check they are correct.
 ====================================================================*/
 
 /* Check whether various headers are available */
-#define HAVE_UNISTD_H  1    /* <unistd.h> */
-#define HAVE_SYSTYPES_H  1    /* <sys/types.h> */
-#define HAVE_STDDEF_H  1     /* <stddef.h> */
-#define HAVE_STDLIB_H  1    /* <stdlib.h> */
-#define HAVE_STRING_H  1    /* <string.h> */
-#define MALLOC_DEC 1  /* 1 = malloc() is declared in stdlib.h,
+#define HAVE_UNISTD_H  @header_unistd_h@    /* <unistd.h> */
+#define HAVE_SYSTYPES_H  @header_sys_types_h@    /* <sys/types.h> */
+#define HAVE_STDDEF_H  @header_stddef_h@     /* <stddef.h> */
+#define HAVE_STDLIB_H  @header_stdlib_h@    /* <stdlib.h> */
+#define HAVE_STRING_H  @header_string_h@    /* <string.h> */
+#define MALLOC_DEC @malloc_dec@  /* 1 = malloc() is declared in stdlib.h,
 				 2 = in malloc.h, 0 = in neither place */
-#define HAS_MATH_INF 0 /* INFINITY is defined in math.h or
+#define HAS_MATH_INF @has_math_inf@ /* INFINITY is defined in math.h or
 				some system header likely to be used */
-#define HAS_STDIO_UNLOCK 1  /* Whether there are getc_unlocked,
+#define HAS_STDIO_UNLOCK @stdio_nolock@  /* Whether there are getc_unlocked,
 		putc_unlocked,flockfile and funlockfile*/
 
-#define SIZEOF_INT 4
-#define SIZEOF_LONG 4
-#define SIZEOF_LONG_LONG 8   /* 0 if nonexistent */
+#define SIZEOF_INT @ac_cv_sizeof_int@
+#define SIZEOF_LONG @ac_cv_sizeof_long@
+#define SIZEOF_LONG_LONG @ac_cv_sizeof_long_long@   /* 0 if nonexistent */
 
-#define HAVE_CONST 1    /* compiler properly supports const */
+#define HAVE_CONST @have_const@    /* compiler properly supports const */
 
 /*==================================================================*/
 
@@ -227,8 +227,9 @@ it is necessary to check they are correct.
 *       27-Jun-08 : - define nauty_counter and LONG_LONG_COUNTERS            *
 *       30-Jun-08 : - declare version 2.4                                    *
 *       14-Jun-10 : Maintenance release 2.4r1                                *
+*        7-Aug-10 : Maintenance release 2.4r2                                *
 *                                                                            *
-*    nauty.h.  Generated from nauty-h.in by configure.
+*    @configure_input@
 *                                                                            *
 *****************************************************************************/
 

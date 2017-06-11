@@ -1,9 +1,9 @@
 /*****************************************************************************
 *                                                                            *
-* Auxiliary procedures for use with nauty 1.9.                               *
+* Auxiliary procedures for use with nauty 2.4.                               *
 * None of these procedures are needed by nauty or by dreadnaut.              *
 *                                                                            *
-*   Copyright (1984-2000) Brendan McKay.  All rights reserved.               *
+*   Copyright (1984-2010) Brendan McKay.  All rights reserved.               *
 *   Subject to waivers and disclaimers in nauty.h.                           *
 *                                                                            *
 *   CHANGE HISTORY                                                           *
@@ -12,11 +12,15 @@
 *        5-Jun-93 : renamed to version 1.7+ (no changes to this file)        *
 *       18-Aug-93 : renamed to version 1.8 (no changes to this file)         *
 *       17-Sep-93 : renamed to version 1.9 (no changes to this file)         *
-*       24-Jan-00 : renamed to version 2.0 (no changes to this file)
+*       24-Jan-00 : renamed to version 2.0 (no changes to this file)         *
+*       16-Nov-00 : made changes listed in nauty.h                           *
+*        8-Aug-02 : updated for version 2.2 (dynamic storage)                *
+*        3-Nov-04 : fixed names of nautaux_freedyn() and nautaux_check()     *
+*       10-Dec-06 : removed BIGNAUTY                                         *
 *                                                                            *
 *****************************************************************************/
 
-#define  EXTDEFS 1
+#define ONE_WORD_SETS
 #include "naututil.h"          /* which includes "nauty.h" and <stdio.h> */
 #include "nautaux.h"
 
@@ -26,8 +30,13 @@
 #define M m
 #endif
 
-static permutation workperm[MAXN+2];   /* used for scratch purposes */
-static set workset[MAXM];              /* used for scratch purposes */
+#if !MAXN
+DYNALLSTAT(set,workset,workset_sz);
+DYNALLSTAT(permutation,workperm,workperm_sz);
+#else
+static set workset[MAXM];   /* used for scratch work */
+static permutation workperm[MAXN+2];
+#endif
 
 /*****************************************************************************
 *                                                                            *
@@ -41,14 +50,16 @@ static set workset[MAXM];              /* used for scratch purposes */
 *****************************************************************************/
 
 long
-ptncode(g,lab,ptn,level,m,n)
-graph *g;
-register nvector *lab,*ptn;
-int level,m,n;
+ptncode(graph *g, int *lab, int *ptn, int level, int m, int n)
 {
-        register int i;
-        register long code;
+        int i;
+        long code;
         int v1,v2,nc,inter,cellend;
+
+#if !MAXN
+        DYNALLOC1(permutation,workperm,workperm_sz,n+2,"testcanlab");
+        DYNALLOC1(set,workset,workset_sz,m,"testcanlab");
+#endif
 
         /* find all cells: put starts in workperm[0..n] */
 
@@ -93,16 +104,18 @@ int level,m,n;
 *****************************************************************************/
 
 boolean
-equitable(g,lab,ptn,level,m,n)
-graph *g;
-register nvector *lab,*ptn;
-int level,m,n;
+equitable(graph *g, int *lab, int *ptn, int level, int m, int n)
 {
-        register int i;
+        int i;
         int v1,v2,nc,inter,cellend;
         boolean ok;
 
         /* find all cells: put starts in workperm[0..n] */
+
+#if !MAXN
+        DYNALLOC1(permutation,workperm,workperm_sz,n+2,"testcanlab");
+        DYNALLOC1(set,workset,workset_sz,m,"testcanlab");
+#endif
 
         i = nc = 0;
 
@@ -116,7 +129,7 @@ int level,m,n;
         workperm[nc] = n;
 
         ok = TRUE;
-        for (v2 = 0; v2 < nc; ++v2)
+        for (v2 = 0; v2 < nc && ok; ++v2)
         {
             EMPTYSET(workset,m);
             for (i = workperm[v2], cellend = workperm[v2+1] - 1;
@@ -135,7 +148,7 @@ int level,m,n;
             }
         }
 
-        return(ok);
+        return ok;
 }
 
 /*****************************************************************************
@@ -150,14 +163,15 @@ int level,m,n;
 *****************************************************************************/
 
 int
-component(g,v,cmpt,m,n)
-graph *g;
-int v,m,n;
-set *cmpt;
+component(graph *g, int v, set *cmpt, int m, int n)
 {
-        register int i,z;
+        int i,z;
         set newverts[MAXM],*gx;
         int head,tail,x;
+
+#if !MAXN
+        DYNALLOC1(permutation,workperm,workperm_sz,n+2,"testcanlab");
+#endif
 
         EMPTYSET(workset,m);
         ADDELEMENT(workset,v);
@@ -174,14 +188,64 @@ set *cmpt;
                 newverts[i] = gx[i] & ~workset[i];
                 workset[i] |= gx[i];
             }
-            for (z = nextelement(newverts,m,-1); z >= 0;
-                                                 z = nextelement(newverts,m,z))
+	    for (z = -1; (z = nextelement(newverts,m,z)) >= 0; )
                 workperm[tail++] = z;
         }
 
-        if (cmpt != NILSET)
-            for (i = m; --i >= 0;)
-                cmpt[i] = workset[i];
+        if (cmpt != NULL)
+            for (i = m; --i >= 0;) cmpt[i] = workset[i];
 
-        return(tail);
+        return tail;
+}
+
+/*****************************************************************************
+*                                                                            *
+*  nautaux_check() checks that this file is compiled compatibly with the    *
+*  given parameters.   If not, call exit(1).                                 *
+*                                                                            *
+*****************************************************************************/
+
+void
+nautaux_check(int wordsize, int m, int n, int version)
+{
+        if (wordsize != WORDSIZE)
+        {
+            fprintf(ERRFILE,"Error: WORDSIZE mismatch in nautaux.c\n");
+            exit(1);
+        }
+
+#if MAXN
+        if (m > MAXM)
+        {
+            fprintf(ERRFILE,"Error: MAXM inadequate in nautaux.c\n");
+            exit(1);
+        }
+
+        if (n > MAXN)
+        {
+            fprintf(ERRFILE,"Error: MAXN inadequate in nautaux.c\n");
+            exit(1);
+        }
+#endif
+
+        if (version < NAUTYREQUIRED)
+        {
+            fprintf(ERRFILE,"Error: nautaux.c version mismatch\n");
+            exit(1);
+        }
+}
+
+/*****************************************************************************
+*                                                                            *
+*  nautaux_freedyn() - free the dynamic memory in this module               *
+*                                                                            *
+*****************************************************************************/
+
+void
+nautaux_freedyn(void)
+{
+#if !MAXN
+        DYNFREE(workset,workset_sz);
+        DYNFREE(workperm,workperm_sz);
+#endif
 }

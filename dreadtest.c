@@ -3,80 +3,29 @@
 * This is the main file for dreadnaut() version 2.4, which is a test-bed     *
 *   for nauty() version 2.4.                                                 *
 *                                                                            *
-*   Copyright (1984-2010) Brendan McKay.  All rights reserved.               *
+* ACTUALLY IT ISN'T.  This is a modified edition of dreadnaut that performs  *
+* tests of conformity.  Instead of reporting the results of computations to  *
+* the human, it compares them to values stored in the input and reports any  *
+* differences.                                                               *
+* It is assumed that "long int" has at least 32 bits.                        *
+* In the following, # is a hex value (without 0x) that is compared to a      *
+* hash certificate of the specified value.  An error message is given if     *
+* they don't match exactly.                                                  *
+* The following no longer have their old meanings:                           *
+*    a #   - compare the generators                                          *
+*    b #   - compare the canonical labelling and the labelled graph          *
+*    o #   - compare the orbits                                              *
+*    & #   - compare the partition                                           *
+*    S #   - compare the statistics                                          *
+*    C     - run tests on bits, sets, etc.                                   *
+*                                                                            *
+*   Copyright (1984-2007) Brendan McKay.  All rights reserved.               *
 *   Subject to the waivers and disclaimers in nauty.h.                       *
 *                                                                            *
 *   CHANGE HISTORY                                                           *
-*       10-Nov-87 : final changes for version 1.2                            *
-*        5-Dec-87 - replaced all uses of fscanf() by appropriate uses        *
-*                   of the new procedures readinteger() and readstring()     *
-*                 - changed the '<' command slightly.  If a file of the      *
-*                   given name cannot be openned, an attempt is made to      *
-*                   open a file with the same name extended by DEFEXT.       *
-*                 - improved error processing for 'n' command.               *
-*       28-Sep-88 : changes for version 1.4 :                                *
-*                 - replaced incorrect %d by %ld in fprintf for ? command    *
-*       23-Mar-89 : changes for version 1.5 :                                *
-*                 - added optional startup message                           *
-*                 - enabled use of refine1 in 'i' command                    *
-*                 - implemented $$ command                                   *
-*                 - replaced ALLOCS test by DYNALLOC test                    *
-*                 - modified @ command and added # command                   *
-*                 - declared local procedures static                         *
-*       25-Mar-89 - implemented k command                                    *
-*       27-Mar-89 - implemented * and I commands                             *
-*       29-Mar-89 - implemented K command                                    *
-*        2-Apr-89 - added reporting of vertex-invariant statistics           *
-*        2-Apr-89 - added ## command                                         *
-*        4-Apr-89 - added triples(), quadruples(), adjtriang()               *
-*                 - updated error reporting for nauty()                      *
-*        5-Apr-89 - removed flushline() from g and e commands                *
-*                 - added T command                                          *
-*        6-Apr-89 - added cellquads() and distances()                        *
-*       26-Apr-89 - modified ? command, added & and && commands              *
-*                 - added indsets(), cliques(), cellquins()                  *
-*       18-Aug-89 - made g, lab, canong dynamically allocated always         *
-*        2-Mar-90 - added celltrips(), cellcliq(), cellind()                 *
-*       13-Mar-90 - changed canong and savedg in output to h and h'          *
-*       19-Mar-90 - revised help() a little                                  *
-*       19-Apr-90 : changes for version 1.6                                  *
-*                 - rewrote "*" command to avoid bug in Pyramid C compiler   *
-*       20-Apr-90 - rewrote above rewrite to avoid bug in SUN3 gcc           *
-*       23-Apr-90 - undid above rewrite and fixed *my* bug <blush> by        *
-*                   making NUMINVARS have type int.  Sorry, gcc.             *
-*       10-Nov-90 - added calls to null routines (see comment on code)       *
-*       27-Aug-92 : renamed to version 1.7, no changes to this file          *
-*        5-Jun-93 : renamed to version 1.7+, no changes to this file         *
-*       18-Aug-93 : renamed to version 1.8, no changes to this file          *
-*       17-Sep-93 : changes for version 1.9 :                                *
-*                 - added invariant adjacencies()                            *
-*        7-Jun-96 : changes for version 2.0 :                                *
-*                 - added invariants cellfano() and cellfano2()              *
-*                 - made y=10 the default                                    *
-*       11-Jul-96 - added dynamic allocation                                 *
-*                 - rewrote h command and added H command                    *
-*                 - implemented M and R commands                             *
-*       15-Aug-96 - changed z command to use sethash()                       *
-*       30-Aug-96 - no need to declare seed; already in naututil.h           *
-*       12-Sep-96 - let i and I commands use userrefproc                     *
-*        9-Dec-96 - made y=infinity the default                              *
-*        6-Sep-97 - allocated arrays before accepting commands               *
-*        7-Sep-97 - make g,canong,savedg 1-d arrays even statically          *
-*       22-Sep-97 - undid error introduced on 7-Sep (worksize)               *
-*        9-Jan-00 - used *_check() instead of *_null()                       *
-*       12-Feb-00 - minor code formatting                                    *
-*       17-Aug-00 - now use tc_level from DEFAULTOPTIONS                     *
-*       16-Nov-00 - made changes listed in nauty.h                           *
-*       22-Apr-01 - include nautyinv.h                                       *
-*                 - improve worksize processing for MAXN=0                   *
-*        5-May-01 - k=0 1 automatic for *, also K=3 or K=0                   *
-*        2-Jun-01 - added __ command for digraph converse                    *
-*       18-Oct-01 - moved WORKSIZE to here                                   *
-*       21-Nov-01 - use NAUTYREQUIRED in *_check() calls                     *
-*        1-Sep-02 - Undid the previous change                                *
-*       17-Nov-03 - Changed INFINITY to NAUTY_INFINITY                       *
-*       15-Nov-04 - Completed all prototypes                                 *
-*       23-Nov-06 - no usertcellproc() any more in version 2.4               *
+*        1-Sep-02 - Initial write starting at dreadnaut.c                    *
+*       17-Nov-03 - Change INFINITY to NAUTY_INFINITY                        *
+*       23-Nov-06 - Fix for version 2.4.                                     *
 *                                                                            *
 *****************************************************************************/
 
@@ -86,10 +35,6 @@
 #define PM(x) ((x) ? '+' : '-')
 #define SS(n,sing,plur)  (n),((n)==1?(sing):(plur))
 #define WORKSIZE 60
-
-#ifdef  CPUDEFS
-CPUDEFS                 /* data decls. for CPUTIME */
-#endif
 
 #define INFILE fileptr[curfile]
 #define OUTFILE outfile
@@ -129,7 +74,7 @@ static boolean firstpath;       /* used in usernode() */
 #define U_NODE  1               /* masks for u values */
 #define U_AUTOM 2
 #define U_LEVEL 4
-#define U_TCELL 8     /* At version 2.4, usertcellproc() is gone */
+#define U_TCELL 8    /* At version 2.4, usertcellproc() is gone */
 #define U_REF  16
 
 #ifndef  NODEPROC
@@ -165,39 +110,278 @@ extern void INVARPROC(graph*,int*,int*,int,int,int,permutation*,
 #define INVARPROCNAME "user-defined"
 #endif
 
+
 static struct invarrec
 {
     void (*entrypoint)(graph*,int*,int*,int,int,int,permutation*,
                       int,boolean,int,int);
     char *name;
 } invarproc[]
-    = {{INVARPROC, INVARPROCNAME},
-       {NULL, "none"},
-       {twopaths,    "twopaths"},
-       {adjtriang,   "adjtriang"},
-       {triples,     "triples"},
-       {quadruples,  "quadruples"},
-       {celltrips,   "celltrips"},
-       {cellquads,   "cellquads"},
-       {cellquins,   "cellquins"},
-       {distances,   "distances"},
-       {indsets,     "indsets"},
-       {cliques,     "cliques"},
-       {cellcliq,    "cellcliq"},
-       {cellind,     "cellind"},
-       {adjacencies, "adjacencies"},
-       {cellfano,    "cellfano"},
-       {cellfano2,   "cellfano2"}};
+    = {INVARPROC, INVARPROCNAME,
+       NULL, "none",
+       twopaths,    "twopaths",
+       adjtriang,   "adjtriang",
+       triples,     "triples",
+       quadruples,  "quadruples",
+       celltrips,   "celltrips",
+       cellquads,   "cellquads",
+       cellquins,   "cellquins",
+       distances,   "distances",
+       indsets,     "indsets",
+       cliques,     "cliques",
+       cellcliq,    "cellcliq",
+       cellind,     "cellind",
+       adjacencies, "adjacencies",
+       cellfano,    "cellfano",
+       cellfano2,   "cellfano2"};
 #define NUMINVARS ((int)(sizeof(invarproc)/sizeof(struct invarrec)))
+
+#ifdef  NLMAP
+#define GETNW(c,f) do c = getc(f); while (c==' '||c=='\t')
+#define GETNWC(c,f) do c = getc(f); while (c==' '||c==','||c=='\t')
+#define GETNWL(c,f) do c = getc(f); while (c==' '||c=='\n'||c=='\t')
+#else
+#define GETNW(c,f) do c = getc(f); while (c==' '||c=='\t'||c=='\r')
+#define GETNWC(c,f) do c = getc(f); while (c==' '||c==','||c=='\t'||c=='\r')
+#define GETNWL(c,f) do c = getc(f); while (c==' '||c=='\n'||c=='\t'||c=='\r')
+#endif
 
 static void help(FILE*, int);
 static void userautom(int,permutation*,int*,int,int,int);
 static void usernode(graph*,int*,int*,int,int,int,int,int,int);
 static void userlevel(int*,int*,int,int*,statsblk*,int,int,int,int,int,int);
 
+
 #ifdef  EXTRADECLS
 EXTRADECLS
 #endif
+
+static long afound;
+
+/*****************************************************************************
+*                                                                            *
+*  gethex(f) reads a long hex integer from f, optionally preceded by '='     *
+*  and white space.  -1 is returned if the attempt was unsuccessful.         *
+*  Not much error checking.                                                  *
+*                                                                            *
+*****************************************************************************/
+
+static long
+gethex(FILE *f)
+{
+        int c;
+	long i;
+
+        GETNWL(c,f);
+        if (c != '=') ungetc((char)c,f);
+
+        if (fscanf(f,"%lx",&i) == 1) return i;
+        else                         return -1;
+}
+
+/*****************************************************************************
+*                                                                            *
+*  permhash(s,n,seed,key) is a function whose value depends only on the      *
+*  permutation s, a long seed, and an integer key.  It is intended to be     *
+*  independent of the machine and whether permutation has 16 or 32 bits.     *
+*  n is the length.                                                          *
+*  28 bits of seed and 15 bits of key are significant.                       *
+*  The result is in the low 28 bits.                                         *
+*                                                                            *
+*****************************************************************************/
+
+static long
+permhash(permutation *s, int n, long seed, int key)
+{
+        int i,j,lsh,rsh;
+        long l,res,salt,lshmask;
+        long si;
+
+        lsh = key & 0xF;
+        rsh = 28 - lsh;
+        salt = (key >> 4) & 0x7FFL;
+        res = seed & 0xFFFFFFFL;
+        lshmask = (1L << lsh) - 1;
+
+        j = 0;
+        for (i = 0; i < n; ++i)
+        {
+            si = s[i];
+            l = si & 0xFFFFL;
+            res = (((res << lsh) ^ ((res >> rsh) & lshmask) ^ l) + salt) 
+                                                                & 0xFFFFFFFL;
+            l = si >> 16;
+            res = (((res << lsh) ^ ((res >> rsh) & lshmask) ^ l) + salt) 
+                                                                & 0xFFFFFFFL;
+	}
+
+	return res;
+}
+
+/*****************************************************************************
+*                                                                            *
+*  inthash(s,n,seed,key) is a function whose value depends only on the       *
+*  int array p, a long seed, and an integer key.  It is intended to be       *
+*  independent of the machine and whether int has 16 or 32 bits.             *
+*  64 bits is also ok provided the values are not above 2^31-1.              *
+*  n is the length.                                                          *
+*  28 bits of seed and 15 bits of key are significant.                       *
+*  The result is in the low 28 bits.                                         *
+*                                                                            *
+*****************************************************************************/
+
+static long
+inthash(int *s, int n, long seed, int key)
+{
+        int i,j,lsh,rsh;
+        long l,res,salt,lshmask;
+        long si;
+
+        lsh = key & 0xF;
+        rsh = 28 - lsh;
+        salt = (key >> 4) & 0x7FFL;
+        res = seed & 0xFFFFFFFL;
+        lshmask = (1L << lsh) - 1;
+
+        j = 0;
+        for (i = 0; i < n; ++i)
+        {
+            si = s[i];
+            l = si & 0xFFFFL;
+            res = (((res << lsh) ^ ((res >> rsh) & lshmask) ^ l) + salt)
+                                                                & 0xFFFFFFFL;
+            l = si >> 16;
+            res = (((res << lsh) ^ ((res >> rsh) & lshmask) ^ l) + salt)
+                                                                & 0xFFFFFFFL;
+        }
+
+        return res;
+}
+
+/*****************************************************************************
+* bit_tests()   Run some configuration tests                                 *
+*****************************************************************************/
+
+static int
+bit_tests(void)
+{
+	int i,j,bad;
+	setword w;
+
+	printf("NAUTYVERSION=%s NAUTYVERSIONID=%d NAUTYREQUIRED=%d\n",
+		NAUTYVERSION,NAUTYVERSIONID,NAUTYREQUIRED);
+	printf("MAXN=%d MAXM=%d WORDSIZE=%d NAUTY_INFINITY=%d",
+		MAXN,MAXM,WORDSIZE,NAUTY_INFINITY);
+#ifdef SYS_UNIX
+	printf(" SYS_UNIX");
+#endif
+#ifdef SYS_CRAY
+        printf(" SYS_CRAY");
+#endif
+
+	printf("\n");
+
+
+	bad = 0;
+
+	if (SIZEOF_INT != sizeof(int))
+	{
+	    printf(" ***** NOTE: sizeof problem (int) *****\n");
+	    ++bad;
+	}
+	if (SIZEOF_LONG != sizeof(long))
+	{
+	    printf(" ***** NOTE: sizeof problem (long) *****\n");
+	    ++bad;
+	}
+#if SIZEOF_LONGLONG > 0
+	if (SIZEOF_LONGLONG != sizeof(long long))
+	{
+	    printf(" ***** NOTE: sizeof problem (long long) *****\n");
+	    ++bad;
+	}
+#endif
+
+	if (8*sizeof(setword) < WORDSIZE)
+	{
+	    printf("\n ***** NOTE:  WORDSIZE mismatch *****\n");
+	    ++bad;
+	}
+	if (8*sizeof(setword) > WORDSIZE)
+	{
+	    printf("\n WORDSIZE < 8*sizeof(setword)  [This is legal.]\n");
+	}
+
+	for (i = 0; i < WORDSIZE; ++i)
+	{
+	    w = ALLMASK(i);
+	    if (POPCOUNT(w) != i)
+	    {
+		printf("\n ***** POPCOUNT(ALLMASK) error %d *****\n\n",i);
+		++bad;
+	    }
+	}
+
+	for (i = 0; i < WORDSIZE; ++i)
+        {
+            w = BITMASK(i);
+            if (POPCOUNT(w) != WORDSIZE-i-1)
+            {
+                printf("\n ***** POPCOUNT(BITMASK) error %d *****\n\n",i);
+                ++bad;
+            }
+        }
+
+	for (i = 0; i < WORDSIZE; ++i)
+	    if (POPCOUNT(ALLMASK(i)) != i)
+	    {
+		printf("\n ***** POPCOUNT(ALLMASK) error %d *****\n\n",i);
+		++bad;
+	    }
+
+	for (i = 0; i < WORDSIZE; ++i)
+            if (FIRSTBIT(BITT[i]) != i)
+	    {
+		printf("\n ***** FIRSTBIT(BITT) error %d *****\n\n",i);
+		++bad;
+	    }
+
+	w = ALLBITS;
+	for (i = 0; i < WORDSIZE; ++i)
+	{
+	    TAKEBIT(j,w);
+	    if (j != i)
+            {
+                printf("\n ***** TAKEBIT error %d *****\n\n",i);
+                ++bad;
+            }
+	}
+
+	for (i = 0; i < WORDSIZE; ++i)
+            if (POPCOUNT(BITT[i]) != 1)
+	    {
+                printf("\n ***** POPCOUNT(BITT) error %d *****\n\n",i);
+		++bad;
+	    }
+
+	for (i = 0; i < WORDSIZE; ++i)
+	{
+	    w = 0;
+	    for (j = 1; j <= WORDSIZE; ++j)
+	    {
+		w |= BITT[(j*97+i)%WORDSIZE];
+		if (POPCOUNT(w) != j)
+		{
+		    printf("\n ***** POPCOUNT(w) error %d %d *****\n\n",i,j);
+		    ++bad;
+		}
+	    }
+	}
+
+	if (bad) printf("\nXXXXXXX %d errors found XXXXXXX\n",bad);
+
+	return bad;
+}
 
 /*****************************************************************************
 *                                                                            *
@@ -218,18 +402,19 @@ main(int argc, char *argv[])
         char *s1,*s2,*invarprocname;
         int c,d;
         long li;
-	unsigned long uli;
+        unsigned long uli;
         set *gp;
         double timebefore,timeafter;
         char filename[200];
         int sgn,sgorg,nperm;
-	int multiplicity;
+	int bad,multiplicity;
 	boolean options_writeautoms,options_writemarkers;
 	long zseed;
+	long need,found;
 
         curfile = 0;
         fileptr[curfile] = stdin;
-        prompt = DOPROMPT(INFILE);
+        prompt = FALSE;
         outfile = stdout;
 	options_writeautoms = options_writemarkers = TRUE;
         n = m = 1;
@@ -248,10 +433,9 @@ main(int argc, char *argv[])
 	n = 1;
 #endif
 
-#ifdef  INITSEED
-        INITSEED;
-	ran_init(seed);
-#endif
+	ran_init(37);
+
+	bad = 0;
 
         umask = 0;
         pvalid = FALSE;
@@ -261,6 +445,7 @@ main(int argc, char *argv[])
         minus = FALSE;
         labelorg = oldorg = 0;
         multiplicity = 1;
+	options.userautomproc = userautom;
 
 #ifdef  INITIALIZE
         INITIALIZE;
@@ -277,13 +462,15 @@ main(int argc, char *argv[])
         nautinv_check(WORDSIZE,1,1,NAUTYVERSIONID);
         nautil_check(WORDSIZE,1,1,NAUTYVERSIONID);
         naututil_check(WORDSIZE,1,1,NAUTYVERSIONID);
+        naugraph_check(WORDSIZE,1,1,NAUTYVERSIONID);
 
         while (curfile >= 0)
             if ((c = getc(INFILE)) == EOF || c == '\004')
             {
                 fclose(INFILE);
                 --curfile;
-                if (curfile >= 0) prompt = DOPROMPT(INFILE);
+                if (curfile >= 0)
+                    prompt = FALSE;
             }
             else switch (c)
             {
@@ -331,7 +518,7 @@ main(int argc, char *argv[])
                 if (fileptr[curfile+1] != NULL)
                 {
                     ++curfile;
-                    prompt = DOPROMPT(INFILE);
+                    prompt = FALSE;
                     if (prompt)
                         fprintf(PROMPTFILE,"> ");
                 }
@@ -374,7 +561,8 @@ main(int argc, char *argv[])
                 do
                     c = getc(INFILE);
                 while (c != '\n' && c != EOF);
-                if (c == '\n') ungetc('\n',INFILE);
+                if (c == '\n')
+                    ungetc('\n',INFILE);
                 break;
 
             case 'n':   /* read n value */
@@ -496,7 +684,8 @@ main(int argc, char *argv[])
                     sgn = n;
                     for (li = (long)n * (long)m; --li >= 0;)
                         savedg[li] = canong[li];
-                    for (i = n; --i >= 0;) savedlab[i] = lab[i];
+                    for (i = n; --i >= 0;)
+                        savedlab[i] = lab[i];
                     sgorg = labelorg;
                 }
                 else
@@ -612,7 +801,8 @@ main(int argc, char *argv[])
             case 's':   /* generate random graph */
                 minus = FALSE;
                 i = getint(INFILE);
-                if (i <= 0) i = 2;
+                if (i <= 0)
+                    i = 2;
                 rangraph(g,options.digraph,i,m,n);
                 gvalid = TRUE;
                 cvalid = FALSE;
@@ -620,7 +810,9 @@ main(int argc, char *argv[])
                 break;
 
             case 'q':   /* quit */
-                EXIT;
+                if (bad == 0) printf("OK");
+		printf("\n");
+                exit(bad);
                 break;
 
             case '"':   /* copy comment to output */
@@ -632,29 +824,19 @@ main(int argc, char *argv[])
                 if (!pvalid)
                     unitptn(lab,ptn,&numcells,n);
                 cellstarts(ptn,0,active,m,n);
-#ifdef  CPUTIME
-                timebefore = CPUTIME;
-#endif
                 doref(g,lab,ptn,0,&numcells,&qinvar,perm,active,&refcode,
                         options.userrefproc ? options.userrefproc : 
 			(m == 1 ? refine1 : refine),
                         options.invarproc,0,0,
                         options.invararg,options.digraph,m,n);
-#ifdef  CPUTIME
-                timeafter = CPUTIME;
-#endif
                 fprintf(OUTFILE," %d cell%s; code = %x",
                         SS(numcells,"","s"),refcode);
                 if (options.invarproc != NULL)
                     fprintf(OUTFILE," (%s %s)",invarprocname,
                         (qinvar == 2 ? "worked" : "failed"));
-#ifdef  CPUTIME
-                fprintf(OUTFILE,"; cpu time = %.2f seconds\n",
-                        timeafter-timebefore);
-#else
                 fprintf(OUTFILE,"\n");
-#endif
-                if (numcells > 1) pvalid = TRUE;
+                if (numcells > 1)
+                    pvalid = TRUE;
                 break;
 
             case 'i':   /* do refinement */
@@ -670,7 +852,8 @@ main(int argc, char *argv[])
                     refine(g,lab,ptn,0,&numcells,perm,active,&refcode,m,n);
                 fprintf(OUTFILE," %d cell%s; code = %x\n",
                         SS(numcells,"","s"),refcode);
-                if (numcells > 1) pvalid = TRUE;
+                if (numcells > 1)
+                    pvalid = TRUE;
                 break;
 
             case 'x':   /* execute nauty */
@@ -684,7 +867,7 @@ main(int argc, char *argv[])
                 }
                 if (pvalid)
                 {
-                    fprintf(OUTFILE,"[fixing partition]\n");
+                    /* fprintf(OUTFILE,"[fixing partition]\n"); */
                     options.defaultptn = FALSE;
                 }
                 else
@@ -699,21 +882,16 @@ main(int argc, char *argv[])
                 }
 
                 firstpath = TRUE;
-		options.writeautoms = options_writeautoms;
-		options.writemarkers = options_writemarkers;
-#ifdef  CPUTIME
-                timebefore = CPUTIME;
-#endif
+		options.writeautoms = FALSE;
+		options.writemarkers = FALSE;
 		for (i = 0; i < multiplicity; ++i)
 		{
+		    afound = 1;
                     nauty(g,lab,ptn,NULL,orbits,&options,&stats,workspace,
                          worksize,m,n,canong);
 		    options.writeautoms = FALSE;
                     options.writemarkers = FALSE;
 		}
-#ifdef  CPUTIME
-                timeafter = CPUTIME;
-#endif
                 if (stats.errstatus != 0)
                     fprintf(ERRFILE,
                       "nauty returned error status %d [this can't happen]\n\n",
@@ -722,7 +900,8 @@ main(int argc, char *argv[])
                 {
                     if (options.getcanon) cvalid = TRUE;
                     ovalid = TRUE;
-                    fprintf(OUTFILE,"%d orbit%s",SS(stats.numorbits,"","s"));
+                 /* fprintf(OUTFILE,
+			       "%d orbit%s",SS(stats.numorbits,"","s")); 
                     if (stats.grpsize2 == 0)
                         fprintf(OUTFILE,"; grpsize=%.0f",stats.grpsize1+0.1);
                     else
@@ -745,14 +924,7 @@ main(int argc, char *argv[])
                     fprintf(OUTFILE,"tctotal=%lu",stats.tctotal);
                     if (options.getcanon)
                         fprintf(OUTFILE,"; canupdates=%lu",stats.canupdates);
-#ifdef  CPUTIME
-                    fprintf(OUTFILE,multiplicity == 1 ?
-			      "; cpu time = %.2f seconds\n" :
-			      "; cpu time = %.5f seconds\n",
-                            (timeafter-timebefore)/multiplicity);
-#else
                     fprintf(OUTFILE,"\n");
-#endif
                     if (options.invarproc != NULL &&
                                            options.maxinvarlevel != 0)
                     {
@@ -764,6 +936,7 @@ main(int argc, char *argv[])
                         else
                             fprintf(OUTFILE,".\n");
                     }
+		*/
                 }
                 break;
 
@@ -812,32 +985,63 @@ main(int argc, char *argv[])
                     if (umask < 0)
                         umask = ~0;
                 }
-                if (umask & U_NODE)  options.usernodeproc = NODEPROC;
-                else                 options.usernodeproc = NULL;
-                if (umask & U_AUTOM) options.userautomproc = AUTOMPROC;
-                else                 options.userautomproc = NULL;
-                if (umask & U_LEVEL) options.userlevelproc = LEVELPROC;
-                else                 options.userlevelproc = NULL;
+                if (umask & U_NODE)
+                    options.usernodeproc = NODEPROC;
+                else
+                    options.usernodeproc = NULL;
+                if (umask & U_AUTOM)
+                    options.userautomproc = AUTOMPROC;
+                else
+                    options.userautomproc = userautom;
+                if (umask & U_LEVEL)
+                    options.userlevelproc = LEVELPROC;
+                else
+                    options.userlevelproc = NULL;
                 if (umask & U_TCELL)
 		    fprintf(ERRFILE,"usertcellproc() gone at version 2.4\n\n");
-                if (umask & U_REF)   options.userrefproc = REFPROC;
-                else                 options.userrefproc = NULL;
+                if (umask & U_REF)
+                    options.userrefproc = REFPROC;
+                else
+                    options.userrefproc = NULL;
                 break;
 
             case 'o':   /* type orbits */
                 minus = FALSE;
+		need = gethex(INFILE);
                 if (ovalid)
-                    putorbits(OUTFILE,orbits,options.linelength,n);
+                {
+		    found = inthash(orbits,n,761L,3);
+		    if (found != need)
+		    {
+			printf("\nERROR: need=%lx found=%lx\n",need,found);
+			++bad;
+		    }
+		    else
+			printf("+"); fflush(stdout);
+		}
                 else
                     fprintf(ERRFILE,"orbits are not defined\n\n");
                 break;
 
             case 'b':   /* type canonlab and canong */
                 minus = FALSE;
+                need = gethex(INFILE);
                 if (cvalid)
-                    putcanon(OUTFILE,lab,canong,options.linelength,m,n);
+                {
+		    zseed = n;
+                    for (i = 0, gp = canong; i < n; ++i, gp += m)
+                        zseed = sethash(gp,n,zseed,3109);
+		    found = inthash(lab,n,165,2) ^ zseed;
+                    if (found != need)
+		    {
+                        printf("\nERROR: need=%lx found=%lx\n",need,found);
+			++bad;
+		    }
+                    else
+                        printf("+"); fflush(stdout);
+                }
                 else
-                    fprintf(ERRFILE,"h is not defined\n\n");
+                    fprintf(ERRFILE,"automorphisms are not defined\n\n");
                 break;
 
             case 'z':   /* type hashcode for canong */
@@ -933,8 +1137,25 @@ main(int argc, char *argv[])
                 break;
 
             case 'a':   /* set writeautoms option */
-                options_writeautoms = !minus;
                 minus = FALSE;
+                need = gethex(INFILE);
+                if (ovalid)
+                {
+                    if (afound != need)
+		    {
+                        printf("\nERROR: need=%lx found=%lx\n",need,afound);
+			++bad;
+		    }
+                    else
+                        printf("+"); fflush(stdout);
+                }
+                else
+                    fprintf(ERRFILE,"automorphisms are not defined\n\n");
+                break;
+
+            case 'C':   /* check bit and set operations */
+                minus = FALSE;
+		bit_tests();
                 break;
 
             case 'm':   /* set writemarkers option */
@@ -1014,6 +1235,7 @@ main(int argc, char *argv[])
                 break;
 
             case '&':   /* list the partition and possibly the quotient */
+		need = gethex(INFILE);
                 if ((d = getc(INFILE)) == '&')
                     doquot = TRUE;
                 else
@@ -1023,31 +1245,48 @@ main(int argc, char *argv[])
                 }
                 minus = FALSE;
                 if (pvalid)
-                    putptn(OUTFILE,lab,ptn,0,options.linelength,n);
+		{
+		    for (i = 0; i < n; ++i) if (ptn[i] > n) ptn[i] = n;
+		    found = inthash(lab,n,4123,12) ^ inthash(ptn,n,4123,12);
+		}
                 else
-                    fprintf(OUTFILE,"unit partition\n");
+		    found = 1001;
+
+                if (found != need)
+		{
+                    printf("\nERROR: need=%lx found=%lx\n",need,found);
+		    ++bad;
+		}
+                else
+                    printf("+"); fflush(stdout);
+
                 if (doquot)
                 {
-                    if (!pvalid) unitptn(lab,ptn,&numcells,n);
+		 /*
+                    if (!pvalid)
+                        unitptn(lab,ptn,&numcells,n);
                     putquotient(OUTFILE,g,lab,ptn,0,options.linelength,m,n);
+		 */
                 }
                 break;
 
             case 'h':   /* type help information */
 	    case 'H':
                 minus = FALSE;
-                help(PROMPTFILE,c == 'H');
+                printf("a, o, & are reassigned and output is suppressed\n");
+		printf("Use dreadnaut for other functions\n");
                 break;
 
             default:    /* illegal command */
                 fprintf(ERRFILE,"'%c' is illegal - type 'h' for help\n\n",c);
                 flushline(INFILE);
-                if (prompt) fprintf(PROMPTFILE,"> ");
+                if (prompt)
+                    fprintf(PROMPTFILE,"> ");
                 break;
 
             }  /* end of switch */
 
-	exit(0);
+	return 0;
 }
 
 /*****************************************************************************
@@ -1115,17 +1354,22 @@ static void
 usernode(graph *g, int *lab, int *ptn, int level, int numcells,
          int tc, int code, int m, int n)
 {
-        int i;
+/*
+        register int i;
 
-        for (i = 0; i < level; ++i) PUTC('.',OUTFILE);
+        for (i = 0; i < level; ++i)
+            PUTC('.',OUTFILE);
         if (numcells == n)
             fprintf(OUTFILE,"(n/%d)\n",code);
         else if (tc < 0)
             fprintf(OUTFILE,"(%d/%d)\n",numcells,code);
         else
             fprintf(OUTFILE,"(%d/%d/%d)\n",numcells,code,tc);
-        if (firstpath) putptn(OUTFILE,lab,ptn,level,options.linelength,n);
-        if (numcells == n) firstpath = FALSE;
+        if (firstpath)
+            putptn(OUTFILE,lab,ptn,level,options.linelength,n);
+        if (numcells == n)
+            firstpath = FALSE;
+*/
 }
 
 /*****************************************************************************
@@ -1139,10 +1383,7 @@ static void
 userautom(int count, permutation *perm, int *orbits,
           int numorbits, int stabvertex, int n)
 {
-        fprintf(OUTFILE,
-             "**userautomproc:  count=%d stabvertex=%d numorbits=%d\n",
-             count,stabvertex+labelorg,numorbits);
-        putorbits(OUTFILE,orbits,options.linelength,n);
+	afound ^= permhash(perm,n,107651L,count);
 }
 
 /*****************************************************************************
@@ -1156,9 +1397,11 @@ static void
 userlevel(int *lab, int *ptn, int level, int *orbits, statsblk *stats,
           int tv, int index, int tcellsize, int numcells, int cc, int n)
 {
+/*
       fprintf(OUTFILE,
             "**userlevelproc:  level=%d tv=%d index=%d tcellsize=%d cc=%d\n",
             level,tv+labelorg,index,tcellsize,cc);
       fprintf(OUTFILE,"    nodes=%lu cells=%d orbits=%d generators=%d\n",
             stats->numnodes,numcells,stats->numorbits,stats->numgenerators);
+*/
 }

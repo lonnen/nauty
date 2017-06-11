@@ -1,6 +1,6 @@
 /*****************************************************************************
 * This is the header file for versions 2.4 of naututil.c and dreadnaut.c.    *
-* naututil.h.  Generated from naututil-h.in by configure.
+* @configure_input@
 *****************************************************************************/
 
 /* The parts between the ==== lines are modified by configure when
@@ -10,11 +10,11 @@ used, it is necessary to check they are correct.
 
 /* Check whether various headers are available */
 
-#define HAVE_ISATTY  1     /* if isatty() is available */
-#define HAVE_TIMES  1      /* if times() is available */
-#define HAVE_TIME  1      /* if time() is available */
-#define HAVE_GETRUSAGE 1  /* if getrusage() is available */
-#define HAVE_GETTIMEOFDAY  1  /* if gettimeofday() */
+#define HAVE_ISATTY  @have_isatty@     /* if isatty() is available */
+#define HAVE_TIMES  @have_times@      /* if times() is available */
+#define HAVE_TIME  @have_time@      /* if time() is available */
+#define HAVE_GETRUSAGE @have_getrusage@  /* if getrusage() is available */
+#define HAVE_GETTIMEOFDAY  @have_gettimeofday@  /* if gettimeofday() */
 
 /*==================================================================*/
 
