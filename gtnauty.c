@@ -38,7 +38,7 @@ void REFINE(graph*,int*,int*,int,int*,int*,set*,int*,int,int);
 
 void
 setlabptn(int *weight, int *lab, int *ptn, int n)
-/* Define (lab,ptn) according to weights. */
+/* Define (lab,ptn) with cells in increasing order of weight. */
 {
     int i;
 

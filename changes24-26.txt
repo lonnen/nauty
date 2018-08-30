@@ -204,3 +204,24 @@ Other changes:
   "unsigned long" is only 32 bits, or "unsigned long" otherwise.
   This means that some plugins for geng/genbg/gentourng may need
   to be revised.
+* Problems with input of graphs with 0 vertices were fixed with help
+  from Kevin Ryde.  However, note that many utilities in the package
+  will not work with such graphs.  It is NOT TRUE that graphs of
+  order 0 are now supported.
+* Stronger measures are taken to ensure that the sort order used by
+  shortg is plain byte order. This corresponds to the C collation
+  order, also known as POSIX, but it may be different from the
+  collation order used by default on your command line. This means
+  that utilities like sort, uniq, comm and join might consider the
+  output of shortg to be out of order. To avoid this, define the
+  environment variable LC_ALL to equal the string "C".
+     bash:   export LC_ALL=C
+     tcsh:   setenv LC_ALL C
+  If LC_ALL is undefined, it will also be sufficient to define
+  LC_COLLATE to equal "C".  The POSIX standard says that LC_ALL
+  takes precedence over LC_COLLATE if both are defined, but this
+  might not be true for older systems.  If you really don't want
+  to change environment variables, you can compile shortg with
+  -DKEEP_SORT_LOCALE but beware that some collation orders are
+  are not even deterministic (i.e. different characters might
+  compare equal).

@@ -2511,6 +2511,26 @@ IFS=$ac_save_IFS
 case $host_os in *\ *) host_os=`echo "$host_os" | sed 's/ /-/g'`;; esac
 
 
+case "$host" in
+  *powerpc*)
+     is_powerpc=1 ;;
+  *)
+     is_powerpc=0 ;;
+esac
+
+case "$build" in
+  *cygwin*)
+     is_cygwin=1 ;;
+  *)
+     is_cygwin=0 ;;
+esac
+
+case "$CC" in
+  gcc*)
+     gccver=`"$CC" -dumpversion` ;;
+  *)
+     gccver=0.0.0 ;;
+esac
 
 user_cflags="$CFLAGS"
 ac_ext=c
@@ -3505,14 +3525,15 @@ rm -rf conftest*
 
 fi
 
-if test x"$ac_cv_sys_file_offset_bits" = xno; then :
+if test "x$ac_cv_sys_file_offset_bits" = xno; then :
   ac_cv_sys_file_offset_bits=0
 fi
 
 
-if test x"$user_cflags" = x"" -o x"$user_cflags" = x-m32 ; then
-  if test "$CC" = "icc" ; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -O3 flags" >&5
+if test "x$user_cflags" = x || test "x$user_cflags" = x-m32; then :
+
+  if test "$CC" = "icc"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -O3 flags" >&5
 $as_echo_n "checking if $CC supports -O3 flags... " >&6; }
     SAVE_CFLAGS="$CFLAGS"
     CFLAGS="-O3"
@@ -3540,8 +3561,8 @@ $as_echo "$ac_cv_try_cflags_ok" >&6; }
     else
         :
     fi;
-    if test x"$ac_cv_try_cflags_ok" = x"no"; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -O2 flags" >&5
+     if test "x$ac_cv_try_cflags_ok" = xno; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -O2 flags" >&5
 $as_echo_n "checking if $CC supports -O2 flags... " >&6; }
     SAVE_CFLAGS="$CFLAGS"
     CFLAGS="-O2"
@@ -3568,10 +3589,10 @@ $as_echo "$ac_cv_try_cflags_ok" >&6; }
         CFLAGS="$CFLAGS -O2"
     else
         CFLAGS="$CFLAGS -O"
-    fi;
     fi
-  else
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -O4 -Werror flags" >&5
+fi
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -O4 -Werror flags" >&5
 $as_echo_n "checking if $CC supports -O4 -Werror flags... " >&6; }
     SAVE_CFLAGS="$CFLAGS"
     CFLAGS="-O4 -Werror"
@@ -3599,8 +3620,8 @@ $as_echo "$ac_cv_try_cflags_ok" >&6; }
     else
         :
     fi;
-    if test x"$ac_cv_try_cflags_ok" = x"no"; then
-       { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -O3 flags" >&5
+     if test "x$ac_cv_try_cflags_ok" = xno; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -O3 flags" >&5
 $as_echo_n "checking if $CC supports -O3 flags... " >&6; }
     SAVE_CFLAGS="$CFLAGS"
     CFLAGS="-O3"
@@ -3627,9 +3648,9 @@ $as_echo "$ac_cv_try_cflags_ok" >&6; }
         CFLAGS="$CFLAGS -O3"
     else
         :
-    fi;
-       if test x"$ac_cv_try_cflags_ok" = x"no"; then
-          { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -O2 flags" >&5
+    fi
+        if test "x$ac_cv_try_cflags_ok" = xno; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -O2 flags" >&5
 $as_echo_n "checking if $CC supports -O2 flags... " >&6; }
     SAVE_CFLAGS="$CFLAGS"
     CFLAGS="-O2"
@@ -3656,524 +3677,14 @@ $as_echo "$ac_cv_try_cflags_ok" >&6; }
         CFLAGS="$CFLAGS -O2"
     else
         CFLAGS="$CFLAGS -O"
-    fi;
-       fi
     fi
-  fi
-
-  if test "$CC" = "gcc" ; then
-      gccver=`gcc --version 2>/dev/null || echo 0.0.0`
-  else
-      gccver=0.0.0
-  fi
-
-  is_powerpc=0
-  case "$host" in
-   *i686-apple-darwin*)
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -fast flags" >&5
-$as_echo_n "checking if $CC supports -fast flags... " >&6; }
-    SAVE_CFLAGS="$CFLAGS"
-    CFLAGS="-fast"
-    if test "$cross_compiling" = yes; then :
-  ac_cv_try_cflags_ok=no
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-main(){exit(0);}
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-  ac_cv_try_cflags_ok=yes
-else
-  ac_cv_try_cflags_ok=no
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
 fi
 
-    CFLAGS="$SAVE_CFLAGS"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_try_cflags_ok" >&5
-$as_echo "$ac_cv_try_cflags_ok" >&6; }
-    if test x"$ac_cv_try_cflags_ok" = x"yes"; then
-        CFLAGS="$MORECFLAGS -fast"
-    else
-        :
-    fi;;
-   *pentium*solaris*)
-	;;
-   *pentium4*)
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -march=pentium4 flags" >&5
-$as_echo_n "checking if $CC supports -march=pentium4 flags... " >&6; }
-    SAVE_CFLAGS="$CFLAGS"
-    CFLAGS="-march=pentium4"
-    if test "$cross_compiling" = yes; then :
-  ac_cv_try_cflags_ok=no
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-main(){exit(0);}
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-  ac_cv_try_cflags_ok=yes
-else
-  ac_cv_try_cflags_ok=no
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
 fi
 
-    CFLAGS="$SAVE_CFLAGS"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_try_cflags_ok" >&5
-$as_echo "$ac_cv_try_cflags_ok" >&6; }
-    if test x"$ac_cv_try_cflags_ok" = x"yes"; then
-        CFLAGS="$CFLAGS -march=pentium4"
-    else
-        :
-    fi;;
-   *pentium3*|*i686*|*athlon*)
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -march=i686 flags" >&5
-$as_echo_n "checking if $CC supports -march=i686 flags... " >&6; }
-    SAVE_CFLAGS="$CFLAGS"
-    CFLAGS="-march=i686"
-    if test "$cross_compiling" = yes; then :
-  ac_cv_try_cflags_ok=no
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-main(){exit(0);}
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-  ac_cv_try_cflags_ok=yes
-else
-  ac_cv_try_cflags_ok=no
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
 fi
 
-    CFLAGS="$SAVE_CFLAGS"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_try_cflags_ok" >&5
-$as_echo "$ac_cv_try_cflags_ok" >&6; }
-    if test x"$ac_cv_try_cflags_ok" = x"yes"; then
-        CFLAGS="$CFLAGS -march=i686"
-    else
-        :
-    fi;;
-   *pentium2*|*i586*)
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -march=i586 flags" >&5
-$as_echo_n "checking if $CC supports -march=i586 flags... " >&6; }
-    SAVE_CFLAGS="$CFLAGS"
-    CFLAGS="-march=i586"
-    if test "$cross_compiling" = yes; then :
-  ac_cv_try_cflags_ok=no
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-main(){exit(0);}
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-  ac_cv_try_cflags_ok=yes
-else
-  ac_cv_try_cflags_ok=no
 fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-    CFLAGS="$SAVE_CFLAGS"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_try_cflags_ok" >&5
-$as_echo "$ac_cv_try_cflags_ok" >&6; }
-    if test x"$ac_cv_try_cflags_ok" = x"yes"; then
-        CFLAGS="$CFLAGS -march=i586"
-    else
-        :
-    fi;;
-   *powerpc*)
-	is_powerpc=1
-        machtype=`/usr/bin/machine 2>/dev/null || echo unknown`
-        case "$machtype" in
-	  ppc740?)
-	     { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -mcpu=7400 flags" >&5
-$as_echo_n "checking if $CC supports -mcpu=7400 flags... " >&6; }
-    SAVE_CFLAGS="$CFLAGS"
-    CFLAGS="-mcpu=7400"
-    if test "$cross_compiling" = yes; then :
-  ac_cv_try_cflags_ok=no
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-main(){exit(0);}
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-  ac_cv_try_cflags_ok=yes
-else
-  ac_cv_try_cflags_ok=no
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-    CFLAGS="$SAVE_CFLAGS"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_try_cflags_ok" >&5
-$as_echo "$ac_cv_try_cflags_ok" >&6; }
-    if test x"$ac_cv_try_cflags_ok" = x"yes"; then
-        CFLAGS="$CFLAGS -mcpu=7400"
-    else
-        :
-    fi
-	     { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -mtune=7400 flags" >&5
-$as_echo_n "checking if $CC supports -mtune=7400 flags... " >&6; }
-    SAVE_CFLAGS="$CFLAGS"
-    CFLAGS="-mtune=7400"
-    if test "$cross_compiling" = yes; then :
-  ac_cv_try_cflags_ok=no
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-main(){exit(0);}
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-  ac_cv_try_cflags_ok=yes
-else
-  ac_cv_try_cflags_ok=no
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-    CFLAGS="$SAVE_CFLAGS"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_try_cflags_ok" >&5
-$as_echo "$ac_cv_try_cflags_ok" >&6; }
-    if test x"$ac_cv_try_cflags_ok" = x"yes"; then
-        CFLAGS="$CFLAGS -mtune=7400"
-    else
-        :
-    fi;;
-	  ppc745?)
-	     { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -mcpu=7450 flags" >&5
-$as_echo_n "checking if $CC supports -mcpu=7450 flags... " >&6; }
-    SAVE_CFLAGS="$CFLAGS"
-    CFLAGS="-mcpu=7450"
-    if test "$cross_compiling" = yes; then :
-  ac_cv_try_cflags_ok=no
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-main(){exit(0);}
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-  ac_cv_try_cflags_ok=yes
-else
-  ac_cv_try_cflags_ok=no
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-    CFLAGS="$SAVE_CFLAGS"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_try_cflags_ok" >&5
-$as_echo "$ac_cv_try_cflags_ok" >&6; }
-    if test x"$ac_cv_try_cflags_ok" = x"yes"; then
-        CFLAGS="$CFLAGS -mcpu=7450"
-    else
-        :
-    fi
-	     { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -mtune=7450 flags" >&5
-$as_echo_n "checking if $CC supports -mtune=7450 flags... " >&6; }
-    SAVE_CFLAGS="$CFLAGS"
-    CFLAGS="-mtune=7450"
-    if test "$cross_compiling" = yes; then :
-  ac_cv_try_cflags_ok=no
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-main(){exit(0);}
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-  ac_cv_try_cflags_ok=yes
-else
-  ac_cv_try_cflags_ok=no
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-    CFLAGS="$SAVE_CFLAGS"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_try_cflags_ok" >&5
-$as_echo "$ac_cv_try_cflags_ok" >&6; }
-    if test x"$ac_cv_try_cflags_ok" = x"yes"; then
-        CFLAGS="$CFLAGS -mtune=7450"
-    else
-        :
-    fi
-             case "$gccver" in
-               *\ 4.[0-9].[0-9]\ *)
-	           { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports $CFLAGS -fast flags" >&5
-$as_echo_n "checking if $CC supports $CFLAGS -fast flags... " >&6; }
-    SAVE_CFLAGS="$CFLAGS"
-    CFLAGS="$CFLAGS -fast"
-    if test "$cross_compiling" = yes; then :
-  ac_cv_try_cflags_ok=no
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-main(){exit(0);}
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-  ac_cv_try_cflags_ok=yes
-else
-  ac_cv_try_cflags_ok=no
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-    CFLAGS="$SAVE_CFLAGS"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_try_cflags_ok" >&5
-$as_echo "$ac_cv_try_cflags_ok" >&6; }
-    if test x"$ac_cv_try_cflags_ok" = x"yes"; then
-        MORECFLAGS="$MORECFLAGS -fast"
-    else
-        :
-    fi;;
-             esac;;
-	  ppc970)
-	     { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -mcpu=g5 flags" >&5
-$as_echo_n "checking if $CC supports -mcpu=g5 flags... " >&6; }
-    SAVE_CFLAGS="$CFLAGS"
-    CFLAGS="-mcpu=g5"
-    if test "$cross_compiling" = yes; then :
-  ac_cv_try_cflags_ok=no
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-main(){exit(0);}
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-  ac_cv_try_cflags_ok=yes
-else
-  ac_cv_try_cflags_ok=no
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-    CFLAGS="$SAVE_CFLAGS"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_try_cflags_ok" >&5
-$as_echo "$ac_cv_try_cflags_ok" >&6; }
-    if test x"$ac_cv_try_cflags_ok" = x"yes"; then
-        CFLAGS="$CFLAGS -mcpu=g5"
-    else
-        :
-    fi
-	     { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -mtune=g5 flags" >&5
-$as_echo_n "checking if $CC supports -mtune=g5 flags... " >&6; }
-    SAVE_CFLAGS="$CFLAGS"
-    CFLAGS="-mtune=g5"
-    if test "$cross_compiling" = yes; then :
-  ac_cv_try_cflags_ok=no
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-main(){exit(0);}
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-  ac_cv_try_cflags_ok=yes
-else
-  ac_cv_try_cflags_ok=no
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-    CFLAGS="$SAVE_CFLAGS"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_try_cflags_ok" >&5
-$as_echo "$ac_cv_try_cflags_ok" >&6; }
-    if test x"$ac_cv_try_cflags_ok" = x"yes"; then
-        CFLAGS="$CFLAGS -mtune=g5"
-    else
-        :
-    fi
-	     { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -fast flags" >&5
-$as_echo_n "checking if $CC supports -fast flags... " >&6; }
-    SAVE_CFLAGS="$CFLAGS"
-    CFLAGS="-fast"
-    if test "$cross_compiling" = yes; then :
-  ac_cv_try_cflags_ok=no
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-main(){exit(0);}
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-  ac_cv_try_cflags_ok=yes
-else
-  ac_cv_try_cflags_ok=no
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-    CFLAGS="$SAVE_CFLAGS"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_try_cflags_ok" >&5
-$as_echo "$ac_cv_try_cflags_ok" >&6; }
-    if test x"$ac_cv_try_cflags_ok" = x"yes"; then
-        CFLAGS="$MORECFLAGS -fast"
-    else
-        :
-    fi;;
-          *)
-	     { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -mpowerpc flags" >&5
-$as_echo_n "checking if $CC supports -mpowerpc flags... " >&6; }
-    SAVE_CFLAGS="$CFLAGS"
-    CFLAGS="-mpowerpc"
-    if test "$cross_compiling" = yes; then :
-  ac_cv_try_cflags_ok=no
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-main(){exit(0);}
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-  ac_cv_try_cflags_ok=yes
-else
-  ac_cv_try_cflags_ok=no
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-    CFLAGS="$SAVE_CFLAGS"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_try_cflags_ok" >&5
-$as_echo "$ac_cv_try_cflags_ok" >&6; }
-    if test x"$ac_cv_try_cflags_ok" = x"yes"; then
-        CFLAGS="$CFLAGS -mpowerpc"
-    else
-        :
-    fi;;
-        esac;;
-   *osf*)
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -fast flags" >&5
-$as_echo_n "checking if $CC supports -fast flags... " >&6; }
-    SAVE_CFLAGS="$CFLAGS"
-    CFLAGS="-fast"
-    if test "$cross_compiling" = yes; then :
-  ac_cv_try_cflags_ok=no
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-main(){exit(0);}
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-  ac_cv_try_cflags_ok=yes
-else
-  ac_cv_try_cflags_ok=no
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-    CFLAGS="$SAVE_CFLAGS"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_try_cflags_ok" >&5
-$as_echo "$ac_cv_try_cflags_ok" >&6; }
-    if test x"$ac_cv_try_cflags_ok" = x"yes"; then
-        CFLAGS="$CFLAGS -fast"
-    else
-        :
-    fi;;
-   *sparcv8*|*sparcv9*)
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -msupersparc flags" >&5
-$as_echo_n "checking if $CC supports -msupersparc flags... " >&6; }
-    SAVE_CFLAGS="$CFLAGS"
-    CFLAGS="-msupersparc"
-    if test "$cross_compiling" = yes; then :
-  ac_cv_try_cflags_ok=no
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-main(){exit(0);}
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-  ac_cv_try_cflags_ok=yes
-else
-  ac_cv_try_cflags_ok=no
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-    CFLAGS="$SAVE_CFLAGS"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_try_cflags_ok" >&5
-$as_echo "$ac_cv_try_cflags_ok" >&6; }
-    if test x"$ac_cv_try_cflags_ok" = x"yes"; then
-        CFLAGS="$CFLAGS -msupersparc"
-    else
-        :
-    fi
-	if test x"$ac_cv_try_cflags_ok" = x"no"; then
-	    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -cg92 flags" >&5
-$as_echo_n "checking if $CC supports -cg92 flags... " >&6; }
-    SAVE_CFLAGS="$CFLAGS"
-    CFLAGS="-cg92"
-    if test "$cross_compiling" = yes; then :
-  ac_cv_try_cflags_ok=no
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-main(){exit(0);}
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-  ac_cv_try_cflags_ok=yes
-else
-  ac_cv_try_cflags_ok=no
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-    CFLAGS="$SAVE_CFLAGS"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_try_cflags_ok" >&5
-$as_echo "$ac_cv_try_cflags_ok" >&6; }
-    if test x"$ac_cv_try_cflags_ok" = x"yes"; then
-        CFLAGS="$CFLAGS -cg92"
-    else
-        :
-    fi
-	    if test x"$ac_cv_try_cflags_ok" = x"no"; then
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -xcg92 flags" >&5
-$as_echo_n "checking if $CC supports -xcg92 flags... " >&6; }
-    SAVE_CFLAGS="$CFLAGS"
-    CFLAGS="-xcg92"
-    if test "$cross_compiling" = yes; then :
-  ac_cv_try_cflags_ok=no
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-main(){exit(0);}
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-  ac_cv_try_cflags_ok=yes
-else
-  ac_cv_try_cflags_ok=no
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-    CFLAGS="$SAVE_CFLAGS"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_try_cflags_ok" >&5
-$as_echo "$ac_cv_try_cflags_ok" >&6; }
-    if test x"$ac_cv_try_cflags_ok" = x"yes"; then
-        CFLAGS="$CFLAGS -xcg92"
-    else
-        :
-    fi
-	    fi
-	fi;;
-  esac
-fi
-
-echo CFLAGS=$CFLAGS
-echo MORECFLAGS=$MORECFLAGS
 
 
 
@@ -5944,6 +5455,9 @@ $as_echo "$sort_newparams_ok" >&6; }
 
 edit_msg="++++++ This file is automatically generated, don't edit it by hand! ++++++"
 
+
+echo CFLAGS=$CFLAGS
+echo MORECFLAGS=$MORECFLAGS
 
 ac_config_files="$ac_config_files makefile:makefile.in nauty.h:nauty-h.in naututil.h:naututil-h.in gtools.h:gtools-h.in"
 

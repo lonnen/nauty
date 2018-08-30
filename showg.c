@@ -1,4 +1,4 @@
-/* showg.c  version 2.0; B D McKay, June 2015.
+/* showg.c  version 2.1; B D McKay, August 2017.
    Formerly called readg.c.
  
    This is a stand-alone edition of listg.c that does not
@@ -10,7 +10,8 @@
 #define HELPTEXT \
 " Write graphs in human-readable format.\n\
 \n\
-   infile is the input file in graph6 or sparse6 format\n\
+   infile is the input file in graph6, sparse6 or digraph6 format\n\
+     This program does not support incremental sparse6 files; use listg.\n\
    outfile is the output file\n\
    Defaults are standard input and standard output.\n\
 \n\
@@ -44,6 +45,7 @@
  Version 1.6: Very minor tweaks.  Hope you all have string.h. Sep 6, 2009.
  Version 1.7: Make it work for n=0. Sep 18, 2013.
  Version 2.0: Support digraph6 format.
+ Version 2.1: Fix digraph6 format and remove limit of 200K or so vertices.
 */
 
 /*************************************************************************/
@@ -56,12 +58,28 @@
 #ifndef MAXN 
 #define MAXN  0
 #endif
-#define G6LEN(n) (SIZELEN(n) \
- + ((size_t)(n)/12)*((size_t)(n)-1) + (((size_t)(n)%12)*((size_t)(n)-1)+11)/12)
-#define D6LEN(n) (1 + SIZELEN(n) \
- + (n)*(size_t)((n)/6) + (((n)*(size_t)((n)%6)+5)/6))
-/* Exact lengths of graph6 and digraph6 formats, excluding '\n' and '\0'. */
+
+#define BIAS6 63
+#define MAXBYTE 126
+#define SMALLN 62
+#define SMALLISHN 258047
+#define TOPBIT6 32
+#define C6MASK 63
+
 #define SIZELEN(n) ((n)<=SMALLN?1:((n)<=SMALLISHN?4:8))
+        /* length of size code in bytes */
+#define G6BODYLEN(n) \
+   (((size_t)(n)/12)*((size_t)(n)-1) + (((size_t)(n)%12)*((size_t)(n)-1)+11)/12)
+#define G6LEN(n) (SIZELEN(n) + G6BODYLEN(n))
+  /* exact graph6 string length excluding \n\0
+     This twisted expression works up to n=227023 in 32-bit arithmetic
+     and for larger n if size_t has 64 bits.  */
+#define D6BODYLEN(n) \
+   ((n)*(size_t)((n)/6) + (((n)*(size_t)((n)%6)+5)/6))
+#define D6LEN(n) (1 + SIZELEN(n) + D6BODYLEN(n))
+  /* exact digraph6 string length excluding \n\0
+     This twisted expression works up to n=160529 in 32-bit arithmetic
+     and for larger n if size_t has 64 bits.  */
 
 #define B(i) (1 << ((i)-1))
 #define M(i) ((1 << (i))-1)
@@ -77,13 +95,6 @@ int errno = 0;
 */
 
 /* extern long ftell(FILE*);   Should be in stdio.h  */
-
-#define BIAS6 63
-#define MAXBYTE 126
-#define SMALLN 62
-#define SMALLISHN 258047
-#define TOPBIT6 32
-#define C6MASK 63
 
 #define GRAPH6_HEADER ">>graph6<<"
 #define SPARSE6_HEADER ">>sparse6<<"
@@ -508,22 +519,34 @@ showg_getline(FILE *f)     /* read a line with error checking */
 
 /****************************************************************************/
 
-static int
+int
 graphsize(char *s)
-/* Get size of graph out of graph6 or sparse6 string. */
+/* Get size of graph out of graph6, digraph6 or sparse6 string. */
 {
     char *p;
     int n;
 
-    if (s[0] == ':') p = s+1;
-    else             p = s;
+    if (s[0] == ':' || s[0] == '&') p = s+1;
+    else                            p = s;
     n = *p++ - BIAS6;
 
-    if (n > SMALLN) 
+    if (n > SMALLN)
     {
         n = *p++ - BIAS6;
-        n = (n << 6) | (*p++ - BIAS6);
-        n = (n << 6) | (*p++ - BIAS6);
+        if (n > SMALLN)
+        {
+            n = *p++ - BIAS6;
+            n = (n << 6) | (*p++ - BIAS6);
+            n = (n << 6) | (*p++ - BIAS6);
+            n = (n << 6) | (*p++ - BIAS6);
+            n = (n << 6) | (*p++ - BIAS6);
+            n = (n << 6) | (*p++ - BIAS6);
+        }
+        else
+        {
+            n = (n << 6) | (*p++ - BIAS6);
+            n = (n << 6) | (*p++ - BIAS6);
+        }
     }
     return n;
 }
@@ -549,7 +572,8 @@ stringtograph(char *s, graph *g, int m)
     if (TIMESWORDSIZE(m) < n)
         gt_abort(">E stringtograph: impossible m value\n");
 
-    for (ii = m*(size_t)n; --ii > 0;) g[ii] = 0; g[0] = 0;
+    for (ii = m*(size_t)n; --ii > 0;) g[ii] = 0;
+    g[0] = 0;
 
     if (s[0] != ':' && s[0] != '&')       /* graph6 format */
     {
