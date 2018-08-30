@@ -23,7 +23,7 @@
   -L    : there is no vertex in the first class whose removal leaves\n\
           the vertices in the second class unreachable from each other\n\
   -Z#   : two vertices in the second class may have at most # common nbrs\n\
-  -A    : no vertex in the second class has a neighbourhood whith is a\n\
+  -A    : no vertex in the second class has a neighbourhood which is a\n\
           subset of another vertex in the second class\n\
   -D#   : specify an upper bound for the maximum degree\n\
           Example: -D6.  You can also give separate maxima for the\n\
@@ -131,9 +131,9 @@ INSTRUMENT feature.
 **************************************************************************
 
     Author:   B. D. McKay, Oct 1994.     bdm@cs.anu.edu.au
-              Copyright  B. McKay (1994-2008).  All rights reserved.
+              Copyright  B. McKay (1994-2016).  All rights reserved.
               This software is subject to the conditions and waivers
-              detailed in the file nauty.h.
+              detailed in the file COPYRIGHT.
     1 May 2003 : fixed PRUNE feature
    13 Sep 2003 : added Greechie output, all outprocs have n1,n2
     9 Oct 2003 : changed -l to respect partition

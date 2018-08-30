@@ -1,5 +1,5 @@
 /* gtools.c : Common routines for gtools programs. */
-/* Version 4.1, Jan 2016. */
+/* Version 4.2, Oct 2017. */
 
 /* Todo: size check if MAXN>0; option to free memory */
 
@@ -56,6 +56,7 @@ extern FILE *popen(const char*,const char*);
                Add checkgline()
   Version 4.0: Procedures for digraph6 format.
   Version 4.1: Made encodegraphsize() external.
+  Version 4.2: Fixes for null graphs; thanks to Kevin Ryde.
 */
 
 #define B(i) (1 << ((i)-1))
@@ -538,7 +539,7 @@ stringcounts(char *s, int *pn, size_t *pe)
     {
         count = 0;
 
-        for (i = n-1, nb = 0; i != 0 ; i >>= 1, ++nb) {}
+        for (i = n-1, nb = 0; i > 0 ; i >>= 1, ++nb) {}
         k = 0;
         v = 0;
         done = FALSE;
@@ -626,7 +627,8 @@ stringtograph(char *s, graph *g, int m)
     if (TIMESWORDSIZE(m) < n)
         gt_abort(">E stringtograph: impossible m value\n");
 
-    for (ii = m*(size_t)n; --ii > 0;) g[ii] = 0; g[0] = 0;
+    for (ii = m*(size_t)n; --ii > 0;) g[ii] = 0;
+    g[0] = 0;
 
     if (s[0] != ':' && s[0] != '&')       /* graph6 format */
     {
@@ -678,7 +680,7 @@ stringtograph(char *s, graph *g, int m)
     }
     else    /* sparse6 format */
     {
-        for (i = n-1, nb = 0; i != 0 ; i >>= 1, ++nb) {}
+        for (i = n-1, nb = 0; i > 0 ; i >>= 1, ++nb) {}
 
         k = 0;
         v = 0;
@@ -766,6 +768,7 @@ stringtograph_inc(char *s, graph *g, int m,
     if (s[0] == ';')
     {
 	n = prevn;
+	if (n == 0) return;
 	p = s + 1;
         for (ii = m*(size_t)n; --ii > 0;) g[ii] = prevg[ii];
         g[0] = prevg[0];
@@ -773,12 +776,11 @@ stringtograph_inc(char *s, graph *g, int m,
     else 
     { 
         n = graphsize(s);
+        if (n == 0) return;
         p = s + (s[0] == ':' || s[0] == '&') + SIZELEN(n);
         for (ii = m*(size_t)n; --ii > 0;) g[ii] = 0;
         g[0] = 0;
     }
-
-    if (n == 0) return;
 
     if (TIMESWORDSIZE(m) < n)
         gt_abort(">E stringtograph_inc: impossible m value\n");
@@ -1216,11 +1218,11 @@ stringtosparsegraph(char *s, sparsegraph *sg, int *nloops)
             }
         }
 
-        v[0] = 0;
-        for (i = 1; i < n; ++i) v[i] = v[i-1]+d[i-1];
-        nde = v[n-1]+d[n-1];
-        for (i = 0; i < n; ++i) d[i] = 0;
-
+        nde = 0;
+        for (i = 0; i < n; ++i)
+        {
+            v[i] = nde; nde += d[i]; d[i] = 0;
+        }
         sg->nde = nde;
         DYNALLOC1(int,sg->e,sg->elen,nde,"stringtosparsegraph");
         e = sg->e;
@@ -1269,11 +1271,11 @@ stringtosparsegraph(char *s, sparsegraph *sg, int *nloops)
             }
         }
 
-        v[0] = 0;
-        for (i = 1; i < n; ++i) v[i] = v[i-1]+d[i-1];
-        nde = v[n-1]+d[n-1];
-        for (i = 0; i < n; ++i) d[i] = 0;
-
+        nde = 0;
+        for (i = 0; i < n; ++i)
+        {
+            v[i] = nde; nde += d[i]; d[i] = 0;
+        }
         sg->nde = nde;
         DYNALLOC1(int,sg->e,sg->elen,nde,"stringtosparsegraph");
         e = sg->e;
@@ -1303,7 +1305,7 @@ stringtosparsegraph(char *s, sparsegraph *sg, int *nloops)
     }
     else    /* sparse6 format */
     {
-        for (i = n-1, nb = 0; i != 0 ; i >>= 1, ++nb) {}
+        for (i = n-1, nb = 0; i > 0 ; i >>= 1, ++nb) {}
 
         p = q;
 
@@ -1368,11 +1370,11 @@ stringtosparsegraph(char *s, sparsegraph *sg, int *nloops)
             }
         }
 
-        v[0] = 0;
-        for (i = 1; i < n; ++i) v[i] = v[i-1]+d[i-1];
-        nde = v[n-1]+d[n-1];
-        for (i = 0; i < n; ++i) d[i] = 0;
-
+        nde = 0;
+        for (i = 0; i < n; ++i)
+        {
+            v[i] = nde; nde += d[i]; d[i] = 0;
+        }
         sg->nde = nde;
         DYNALLOC1(int,sg->e,sg->elen,nde,"stringtosparsegraph");
         e = sg->e;
@@ -1667,7 +1669,7 @@ ntos6(graph *g, int m, int n)
     p = gcode+1;
     encodegraphsize(n,&p);
 
-    for (i = n-1, nb = 0; i != 0 ; i >>= 1, ++nb)
+    for (i = n-1, nb = 0; i > 0 ; i >>= 1, ++nb)
     {}
     topbit = 1 << (nb-1);
     k = 6;
@@ -1784,7 +1786,7 @@ ntois6(graph *g, graph *prevg, int m, int n)
     gcode[0] = ';';
     p = gcode+1;
 
-    for (i = n-1, nb = 0; i != 0 ; i >>= 1, ++nb)
+    for (i = n-1, nb = 0; i > 0 ; i >>= 1, ++nb)
     {}
     topbit = 1 << (nb-1);
     k = 6;
@@ -1902,7 +1904,7 @@ sgtos6(sparsegraph *sg)
 
     SG_VDE(sg,v,d,e);
     n = sg->nv;
-    for (i = n-1, nb = 0; i != 0 ; i >>= 1, ++nb) {}
+    for (i = n-1, nb = 0; i > 0 ; i >>= 1, ++nb) {}
 
     ii = (size_t)(nb+1)*(n/6+sg->nde/3);
     DYNALLOC1(char,gcode,gcode_sz,ii+1000,"sgtos6");
@@ -2691,6 +2693,53 @@ arg_sequence(char **ps, char *sep,
 	{
 	    *numvals = ival+1;
 	    *ps = s;
+	    return;
+	}
+	++s;
+    }
+    fprintf(stderr,">E %s: too many values\n",id);
+    gt_abort(NULL);
+}
+
+/************************************************************************/
+
+void
+arg_sequence_min(char **ps, char *sep,
+             long *val, int minvals, int maxvals, int *numvals, char *id)
+{
+    int code,ival;
+    char *s;
+
+    s = *ps;
+
+    for (ival = 0; ival < maxvals; ++ival)
+    {
+        code = longvalue(&s,&val[ival]);
+        if (code == ARG_ILLEGAL)
+        {
+            fprintf(stderr,">E %s: illegal value\n",id);
+            gt_abort(NULL);
+        }
+        else if (code == ARG_TOOBIG)
+        {
+            fprintf(stderr,">E %s: value too big\n",id);
+            gt_abort(NULL);
+        }
+	else if (code == ARG_MISSING)
+        {
+            fprintf(stderr,">E %s: value missing\n",id);
+            gt_abort(NULL);
+        }
+
+	if (*s == '\0' || !strhaschar(sep,*s))
+	{
+	    *numvals = ival+1;
+	    *ps = s;
+	    if (*numvals < minvals)
+	    {
+		fprintf(stderr,">E %s: too few values\n",id);
+		gt_abort(NULL);
+	    }
 	    return;
 	}
 	++s;

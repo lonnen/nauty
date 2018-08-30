@@ -60,7 +60,7 @@ it is necessary to check they are correct.
       _mm_popcnt_u32, _mm_popcnt_u64
    for the Intel compiler icc.  These need no compiler switch.
 */
-#define HAVE_HWPOPCMT @have_hwpopcnt@
+#define HAVE_HWPOPCNT @have_hwpopcnt@
 #define HAVE_POPCNT @have_popcnt@
 #define HAVE_POPCNTL @have_popcntl@
 #define HAVE_POPCNTLL @have_popcntll@

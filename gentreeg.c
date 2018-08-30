@@ -1,4 +1,4 @@
-/* gentree version 1.0; Brendan McKay Jan 2016 */
+/* gentree version 1.2; Brendan McKay Aug 2017 */
 /* This program is a wrapper for the program FreeTrees.c written
  * by Gang Li & Frank Ruskey.  See below for their original
  * comments. */
@@ -12,7 +12,7 @@
       n    : the number of vertices\n\
    res/mod : only generate subset res out of subsets 0..mod-1\n\
 \n\
-     -D#   : a upper bound for the maximum degree\n\
+     -D#   : an upper bound for the maximum degree\n\
      -Z#:# : bounds for the diameter\n\
 \n\
      -s    : use sparse6 output (default)\n\
@@ -416,7 +416,6 @@ main(int argc, char *argv[])
 	int splitlevinc;
         double t1,t2;
 	char msg[201];
-        int vpar1[2];
 
 	HELP; PUTVERSION;
 
@@ -572,8 +571,18 @@ PLUGIN_INIT
             if (res == 0)
             {
                 ++nout;
-		vpar1[1] = 0;
-                (*outproc)(outfile,vpar1,1);
+		par[1] = 0;
+                WriteIt(0);
+            }
+        }
+        else if (nv == 2)
+        {
+            if (res == 0)
+            {
+                ++nout;
+		par[1] = 0;
+		par[2] = 1;
+                WriteIt(0);
             }
         }
         else
@@ -611,7 +620,7 @@ PLUGIN_INIT
 	            " trees generated in %3.2f sec\n",nout,t2-t1);
 	}
 
-#ifdef GENG_MAIN
+#ifdef GENTREEG_MAIN
 	return 0;
 #else
         exit(0);
