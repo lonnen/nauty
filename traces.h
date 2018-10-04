@@ -1,10 +1,10 @@
 /******************************************************************************
  *                                                                            *
- * This is the header file for traces() version 2.1, which is included into   *
- *   nauty() version 2.6.                                                     *
+ * This is the header file for traces() version 2.2, which is included into   *
+ *   nauty() version 2.7.                                                     *
  *                                                                            *
- *   nauty is Copyright (1984-2016) Brendan McKay.  All rights reserved.      *
- *   Traces is Copyright Adolfo Piperno, 2008-2016.  All rights reserved.     *
+ *   nauty is Copyright (1984-2018) Brendan McKay.  All rights reserved.      *
+ *   Traces is Copyright Adolfo Piperno, 2008-2018.  All rights reserved.     *
  *   See the file COPYRIGHT for the details of the software license.          *
  *                                                                            *
  *   CHANGE HISTORY                                                           *

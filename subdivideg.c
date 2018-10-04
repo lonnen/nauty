@@ -1,4 +1,4 @@
-/* subdivideg.c  version 1.0; B D McKay, May 2011. */
+/* subdivideg.c  version 1.1; B D McKay, Oct 2017. */
 
 #define USAGE "subdivideg [-k#] [-q] [infile [outfile]]"
 
@@ -40,7 +40,8 @@ subdivisiongraph(sparsegraph *g, int k, sparsegraph *h)
     DYNALLOC1(size_t,eno,eno_sz,gnde,"subdivideg");
 
     hnv = gnv + k*(gnde/2);
-    if (hnv <= 0 || (gnde > 0 && ((size_t)(hnv-gnv))/(gnde/2) != k))
+    if ((hnv > 0 && hnv <= 0)
+             || (gnde > 0 && ((size_t)(hnv-gnv))/(gnde/2) != k))
         gt_abort(">E subdivideg: output graph too large\n");
     hnde = gnde * (k+1);
     if (hnde/(k+1) != gnde)

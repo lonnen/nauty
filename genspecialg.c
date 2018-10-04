@@ -1,17 +1,18 @@
-/* genspecialg.c  version 1.1; B D McKay, Feb 12, 2016 */
+/* genspecialg.c  version 1.3; B D McKay, Mar 19, 2018 */
 
 #define USAGE "genspecialg \n\
-[-s|-g|-z|-d] [-q] \
-[-p#|-c#|-e#|-k#|-b#,#|-Q#|-f#|-J#,#|-P#,#|C#,#...|G#,#...|T#,#...] [outfile]"
+[-s|-g|-z|-d|-v] [-q] \
+[-p#|-c#|-e#|-k#|-b#,#[,#]|-Q#|-f#|-J#,#|-P#,#|C#,#...|G#,#...|T#,#...]* [outfile]"
 
 #define HELPTEXT \
-" Generate one particular graph.\n\
+" Generate special graphs.\n\
      #  : size parameter called n in the descriptions\n\
 \n\
     -s : Write in sparse6 format (default)\n\
     -g : Write in graph6 format\n\
     -z : Make digraph versions and write in digraph6 format\n\
     -d : Write in dreadnaut format (can be used with -z)\n\
+    -v : For each graph, report the size to stderr\n\
     -q : Suppress summary\n\
 \n\
     If defined, the digraph version is shown in parentheses:\n\
@@ -19,20 +20,23 @@
     -c#   : cycle (directed cycle) on n vertices.\n\
     -e#   : empty graph (digraph with loops only) on n vertices.\n\
     -k#   : complete graph (with loops) on n vertices\n\
-    -b#,# : complete bipartite graph (directed l->r) on n vertices\n\
+    -b#,#[,#] : complete bipartite graph (directed l->r) on n vertices\n\
+	           minus a matching of given size if present\n\
     -f#   : flower snark on 4*# vertices\n\
     -P#,# : generalized Petersen graph; usual one is -P5,2\n\
     -Q#   : hypercube on 2^n vertices and degree n.\n\
     -J#,# : Johnson graph J(n,k), args are n and k.\n\
     -C#,#... : circulant (di)graph.\n\
     -T#,#... : theta (di)graph Theta(#,#,...), give path lengths.\n\
-    -G#,#... : (directed) grid, use negative values for open directions\n"
+    -G#,#... : (directed) grid, use negative values for open directions\n\
+\n\
+    Any number of graphs can be generated at once.\n"
 
-/* Ideas: multipartite, knesser, full trees */
+/* Ideas: multipartite, knesser, full trees, antiregular, individual */
 
 #include "gtools.h"
 
-#define MAXARGS 1000  /* Maximum argument list for multi-argument parameters */
+#define MAXARGS 10000  /* Maximum argument list for multi-argument parameters */
 #define SWAP(x,y) {int w = x; x = y; y = w;}
 
 static long args[MAXARGS];
@@ -216,7 +220,7 @@ static void
 makecycle(long n, boolean digraph, sparsegraph *sg)
 {
     int *d,*e,i;
-    size_t *v,k;
+    size_t *v;
 
     if (!digraph && (n < 1 || n == 2 || n > NAUTY_INFINITY-2))
         gt_abort(">E genspecialg: bad argument for -c\n");
@@ -758,7 +762,7 @@ makecirculant(long n, long *conn, int nconn, boolean digraph, sparsegraph *sg)
 static void
 makegenpetersen(long n1, long n2, boolean digraph, sparsegraph *sg)
 {
-    int *d,*e,i,j,n;
+    int *d,*e,i,n;
     size_t *v,k;
 
     if (digraph) gt_abort(">E no digraph version of -P is implemented\n");
@@ -799,12 +803,15 @@ makegenpetersen(long n1, long n2, boolean digraph, sparsegraph *sg)
 /**************************************************************************/
 
 static void
-makecompletebipartite(long n1, long n2, boolean digraph, sparsegraph *sg)
+makecompletebipartite(long n1, long n2,
+                      long matching, boolean digraph, sparsegraph *sg)
 {
-    int *d,*e,i,j,n;
+    int *d,*e,i,j,jmissing,n;
     size_t *v,k;
 
     n = n1 + n2;
+    if (matching > n1 || matching > n2) 
+	gt_abort(">E genspecialg: matching too large\n");
 
     if (n1 < 1 || n2 < 1 || n > NAUTY_INFINITY-2)
         gt_abort(">E genspecialg: bad argument for -b\n");
@@ -817,36 +824,39 @@ makecompletebipartite(long n1, long n2, boolean digraph, sparsegraph *sg)
     if (digraph)
     {
 	sg->nv = n;
-	sg->nde = n1*n2;
+	sg->nde = n1*n2 - matching;
 
 	for (i = 0, k = 0; i < n1; ++i)
 	{
-	    d[i] = n2;
 	    v[i] = k;
-	    for (j = n1; j < n; ++j) e[k++] = j;
+	    jmissing = (i < matching ? n1+i : -1);
+	    for (j = n1; j < n; ++j) if (j != jmissing) e[k++] = j;
+	    d[i] = k - v[i];
 	}
 	for (i = n1; i < n; ++i)
 	{
 	    d[i] = 0;
-	    v[i] = 0;
+	    v[i] = k;
         }
     }
     else
     {
 	sg->nv = n;
-	sg->nde = 2*n1*n2;
+	sg->nde = 2*(n1*n2 - matching);
 
 	for (i = 0, k = 0; i < n1; ++i)
 	{
-	    d[i] = n2;
 	    v[i] = k;
-	    for (j = n1; j < n; ++j) e[k++] = j;
+            jmissing = (i < matching ? n1+i : -1);
+	    for (j = n1; j < n; ++j) if (j != jmissing) e[k++] = j;
+	    d[i] = k - v[i];
 	}
 	for (i = n1; i < n; ++i)
 	{
-	    d[i] = n1;
 	    v[i] = k;
-	    for (j = 0; j < n1; ++j) e[k++] = j;
+	    jmissing = (i < n1+matching ? i-n1 : -1);
+	    for (j = 0; j < n1; ++j) if (j != jmissing) e[k++] = j;
+	    d[i] = k - v[i];
         }
     }
 }
@@ -856,26 +866,27 @@ makecompletebipartite(long n1, long n2, boolean digraph, sparsegraph *sg)
 int
 main(int argc, char *argv[])
 {
-    int n,codetype;
-    int argnum,i,j,nreq;
+    int codetype;
+    int argnum,j;
     char *arg,sw;
     boolean badargs,quiet;
     boolean Cswitch,Pswitch,gswitch,sswitch,zswitch,Jswitch,dswitch;
     boolean pswitch,cswitch,eswitch,kswitch,bswitch,Qswitch,Gswitch;
-    boolean fswitch,Tswitch;
+    boolean fswitch,Tswitch,verbose,havegraph,dreadnaut;
     long size;
     static FILE *outfile;
     char *outfilename;
     sparsegraph sg;
-    boolean usesparse,digraph;
-    long Pargs[2],bargs[2],Jargs[2];
+    long Pargs[2],bargs[3],Jargs[2];
     int nPargs,nbargs,nCargs,nGargs,nJargs,nTargs;
-
+    int numgraphs;
     HELP; PUTVERSION;
+
+    numgraphs = 0;
 
     gswitch = sswitch = zswitch = Pswitch = FALSE;
     pswitch = cswitch = eswitch = kswitch = FALSE;
-    Gswitch = Cswitch = bswitch = Qswitch = FALSE;
+    Gswitch = Cswitch = bswitch = Qswitch = verbose = FALSE;
     dswitch = Jswitch = fswitch = Tswitch = quiet = FALSE;
 
     outfilename = NULL;
@@ -896,22 +907,19 @@ main(int argc, char *argv[])
                 else SWBOOLEAN('z',zswitch)
                 else SWBOOLEAN('d',dswitch)
                 else SWBOOLEAN('q',quiet)
+                else SWBOOLEAN('v',verbose)
                 else SWLONG('p',pswitch,size,"genspecialg -p")
-                else SWLONG('c',cswitch,size,"genspecialg -c")
+		else SWLONG('c',cswitch,size,"genspecialg -c")
                 else SWLONG('e',eswitch,size,"genspecialg -e")
                 else SWLONG('k',kswitch,size,"genspecialg -k")
                 else SWLONG('f',fswitch,size,"genspecialg -f")
-                else SWLONG('Q',Qswitch,size,"genspecialg -Q")
-                else SWSEQUENCE('b',",",bswitch,bargs,2,
-                                nbargs,"genspecialg -b")
-                else SWSEQUENCE('J',",",Jswitch,Jargs,2,
-                                nJargs,"genspecialg -J")
-                else SWSEQUENCE('P',",",Pswitch,Pargs,2,
-                                nPargs,"genspecialg -P")
-                else SWSEQUENCE('C',",",Cswitch,args,MAXARGS,
-                                nCargs,"genspecialg -C")
-                else SWSEQUENCE('G',",",Gswitch,args,30,
-                                nGargs,"genspecialg -G")
+		else SWLONG('Q',Qswitch,size,"genspecialg -Q")
+		else SWSEQUENCEMIN('b',",",bswitch,bargs,2,3,nbargs,"genspecialg -b")
+                else SWSEQUENCEMIN('J',",",Jswitch,Jargs,2,2,nJargs,"genspecialg -J")
+                else SWSEQUENCEMIN('P',",",Pswitch,Pargs,2,2,nPargs,"genspecialg -P")
+                else SWSEQUENCEMIN('C',",",Cswitch,args,
+                                        1,MAXARGS,nCargs,"genspecialg -C")
+                else SWSEQUENCE('G',",",Gswitch,args,30,nGargs,"genspecialg -G")
                 else SWSEQUENCE('T',",",Tswitch,args,MAXARGS,
                                 nTargs,"genspecialg -T")
                 else badargs = TRUE;
@@ -930,16 +938,7 @@ main(int argc, char *argv[])
 
     if ((gswitch!=0) + (sswitch!=0) + (dswitch!=0) > 1)
         gt_abort(">E genspecialg: -gsd are incompatible\n");
-
-    nreq = (pswitch!=0) + (cswitch!=0) + (eswitch!=0) + (kswitch!=0)
-           + (bswitch!=0) + (Qswitch!=0) + (Pswitch!=0) + (fswitch!=0)
-           + (Cswitch!= 0) + (Gswitch!=0) + (Jswitch!=0)
-           + (Tswitch!= 0);
-    if (nreq > 1)
-        gt_abort(">E genspecialg: must have exactly one of -bcfkpCGJPQT\n");
-    else if (nreq < 1) 
-	badargs = TRUE;
-
+ 
     if (badargs)
     {
         fprintf(stderr,">E Usage: %s\n",USAGE);
@@ -950,6 +949,7 @@ main(int argc, char *argv[])
     if (gswitch)      codetype = GRAPH6;
     else if (zswitch) codetype = DIGRAPH6;
     else              codetype = SPARSE6;
+    dreadnaut = dswitch;
 
     if (!outfilename || outfilename[0] == '-')
     {
@@ -964,57 +964,123 @@ main(int argc, char *argv[])
 
     SG_INIT(sg);
 
-    if (pswitch)
-        makepath(size,zswitch,&sg);
-    else if (cswitch)
-        makecycle(size,zswitch,&sg);
-    else if (kswitch)
-        makecomplete(size,zswitch,&sg);
-    else if (eswitch)
-        makeempty(size,zswitch,&sg);
-    else if (Qswitch)
-        makehypercube(size,zswitch,&sg);
-    else if (bswitch)
+    argnum = 0;
+    badargs = havegraph = FALSE;
+    for (j = 1; !badargs && j < argc; ++j)
     {
-	if (nbargs != 2) gt_abort(">E genspecialg: -b needs two arguments\n");
-        makecompletebipartite(bargs[0],bargs[1],zswitch,&sg);
-    }
-    else if (Jswitch)
-    {
-	if (nJargs != 2) gt_abort(">E genspecialg: -J needs two arguments\n");
-        makeJohnson(Jargs[0],Jargs[1],zswitch,&sg);
-    }
-    else if (Pswitch)
-    {
-	if (nPargs != 2) gt_abort(">E genspecialg: -P needs two arguments\n");
-        makegenpetersen(Pargs[0],Pargs[1],zswitch,&sg);
-    }
-    else if (Cswitch)
-        makecirculant(args[0],args+1,nCargs-1,zswitch,&sg);
-    else if (Gswitch)
-    {
-	if (nGargs < 2)
-            gt_abort(">E genspecialg: -G needs at least two arguments\n");
-        makegrid(args,nGargs,zswitch,&sg);
-    }
-    else if (Tswitch)
-    {
-	if (nTargs < 1)
-            gt_abort(">E genspecialg: -T needs at least one argument\n");
-        maketheta(args,nTargs,zswitch,&sg);
-    }
-    else if (fswitch)
-	makeflowersnark(size,zswitch,&sg);
+        arg = argv[j];
+        if (arg[0] == '-' && arg[1] != '\0')
+        {
+            ++arg;
+            while (*arg != '\0')
+            {
+                sw = *arg++;
+                     SWBOOLEAN('g',gswitch)
+                else SWBOOLEAN('s',sswitch)
+                else SWBOOLEAN('z',zswitch)
+                else SWBOOLEAN('d',dswitch)
+                else SWBOOLEAN('q',quiet)
+		else SWBOOLEAN('v',verbose)
+                else if (sw == 'p')
+		{
+		    SWLONG('p',pswitch,size,"genspecialg -p")
+            	    makepath(size,zswitch,&sg);
+		    havegraph = TRUE;
+		}
+                else if (sw == 'c')
+		{
+		    SWLONG('c',cswitch,size,"genspecialg -c")
+            	    makecycle(size,zswitch,&sg);
+		    havegraph = TRUE;
+		}
+                else if (sw == 'e')
+		{
+		    SWLONG('e',eswitch,size,"genspecialg -e")
+            	    makeempty(size,zswitch,&sg);
+		    havegraph = TRUE;
+		}
+                else if (sw == 'k')
+		{
+		    SWLONG('k',kswitch,size,"genspecialg -k")
+            	    makecomplete(size,zswitch,&sg);
+		    havegraph = TRUE;
+		}
+                else if (sw == 'f')
+		{
+		    SWLONG('f',fswitch,size,"genspecialg -f")
+    	            makeflowersnark(size,zswitch,&sg);
+		    havegraph = TRUE;
+		}
+                else if (sw == 'Q')
+		{
+		    SWLONG('Q',Qswitch,size,"genspecialg -Q")
+                    makehypercube(size,zswitch,&sg);
+		    havegraph = TRUE;
+		}
+                else if (sw == 'b')
+		{
+		    SWSEQUENCEMIN('b',",",bswitch,bargs,2,3,nbargs,"genspecialg -b")
+                    makecompletebipartite(bargs[0],bargs[1],
+                           (nbargs==2?0:bargs[2]),zswitch,&sg);
+		    havegraph = TRUE;
+		}
+                else if (sw == 'J')
+		{
+		    SWSEQUENCEMIN('J',",",Jswitch,Jargs,2,2,nJargs,"genspecialg -J")
+                    makeJohnson(Jargs[0],Jargs[1],zswitch,&sg);
+		    havegraph = TRUE;
+		}
+                else if (sw == 'P')
+		{
+		    SWSEQUENCEMIN('P',",",Pswitch,Pargs,2,2,nPargs,"genspecialg -P")
+            	    makegenpetersen(Pargs[0],Pargs[1],zswitch,&sg);
+		    havegraph = TRUE;
+		}
+                else if (sw == 'C')
+		{
+		    SWSEQUENCEMIN('C',",",Cswitch,args,
+                                        1,MAXARGS,nCargs,"genspecialg -C")
+            	    makecirculant(args[0],args+1,nCargs-1,zswitch,&sg);
+		    havegraph = TRUE;
+		}
+                else if (sw == 'G')
+		{
+		    SWSEQUENCEMIN('G',",",Gswitch,args,2,30,nGargs,"genspecialg -G")
+                    makegrid(args,nGargs,zswitch,&sg);
+		    havegraph = TRUE;
+		}
+                else if (sw == 'T')
+		{
+		    SWSEQUENCEMIN('T',",",Tswitch,args,MAXARGS,
+                                1,nTargs,"genspecialg -T")
+            	    maketheta(args,nTargs,zswitch,&sg);
+		    havegraph = TRUE;
+		}
 
-    sortlists_sg(&sg);
-    if (dswitch)                   writedread(outfile,&sg,zswitch);
-    else if (codetype == GRAPH6)   writeg6_sg(outfile,&sg);
-    else if (codetype == DIGRAPH6) writed6_sg(outfile,&sg);
-    else                           writes6_sg(outfile,&sg);
+	 	if (havegraph)
+		{
+        	    sortlists_sg(&sg);
+        	    if (dreadnaut)                 writedread(outfile,&sg,zswitch);
+        	    else if (codetype == GRAPH6)   writeg6_sg(outfile,&sg);
+        	    else if (codetype == DIGRAPH6) writed6_sg(outfile,&sg);
+        	    else                           writes6_sg(outfile,&sg);
+		    ++numgraphs;
+		    havegraph = FALSE;
+
+		    if (verbose)
+        	        fprintf(stderr,"Graph %d: %d vertices %lu edges\n",numgraphs,
+		           sg.nv,(unsigned long)(zswitch ? sg.nde : sg.nde/2));
+		}
+            }
+        }
+        else
+        {
+            ++argnum;
+        }
+    }
 
     if (!quiet)
-        fprintf(stderr,">Z %d vertices %lu edges\n",sg.nv,
-                       (unsigned long)(zswitch ? sg.nde : sg.nde/2));
+        fprintf(stderr,">Z %d graphs written to %s\n",numgraphs,outfilename);
 
     exit(0);
 }

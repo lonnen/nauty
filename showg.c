@@ -98,7 +98,7 @@ int errno = 0;
 
 #define GRAPH6_HEADER ">>graph6<<"
 #define SPARSE6_HEADER ">>sparse6<<"
-#define DIGRAPH6_HEADER ">>sparse6<<"
+#define DIGRAPH6_HEADER ">>digraph6<<"
 
 #define GRAPH6         1
 #define SPARSE6        2

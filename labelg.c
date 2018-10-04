@@ -284,12 +284,12 @@ main(int argc, char *argv[])
             outcode = SPARSE6;
         else if (zswitch)
             outcode = DIGRAPH6;
+	else if ((codetype&DIGRAPH6))
+	    outcode = DIGRAPH6;
 	else if ((codetype&GRAPH6))
 	    outcode = GRAPH6;
 	else if ((codetype&SPARSE6))
 	    outcode = SPARSE6;
-	else if ((codetype&DIGRAPH6))
-	    outcode = DIGRAPH6;
 	else 
         {
 	    outcode = GRAPH6;
@@ -303,8 +303,9 @@ main(int argc, char *argv[])
 
 	if (!uswitch && (codetype&HAS_HEADER))
 	{
-	    if (outcode == SPARSE6) writeline(outfile,SPARSE6_HEADER);
-	    else    		    writeline(outfile,GRAPH6_HEADER);
+	    if (outcode == SPARSE6)       writeline(outfile,SPARSE6_HEADER);
+	    else if (outcode == DIGRAPH6) writeline(outfile,DIGRAPH6_HEADER);
+	    else    		          writeline(outfile,GRAPH6_HEADER);
 	}
 
 	nin = nout = 0;
@@ -326,8 +327,11 @@ main(int argc, char *argv[])
 		    fcanonise_inv_sg(&sg,m,n,&sh,fmt,invarproc[inv].entrypoint_sg,
 		                 mininvarlevel,maxinvarlevel,invararg,loops>0||digraph);
 		sortlists_sg(&sh);
-	        orbtotal += gt_numorbits;
-	        unorbtotal += 1.0 / gt_numorbits;
+		if (n > 0)
+		{
+	            orbtotal += gt_numorbits;
+	            unorbtotal += 1.0 / gt_numorbits;
+		}
 		if (dooutput && (outcode == DIGRAPH6 || digraph)) writed6_sg(outfile,&sh);
 	        else if (outcode == SPARSE6) writes6_sg(outfile,&sh);
 	        else if (outcode == GRAPH6) writeg6_sg(outfile,&sh);
@@ -352,20 +356,26 @@ main(int argc, char *argv[])
 	    while (TRUE)
 	    {
 		if (read_sgg_loops(infile,&sg,&loops,&digraph) == NULL) break;
-		if (loops > 0 || digraph) gt_abort(">E Traces does not allow loops or directed edges\n");
+		if (loops > 0 || digraph)
+                    gt_abort(">E Traces does not allow loops or directed edges\n");
 		++nin;
 		n = sg.nv;
 	        DYNALLOC1(int,lab,lab_sz,n,"traces@labelg");
 	        DYNALLOC1(int,ptn,ptn_sz,n,"traces@labelg");
 	        DYNALLOC1(int,orbits,orbits_sz,n,"traces@labelg");
 		SG_ALLOC(sh,n,sg.nde,"labelg");
-		for (ii = 0; ii < n; ++ii) { lab[ii] = ii; ptn[ii] = 1; }
-		ptn[n-1] = 0;
-		for (ii = 0; ii < secret; ++ii)
-		    Traces(&sg,lab,ptn,orbits,&traces_opts,&traces_stats,&sh);
-		sortlists_sg(&sh);
-	        orbtotal += gt_numorbits;
-	        unorbtotal += 1.0 / gt_numorbits;
+		sh.nv = sg.nv;
+		sh.nde = sg.nde;
+		if (n > 0)
+		{
+		    for (ii = 0; ii < n; ++ii) { lab[ii] = ii; ptn[ii] = 1; }
+		    ptn[n-1] = 0;
+		    for (ii = 0; ii < secret; ++ii)
+		        Traces(&sg,lab,ptn,orbits,&traces_opts,&traces_stats,&sh);
+		    sortlists_sg(&sh);
+	            orbtotal += gt_numorbits;
+	            unorbtotal += 1.0 / gt_numorbits;
+		}
 	        if (outcode == SPARSE6) writes6_sg(outfile,&sh);
 	        else if (outcode == GRAPH6) writeg6_sg(outfile,&sh);
 		else if (outcode == -1)
@@ -391,8 +401,11 @@ main(int argc, char *argv[])
 	        for (ii = 0; ii < secret; ++ii)
 	            fcanonise_inv(g,m,n,h,fmt,invarproc[inv].entrypoint,
 			        mininvarlevel,maxinvarlevel,invararg,loops>0||digraph);
-	        orbtotal += gt_numorbits;
-	        unorbtotal += 1.0 / gt_numorbits;
+		if (n > 0)
+		{
+	            orbtotal += gt_numorbits;
+	            unorbtotal += 1.0 / gt_numorbits;
+		}
 		if (dooutput && (outcode == DIGRAPH6 || digraph)) writed6(outfile,h,m,n);
 	        else if (outcode == SPARSE6) writes6(outfile,h,m,n);
 	        else if (outcode == GRAPH6) writeg6(outfile,h,m,n);

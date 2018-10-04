@@ -3,7 +3,7 @@
  *        add perfect graphs
  *        add complements for ordinary graphs */
 
-/* geng.c  version 2.9; B D McKay, Jan 2016. */
+/* geng.c  version 3.0; B D McKay, March 2018. */
 
 #define USAGE \
 "geng [-cCmtfbd#D#] [-uygsnh] [-lvq] \n\
@@ -26,14 +26,13 @@
      -m    : save memory at the expense of time (only makes a\n\
                 difference in the absence of -b, -t, -f and n <= 28).\n\
      -d#   : a lower bound for the minimum degree\n\
-     -D#   : a upper bound for the maximum degree\n\
+     -D#   : an upper bound for the maximum degree\n\
      -v    : display counts by number of edges\n\
      -l    : canonically label output graphs\n\
 \n\
      -u    : do not output any graphs, just generate and count them\n\
      -g    : use graph6 output (default)\n\
      -s    : use sparse6 output\n\
-     -y    : use the obsolete y-format instead of graph6 format\n\
      -h    : for graph6 or sparse6 format, write a header too\n\
 \n\
      -q    : suppress auxiliary output (except from -v)\n\
@@ -43,7 +42,8 @@
 
 /*  Parameters:
 
-             n    = the number of vertices (1..min(32,WORDSIZE))
+             n    = the number of vertices (1..MAXN)
+			Note that MAXN is limited to WORDSIZE
              mine = the minimum number of edges (no bounds if missing)
              maxe = the maximum number of edges (same as mine if missing)
                     0 means "infinity" except in the case "0-0"
@@ -75,7 +75,10 @@
                         (-t, -f and -b can be used in any combination)
              -m    : save memory at expense of time (only makes a
                         difference in the absence of -b, -t, -f and n <= 30).
-             -d<int> : specify an upper bound for the maximum degree.
+             -D<int> : specify an upper bound for the maximum degree.
+                     The value of the upper bound must be adjacent to
+                     the "D".  Example: -D6
+             -d<int> : specify a lower bound for the minimum degree.
                      The value of the upper bound must be adjacent to
                      the "d".  Example: -d6
              -v    : display counts by number of edges
@@ -85,7 +88,7 @@
              -g    : use graph6 output (default)
              -s    : use sparse6 output
              -n    : use nauty format instead of graph6 format for output
-             -y    : use the obsolete y-format instead of graph6 format
+             -y    : use the obsolete y-format for output
              -h    : for graph6 or sparse6 format, write a header too
 
              -q    : suppress auxiliary output (except from -v)
@@ -204,14 +207,13 @@ CALLING FROM A PROGRAM
 
 **************************************************************************
 
-Sample performance statistics.
+Counts and sample performance statistics.
 
-    Here we give some graph counts and execution times on a Linux
-    Pentium III running at 550 MHz.  Times are with the -u option
-    (generate but don't write); add 3-5 microseconds per graph for
-    output to a file.  Add another 0.2-0.3 microseconds per graph 
-    if you specify connectivity (-c), or 0.6-0.7 microseconds per
-    graph if you specific biconnectivity (-C).
+    Here we give some graph counts and approximate execution times
+    on a Linux computer with Intel Core i7-4790 nominally 3.6GHz,
+    compiled with gcc 6.2.0.
+    Times are with the -u option (generate but don't write); add
+    0.2-0.3 microseconds per graph for output to a file.
 
 
       General Graphs                     C3-free Graphs (-t)
@@ -223,40 +225,41 @@ Sample performance statistics.
       5             34                    5             14
       6            156                    6             38
       7           1044                    7            107
-      8          12346   0.11 sec         8            410
-      9         274668   1.77 sec         9           1897
-     10       12005168   1.22 min        10          12172   0.21 sec
-     11     1018997864   1.72 hr         11         105071   1.49 sec
-     12   165091172592    285 hr         12        1262180   15.9 sec
-     13 50502031367952  ~10 years        13       20797002   4.08 min
-    These can be done in about half      14      467871369   1.50 hr
-    the time by setting the edge limit   15    14232552452   45.6 hr
-    half way then adding complements.    16   581460254001   79 days
-                                         17 31720840164950
+      8          12346                    8            410
+      9         274668   0.08 sec         9           1897
+     10       12005168   2.7 sec         10          12172  
+     11     1018997864   207 sec         11         105071   0.09 sec
+     12   165091172592   9 hr            12        1262180   0.8 sec
+     13 50502031367952   108 days        13       20797002   11 sec
+    These can be done in about half      14      467871369   220 sec
+    the time by setting the edge limit   15    14232552452   1.7 hr
+    half way then adding complements.    16   581460254001   65 hr
+                                         17 31720840164950   145 days
 
 
      C4-free Graphs  (-f)              (C3,C4)-free Graphs (-tf)
 
-      1             1                      1            1
-      2             2                      2            2 
-      3             4                      3            3 
-      4             8                      4            6
-      5            18                      5           11
-      6            44                      6           23
-      7           117                      7           48 
-      8           351                      8          114 
-      9          1230                      9          293
-     10          5069   0.11 sec          10          869
-     11         25181   0.48 sec          11         2963   0.10 sec
-     12        152045   2.67 sec          12        12066   0.36 sec
-     13       1116403   18.0 sec          13        58933   1.50 sec
-     14       9899865   2.50 min          14       347498   7.76 sec
-     15     104980369   25.7 min          15      2455693   50.9 sec
-     16    1318017549   5.33 hr           16     20592932   6.79 min
-     17   19427531763   82.6 hr           17    202724920   1.11 hr
-     18  333964672216   62 days           18   2322206466   12.7 hr
-     19 6660282066936                     19  30743624324   168 hr
-                                          20 468026657815   110 days
+      1             1                      1             1
+      2             2                      2             2 
+      3             4                      3             3 
+      4             8                      4             6
+      5            18                      5            11
+      6            44                      6            23
+      7           117                      7            48 
+      8           351                      8           114 
+      9          1230                      9           293
+     10          5069                     10           869
+     11         25181   0.04 sec          11          2963 
+     12        152045   0.17 sec          12         12066   0.03 sec
+     13       1116403   1.0 sec           13         58933   0.10 sec
+     14       9899865   7.5 sec           14        347498   0.5 sec
+     15     104980369   71 sec            15       2455693   2.7 sec
+     16    1318017549   14 min            16      20592932   19 sec
+     17   19427531763   3.4 hr            17     202724920   170 sec
+     18  333964672216   56 hr             18    2322206466   32 min
+     19 6660282066936   45 days           19   30743624324   7 hr
+                                          20  468026657815   4 days
+                                          21 8161170076257   106 days
 
                    Old value was wrong:  18   2142368552  (The program was
                    ok, but somehow we tabulated the answer incorrectly.)
@@ -264,30 +267,31 @@ Sample performance statistics.
 
      Bipartite Graphs (-b)            C4-free Bipartite Graphs (-bf)
 
-      1              1                      1            1
-      2              2                      2            2
-      3              3                      3            3
-      4              7                      4            6
-      5             13                      5           10
-      6             35                      6           21
-      7             88                      7           39
-      8            303                      8           86
-      9           1119                      9          182
-     10           5479   0.11 sec          10          440
-     11          32303   0.59 sec          11         1074
-     12         251135   3.99 sec          12         2941   0.15 sec
-     13        2527712   35.1 sec          13         8424   0.43 sec
-     14       33985853   7.22 min          14        26720   1.37 sec
-     15      611846940   2.05 hr           15        90883   4.30 sec
-     16    14864650924   48.9 hr           16       340253   14.9 sec
-     17   488222721992   70 days           17      1384567   57.1 sec
-     18 21712049275198                     18      6186907   4.01 min
-                                           19     30219769   18.4 min
-                                           20    161763233   1.57 hr
-                                           21    946742190   8.85 hr
-                                           22   6054606722   56.2 hr
-                                           23  42229136988   16.6 days
-                                           24 320741332093   121 days
+      1              1                      1             1
+      2              2                      2             2
+      3              3                      3             3
+      4              7                      4             6
+      5             13                      5            10
+      6             35                      6            21
+      7             88                      7            39
+      8            303                      8            86
+      9           1119                      9           182
+     10           5479                     10           440
+     11          32303   0.03 sec          11          1074
+     12         251135   2.3 sec           12          2941
+     13        2527712   1.7 sec           13          8424   0.04 sec
+     14       33985853   19 sec            14         26720   0.11 sec
+     15      611846940   4.9 min           15         90883   0.33 sec
+     16    14864650924   1.8 hr            16        340253   1.1 sec
+     17   488222721992   2.4 days          17       1384567   3.7 sec
+     18 21712049275198   105 days          18       6186907   14 sec
+                                           19      30219769   59 sec
+                                           20     161763233   280 sec
+                                           21     946742190   24 min
+                                           22    6054606722   2.5 hr
+                                           23   42229136988   17 hr
+                                           24  320741332093   125 hr
+                                           25 2648348712904   58 days
 
 If you know any more of these counts, please tell me.
 
@@ -302,16 +306,10 @@ the complement of those with strictly less than binomial(n,2)/2 edges.
 If it is necessary to split the computation into pieces, it is more
 efficient to use the res/mod feature than to split by numbers of edges.
 
-The memory requirements are exponential in n if no maxdeg is given.
-For maxdeg=D, the requirements are still exponential (but smaller)
-for general graphs, but O(n^D) for other graphs.  Use -m to reduce
-the memory requirements to O(n^D) for general graphs too, at the
-cost of a small increase in cpu time.
-
 **************************************************************************
 
     Author:   B. D. McKay, Sep 1991 and many later dates.
-              Copyright  B. McKay (1991-2013).  All rights reserved.
+              Copyright  B. McKay (1991-2018).  All rights reserved.
               This software is subject to the conditions and waivers
               detailed in the file nauty.h.
 
@@ -374,34 +372,34 @@ cost of a small increase in cpu time.
                May 7, 2004 : Complete all function prototypes
               Nov 24, 2004 : Force -m for very large sizes
                              Add -bf automatically if generating trees
-              Apr 1, 2007  : Write >A in one fputs() to try to reduce
+               Apr 1, 2007 : Write >A in one fputs() to try to reduce
                              mixing of outputs in multi-process pipes.
               Sep 19, 2007 : Force -m for n > 28 regardless of word size.
               Nov 29, 2008 : Slightly improved connectivity testing.
               Mar 3,  2015 : Improve maxdeg tweaking.
               Jan 18, 2016 : Replace bigint by nauty_counter.
+               Mar 8, 2018 : Can now compile for MAXN up to WORDSIZE.
+			     Use setword instead of unsigned for xword.
+                             Revised splitting level.
+                             Updated sample execution times.
+              Mar 10, 2018 : Fix overflow at impossibly large n, maxdeg.
 
 **************************************************************************/
 
 #define NAUTY_PGM  1   /* 1 = geng, 2 = genbg, 3 = gentourng */
 
 #ifndef MAXN
-#define MAXN 32         /* not more than max(32,WORDSIZE) */
+#define MAXN WORDSIZE         /* not more than WORDSIZE */
 #endif
 
-#if MAXN > 32
- #error "Can't have MAXN greater than 32"
+#if MAXN > WORDSIZE
+ #error "Can't have MAXN greater than WORDSIZE"
 #endif
 
 #define ONE_WORD_SETS
 #include "gtools.h"   /* which includes nauty.h and stdio.h */
 
-#if MAXN < 32
-typedef int xword;   /* Must be as large as MAXN bits, and
-                    must be unsigned if equal to MAXN bits */
-#else
-typedef unsigned int xword;
-#endif
+typedef setword xword;
 
 static void (*outproc)(FILE*,graph*,int);
 
@@ -422,51 +420,13 @@ boolean quiet;                  /* presence of -q */
 boolean header;                 /* presence of -h */
 statsblk nauty_stats;
 static int mindeg,maxdeg,maxn,mine,maxe,mod,res;
-#define PRUNEMULT 20   /* bigger -> more even split at greater cost */
+#define PRUNEMULT 50   /* bigger -> more even split at greater cost */
 static int min_splitlevel,odometer,splitlevel,multiplicity;
 static graph gcan[MAXN];
 
-#if MAXN <= 16
-static xword xbit[] = {0x0001,0x0002,0x0004,0x0008,
-                   0x0010,0x0020,0x0040,0x0080,
-                   0x0100,0x0200,0x0400,0x0800,
-                   0x1000,0x2000,0x4000,0x8000};
-
-#define XNEXTBIT(x) \
-    ((x)&0xFF ? 7-leftbit[(x)&0xFF] : 15-leftbit[((x)>>8)&0xFF])
-#define XPOPCOUNT(x) (bytecount[((x)>>8)&0xFF] + bytecount[(x)&0xFF])
-#elif MAXN <= 24
-static xword xbit[] = {0x000001,0x000002,0x000004,0x000008,
-                   0x000010,0x000020,0x000040,0x000080,
-                   0x000100,0x000200,0x000400,0x000800,
-                   0x001000,0x002000,0x004000,0x008000,
-                   0x010000,0x020000,0x040000,0x080000,
-                   0x100000,0x200000,0x400000,0x800000};
-
-#define XNEXTBIT(x) \
-    ((x)&0xFF ? 7-leftbit[(x)&0xFF] : \
-      (x)&0xFF00 ? 15-leftbit[((x)>>8)&0xFF] : 23-leftbit[((x)>>16)&0xFF])
-#define XPOPCOUNT(x) (bytecount[((x)>>8)&0xFF] \
-    + bytecount[((x)>>16)&0xFF] + bytecount[(x)&0xFF])
-#else
-static xword xbit[] = {0x00000001,0x00000002,0x00000004,0x00000008,
-                   0x00000010,0x00000020,0x00000040,0x00000080,
-                   0x00000100,0x00000200,0x00000400,0x00000800,
-                   0x00001000,0x00002000,0x00004000,0x00008000,
-                   0x00010000,0x00020000,0x00040000,0x00080000,
-                   0x00100000,0x00200000,0x00400000,0x00800000,
-                   0x01000000,0x02000000,0x04000000,0x08000000,
-                   0x10000000,0x20000000,0x40000000,0x80000000};
-
-#define XNEXTBIT(x) \
-    ((x)&0xFF ? 7-leftbit[(x)&0xFF] : \
-      (x)&0xFF00 ? 15-leftbit[((x)>>8)&0xFF] : \
-    (x)&0xFF0000 ? 23-leftbit[((x)>>16)&0xFF] : \
-                      31-leftbit[((x)>>24)&0xFF])
-#define XPOPCOUNT(x) (bytecount[((x)>>8)&0xFF] \
-    + bytecount[((x)>>16)&0xFF] + \
-    + bytecount[((x)>>24)&0xFF] + bytecount[(x)&0xFF])
-#endif
+#define XBIT(i) ((xword)1 << (i))
+#define XPOPCOUNT(x) POPCOUNT(x)
+#define XNEXTBIT(x) (WORDSIZE-1-FIRSTBITNZ(x))   /* Assumes non-zero */
 
 typedef struct
 {
@@ -488,33 +448,42 @@ static nauty_counter ecount[1+MAXN*(MAXN-1)/2];  /* counts by number of edges */
 static nauty_counter nodes[MAXN];     /* nodes at each level */
 
 #ifdef INSTRUMENT
-static unsigned long rigidnodes[MAXN],fertilenodes[MAXN];
-static unsigned long a1calls,a1nauty,a1succs;
-static unsigned long a2calls,a2nauty,a2uniq,a2succs;
+static nauty_counter rigidnodes[MAXN],fertilenodes[MAXN];
+static nauty_counter a1calls,a1nauty,a1succs;
+static nauty_counter a2calls,a2nauty,a2uniq,a2succs;
 #endif
 
-/* The numbers below are actual maximum edge counts.  The apparently
-   anomolous value of 92 for maxef[32] has been confirmed independently
-   by Yang Yuansheng (as well as all the smaller maxef[] values).
+/* The numbers below are actual maximum edge counts.
    geng works correctly with any upper bounds.
-   To extend an upper bound upwards: (n-1, E) -> (n, E + floor(2*E/(n-2))).
+   To extend known upper bounds upwards:
+       (n-1, E) -> (n, E + floor(2*E/(n-2))),
+   which is done by the procedure findmaxe().
 */
 
-static int maxeb[] =     /* max edges for -b */
- {0,0,1,2,4, 6,9,12,16,20, 25,30,36,42,49, 56,64,72,81,90,
-  100,110,121,132,144, 156,169,182,196,210, 225,240,256};
-static int maxet[] =     /* max edges for -t */
- {0,0,1,2,4, 6,9,12,16,20, 25,30,36,42,49, 56,64,72,81,90,
-  100,110,121,132,144, 156,169,182,196,210, 225,240,256};
-static int maxef[] =     /* max edges for -f */
- {0,0,1,3,4, 6,7,9,11,13,  16,18,21,24,27, 30,33,36,39,42,
-  46,50,52,56,59, 63,67,71,76,80, 85,90,92};
-static int maxeft[] =    /* max edges for -ft */
- {0,0,1,2,3, 5,6,8,10,12,  15,16,18,21,23, 26,28,31,34,38,
-  41,44,47,50,54, 57,61,65,68,72, 76,80,85};
-static int maxebf[] =    /* max edges for -bf */
- {0,0,1,2,3, 4,6,7,9,10,   12,14,16,18,21, 22,24,26,29,31,
-  34,36,39,42,45, 48,52,53,56,58, 61,64,67}; 
+static int maxeb[65] =     /* max edges for -b */
+ {0,0,1,2,4, -1};
+static int maxet[65] =     /* max edges for -t */
+ {0,0,1,2,4, -1};
+static int maxef[65] =     /* max edges for -f */
+ {0,0,1,3,4, 6,7,9,11,13,
+  16,18,21,24,27, 30,33,36,39,42,
+  46,50,52,56,59, 63,67,71,76,80,
+  85,90,92,96,102, 106,110,113,117,122, -1};
+static int maxeft[65] =    /* max edges for -ft */
+ {0,0,1,2,3, 5,6,8,10,12,
+  15,16,18,21,23, 26,28,31,34,38,
+  41,44,47,50,54, 57,61,65,68,72,
+  76,80,85,87,90, 95,99,104,109,114,
+  120,124,129,134,139, 145,150,156,162,168,
+  175,176,178, -1};
+static int maxebf[65] =    /* max edges for -bf */
+  {0,0,1,2,3, 4,6,7,9,10,
+  12,14,16,18,21, 22,24,26,29,31,
+  34,36,39,42,45, 48,52,53,56,58,
+  61,64,67,70,74, 77,81,84,88,92,
+  96,100,105,106,108, 110,115,118,122,126,
+  130,134,138,142,147, 151,156,160,165,170,
+  175,180,186,187, -1};
 
 #ifdef PLUGIN
 #include PLUGIN
@@ -532,6 +501,24 @@ extern int PREPRUNE(graph*,int,int);
 #ifdef SUMMARY
 extern void SUMMARY(nauty_counter,double);
 #endif
+
+/************************************************************************/
+
+#define EXTEND(table,n) ((n) <= 1 ? 0 : (n) == 2 ? 1 : \
+     table[(n)-1] + (2*table[(n)-1]/((n)-2)))
+
+static int
+findmaxe(int *table, int n)
+/* Return the n-th entry of a maxe table, extending existing values
+   if necessary. */
+{
+    int i;
+
+    for (i = 0; i <= n && table[i] >= 0; ++i) {}
+    for ( ; i <= n; ++i) table[i] = EXTEND(table,i);
+
+    return table[n];
+}
 
 /************************************************************************/
 
@@ -755,7 +742,7 @@ makexgraph(graph *g, xword *h, int n)
         {
             j = FIRSTBITNZ(gi);
             gi ^= bit[j];
-            hi |= xbit[j];
+            hi |= XBIT(j);
         }
         h[i] = hi;
     }
@@ -799,7 +786,7 @@ makebgraph(graph *g, xword *h, int n)
             {
                 i = FIRSTBITNZ(w);
                 w ^= bit[i];
-                xseen1 |= xbit[i];
+                xseen1 |= XBIT(i);
             }
             xseen2 = 0;
             w = seen2;
@@ -807,7 +794,7 @@ makebgraph(graph *g, xword *h, int n)
             {
                 i = FIRSTBITNZ(w);
                 w ^= bit[i];
-                xseen2 |= xbit[i];
+                xseen2 |= XBIT(i);
             }
 
             w = seen1;
@@ -868,7 +855,7 @@ makeb6graph(graph *g, xword *h, int n)
         {
             j = FIRSTBITNZ(x);
             x ^= bit[j];
-            hi |= xbit[j];
+            hi |= XBIT(j);
         }
         h[i] = hi;
     }
@@ -900,7 +887,7 @@ makesgraph(graph *g, xword *h, int n)
         {
             j = FIRSTBITNZ(x);
             x ^= bit[j];
-            hi |= xbit[j];
+            hi |= XBIT(j);
         }
         h[i] = hi;
     }
@@ -932,11 +919,20 @@ makeg5graph(graph *g, xword *h, int n)
         { 
             j = FIRSTBITNZ(x); 
             x ^= bit[j]; 
-            hi |= xbit[j]; 
+            hi |= XBIT(j); 
         } 
         h[i] = hi; 
     } 
 } 
+
+/**************************************************************************/  
+
+static xword
+arith(xword a, xword b, xword c)
+/* Calculate a*b/c, assuming a*b/c and (c-1)*b are representable integers */
+{
+    return (a/c)*b + ((a%c)*b)/c;
+}
 
 /**************************************************************************/  
 
@@ -946,26 +942,25 @@ makeleveldata(boolean restricted)
 {
     long h;
     int n,nn;
-    long ncj;
+    xword ncj;
     leveldata *d;
     xword *xcard,*xinv;
-    xword *xset,xw,tttn,nxsets;
+    xword *xset,xw,nxsets;
     xword cw;
-    xword i,j;
+    xword i,ilast,j;
+    size_t tttn;
 
     for (n = 1; n < maxn; ++n)
     {
         nn = maxdeg <= n ? maxdeg : n;
         ncj = nxsets = 1;
         for (j = 1; j <= nn; ++j)
-        {
-            ncj = (ncj * (n - j + 1)) / j;
+        { 
+	    ncj = arith(ncj,n-j+1,j);
             nxsets += ncj;
         }
-        tttn = 1L << n;
 
         d = &data[n];
-
         d->ne = d->dmax = d->xlb = d->xub = -1;
 
         if (restricted)
@@ -981,6 +976,7 @@ makeleveldata(boolean restricted)
             continue;   /* <--- NOTE THIS! */
         }
 
+        tttn = (size_t)1 << n;
         d->xset = xset = (xword*) calloc(nxsets,sizeof(xword));
         d->xcard = xcard = (xword*) calloc(nxsets,sizeof(xword));
         d->xinv = xinv = (xword*) calloc(tttn,sizeof(xword));
@@ -995,6 +991,7 @@ makeleveldata(boolean restricted)
 
         j = 0;
 
+	ilast = (n == WORDSIZE ? ~(setword)0 : XBIT(n)-1);
         for (i = 0;; ++i)
         {
             if ((h = XPOPCOUNT(i)) <= maxdeg)
@@ -1003,13 +1000,14 @@ makeleveldata(boolean restricted)
                 xcard[j] = h;
                 ++j;
             }
-            if (i == (xword)((1L<<n)-1)) break;
+            if (i == ilast) break;
         }
 
         if (j != nxsets)
         {
-            fprintf(stderr,">E geng: j=%u mxsets=%u\n",
-                    j,(unsigned)nxsets);
+            fprintf(stderr,">E geng: j=" SETWORD_DEC_FORMAT 
+                               " nxsets=" SETWORD_DEC_FORMAT "\n",
+                    j,nxsets);
             exit(2);
         }
 
@@ -1018,7 +1016,7 @@ makeleveldata(boolean restricted)
             h = 3 * h + 1;
         while (h < nxsets);
 
-        do
+        do     /* Shell sort, consider replacing */
         {
             for (i = h; i < nxsets; ++i)
             {
@@ -1070,7 +1068,7 @@ userautomproc(int count, int *p, int *orbits,
 
     moved = 0;
     for (i = 0; i < n; ++i)
-        if (p[i] != i) moved |= xbit[i];
+        if (p[i] != i) moved |= XBIT(i);
 
     for (i = lo; i < hi; ++i)
     {
@@ -1079,8 +1077,8 @@ userautomproc(int count, int *p, int *orbits,
         while (w)
         {
             j1 = XNEXTBIT(w);
-            w ^= xbit[j1];
-            pxi |= xbit[p[j1]];
+            w ^= XBIT(j1);
+            pxi |= XBIT(p[j1]);
         }
         pi = xinv[pxi];
 
@@ -1129,7 +1127,7 @@ userautomprocb(int count, int *p, int *orbits,
 
     moved = 0;
     for (i = 0; i < n; ++i)
-        if (p[i] != i) moved |= xbit[i];
+        if (p[i] != i) moved |= XBIT(i);
 
     for (i = 0; i < xlim; ++i)
     {
@@ -1138,8 +1136,8 @@ userautomprocb(int count, int *p, int *orbits,
         while (w)
         {
             j1 = XNEXTBIT(w);
-            w ^= xbit[j1];
-            pxi |= xbit[p[j1]];
+            w ^= XBIT(j1);
+            pxi |= XBIT(p[j1]);
         }
         /* pi = position of pxi */
 
@@ -1357,7 +1355,7 @@ accept1(graph *g, int n, xword x, graph *gx, int *deg, boolean *rigid)
     while (xw)
     {
         i = XNEXTBIT(xw);
-        xw ^= xbit[i];
+        xw ^= XBIT(i);
         gx[i] |= bit[n];
         gx[n] |= bit[i];
         ++deg[i];
@@ -1455,7 +1453,7 @@ accept1b(graph *g, int n, xword x, graph *gx, int *deg, boolean *rigid,
     while (xw)
     {
         i = XNEXTBIT(xw);
-        xw ^= xbit[i];
+        xw ^= XBIT(i);
         gx[i] |= bit[n];
         gx[n] |= bit[i];
         ++deg[i];
@@ -1497,7 +1495,7 @@ accept1b(graph *g, int n, xword x, graph *gx, int *deg, boolean *rigid,
     kxx = 1;
     for (v = 0; v < nx; ++v)
     {
-        bitv = xbit[v];
+        bitv = XBIT(v);
         hv = h[v];
         jxx = kxx;
         for (ixx = 0; ixx < jxx; ++ixx)
@@ -1578,7 +1576,7 @@ accept2(graph *g, int n, xword x, graph *gx, int *deg, boolean nuniq)
     while (xw)
     {
         i = XNEXTBIT(xw);
-        xw ^= xbit[i];
+        xw ^= XBIT(i);
         gx[i] |= bit[n];
         gx[n] |= bit[i];
         ++degx[i];
@@ -1817,8 +1815,8 @@ spaextend(graph *g, int n, int *deg, int ne, boolean rigid,
     d = dlow = 0;
     for (i = 0; i < n; ++i)
     {
-        if (deg[i] == dmax) d |= xbit[i];
-        if (deg[i] == dcrit) dlow |= xbit[i];
+        if (deg[i] == dmax) d |= XBIT(i);
+        if (deg[i] == dcrit) dlow |= XBIT(i);
     }
 
     if (xlb == dmax && XPOPCOUNT(d) + dmax > n) ++xlb;
@@ -1934,8 +1932,8 @@ genextend(graph *g, int n, int *deg, int ne, boolean rigid, int xlb, int xub)
     d = dlow = 0;
     for (i = 0; i < n; ++i)
     {
-        if (deg[i] == dmax) d |= xbit[i];
-        if (deg[i] == dcrit) dlow |= xbit[i];
+        if (deg[i] == dmax) d |= XBIT(i);
+        if (deg[i] == dcrit) dlow |= XBIT(i);
     }
 
     if (xlb == dmax && XPOPCOUNT(d) + dmax > n) ++xlb;
@@ -2038,21 +2036,11 @@ main(int argc, char *argv[])
     int tmaxe,deg[1];
     nauty_counter nout;
     int splitlevinc;
-    xword testxword;
     double t1,t2;
     char msg[201];
 
     HELP; PUTVERSION;
     nauty_check(WORDSIZE,1,MAXN,NAUTYVERSIONID);
-
-    testxword = (xword)(-1);
-    if (MAXN > 32 || MAXN > WORDSIZE || MAXN > 8*sizeof(xword)
-        || (MAXN == 8*sizeof(xword) && testxword < 1))
-    {
-        fprintf(stderr,"geng: incompatible MAXN, WORDSIZE, or xword\n");
-        fprintf(stderr,"--See notes in program source\n");
-        exit(1);
-    }
 
     badargs = FALSE;
     trianglefree = FALSE;
@@ -2253,12 +2241,12 @@ PLUGIN_INIT
     }
 
     if (bipartite)
-        if (squarefree)  tmaxe = maxebf[maxn];
-        else             tmaxe = maxeb[maxn];
+        if (squarefree)  tmaxe = findmaxe(maxebf,maxn);
+        else             tmaxe = findmaxe(maxeb,maxn);
     else if (trianglefree)
-        if (squarefree)  tmaxe = maxeft[maxn];
-        else             tmaxe = maxet[maxn];
-    else if (squarefree) tmaxe = maxef[maxn];
+        if (squarefree)  tmaxe = findmaxe(maxeft,maxn);
+        else             tmaxe = findmaxe(maxet,maxn);
+    else if (squarefree) tmaxe = findmaxe(maxef,maxn);
     else                 tmaxe = (maxn*maxn - maxn) / 2;
 
     if (safe) ++tmaxe;
@@ -2360,7 +2348,7 @@ PLUGIN_INIT
             if (sparse)
             {
                 data[1].xx[0] = 0;
-                if (maxdeg > 0) data[1].xx[1] = xbit[0];
+                if (maxdeg > 0) data[1].xx[1] = XBIT(0);
                 data[1].xlim = data[1].xub + 1;
             }
 
@@ -2408,14 +2396,16 @@ PLUGIN_INIT
     for (i = 1; i < maxn; ++i)
     {
         fprintf(stderr," level %2d: \n",i);
-        fprintf(stderr,COUNTER_FMT " (%lu rigid, %lu fertile)\n",
+        fprintf(stderr,COUNTER_FMT " (" COUNTER_FMT
+                       " rigid, " COUNTER_FMT " fertile)\n",
                        nodes[i],rigidnodes[i],fertilenodes[i]);
     }
-    fprintf(stderr,">A1 %lu calls to accept1, %lu nauty, %lu succeeded\n",
-                    a1calls,a1nauty,a1succs);
-    fprintf(stderr,
-         ">A2 %lu calls to accept2, %lu nuniq, %lu nauty, %lu succeeded\n",
-                    a2calls,a2uniq,a2nauty,a2succs);
+    fprintf(stderr,">A1 " COUNTER_FMT " calls to accept1, "
+                   COUNTER_FMT " nauty, " COUNTER_FMT " succeeded\n",
+                   a1calls,a1nauty,a1succs);
+    fprintf(stderr,">A2 " COUNTER_FMT " calls to accept2, " COUNTER_FMT
+                   " nuniq, "COUNTER_FMT " nauty, " COUNTER_FMT " succeeded\n",
+                   a2calls,a2uniq,a2nauty,a2succs);
     fprintf(stderr,"\n");
 #endif
 

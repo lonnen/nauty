@@ -1,5 +1,5 @@
 /*****************************************************************************
-* This is the main header file for gtools.  nauty version 2.6.               *
+* This is the main header file for gtools.  nauty version 2.7.               *
 * Subject to the copyright notice in nauty.h.                                *
 * gtools.h.  Generated from gtools-h.in by configure.
 *****************************************************************************/
@@ -29,7 +29,7 @@ used, it is necessary to check they are correct.
 #define HAVE_PUTENV 1   /* putenv() exists */
 #define HAVE_SETENV 1   /* setenv() exists */
 #define HAVE_FORK 1   /* fork() exists */
-#define HAVE_PTHREADS 1   /* Posix threads exist */
+#define HAVE_PTHREADS 0   /* Posix threads exist */
 #define HAVE_PTHREAD_H  1      /* <pthread.h> exists */
 #define HAVE_SIGNAL_H  1      /* <signal.h> exists */
 #define HAVE_FSEEKO 1  /* fseeko() and ftello() exist */
@@ -83,18 +83,28 @@ extern int errno;
 #define ABORT(msg) do {exit(1);} while(0)
 #endif
 
+/* Here we set environment variables that determine the sorting order
+   for the shortg program.  Older docs for sort say that it uses
+   LC_COLLATE, but the POSIX description of locales says that the
+   LC_ALL variable takes precedence over LC_COLLATE.  To be safe,
+   we will define both.  Also, define this to be nothing if the
+   variable KEEP_SORT_LOCALE is defined. */
+#ifdef KEEP_SORT_LOCALE
+#define SET_C_COLLATION
+#else
 #if PUTENV_DEC && HAVE_PUTENV
-#define SET_C_COLLATION putenv("LC_COLLATE=C")
+#define SET_C_COLLATION putenv("LC_ALL=C"); putenv("LC_COLLATE=C")
 #elif SETENV_DEC && HAVE_SETENV
-#define SET_C_COLLATION setenv("LC_COLLATE","C",1)
+#define SET_C_COLLATION setenv("LC_ALL","C",1); setenv("LC_COLLATE","C",1)
 #elif HAVE_PUTENV
 int putenv(char*);
-#define SET_C_COLLATION putenv("LC_COLLATE=C")
+#define SET_C_COLLATION putenv("LC_ALL=C"); putenv("LC_COLLATE=C")
 #elif HAVE_SETENV
 int setenv(const char*,const char*,int);
-#define SET_C_COLLATION setenv("LC_COLLATE","C",1)
+#define SET_C_COLLATION setenv("LC_ALL","C",1); setenv("LC_COLLATE","C",1)
 #else
 #define SET_C_COLLATION
+#endif
 #endif
 
 #if HAS_STDIO_UNLOCK && !defined(NAUTY_IN_MAGMA) && !defined(IS_JAVA)
@@ -150,6 +160,7 @@ int setenv(const char*,const char*,int);
 #define NOLIMIT (MAXARG+31L)
 
 #define SWBOOLEAN(c,boool) if (sw==c) boool=TRUE;
+#define SWCOUNT(c,count) if (sw==c) ++count;
 #define SWINT(c,boool,val,id) if (sw==c) \
         {boool=TRUE;arg_int(&arg,&val,id);}
 #define SWLONG(c,boool,val,id) if (sw==c) \
@@ -160,14 +171,25 @@ int setenv(const char*,const char*,int);
         {boool=TRUE;arg_double(&arg,&val,id);}
 #define SWREALRANGE(c,sep,boool,val1,val2,id) if (sw==c) \
 	{boool=TRUE;arg_doublerange(&arg,sep,&val1,&val2,id);}
-#define SWSEQUENCE(c,sep,boool,val,maxval,numvals,id) if (sw==c) \
-        {boool=TRUE;arg_sequence(&arg,sep,val,maxval,&numvals,id);}
+#define SWSEQUENCE(c,sep,boool,val,maxvals,numvals,id) if (sw==c) \
+        {boool=TRUE;arg_sequence(&arg,sep,val,maxvals,&numvals,id);}
+#define SWSEQUENCEMIN(c,sep,boool,val,minvals,maxvals,numvals,id) if (sw==c) \
+        {boool=TRUE;arg_sequence_min(&arg,sep,val,minvals,maxvals,&numvals,id);}
 
+#ifdef HELPUSECMD
+#ifdef HELPTEXT2 
+#define PUTHELPTEXT printf("\nUsage: %s %s\n\n%s",argv[0],USAGE,HELPTEXT1);\
+		    printf("%s",HELPTEXT2);
+#else
+#define PUTHELPTEXT printf("\nUsage: %s %s\n\n%s",argv[0],USAGE,HELPTEXT)
+#endif
+#else
 #ifdef HELPTEXT2 
 #define PUTHELPTEXT printf("\nUsage: %s\n\n%s",USAGE,HELPTEXT1);\
 		    printf("%s",HELPTEXT2);
 #else
 #define PUTHELPTEXT printf("\nUsage: %s\n\n%s",USAGE,HELPTEXT)
+#endif
 #endif
 
 #define HELP if (argc > 1 && (strcmp(argv[1],"-help")==0 \
@@ -248,6 +270,7 @@ extern int doublevalue(char**,double*);
 extern void arg_double(char**,double*,char*);
 extern void arg_doublerange(char**,char*,double*,double*,char*);
 extern void arg_sequence(char**,char*,long*,int,int*,char*);
+extern void arg_sequence_min(char**,char*,long*,int,int,int*,char*);
 
 extern void writerange(FILE*,int,long,long);
 extern void gt_abort(const char*);

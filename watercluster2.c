@@ -25,6 +25,8 @@ oy  means: the outdegree of every vertex may be at most y.
      ended by a 0. Then the list of outgoing neighbours of 2 follows -- again ended with a 0, etc.
      The code is complete with the 0 ending the list of outgoing neighbours of nv.
 
+  Z  means: Output the directed graphs in digraph6 code. See formats.txt for a complete definition.
+
   C  means: Do really construct all the directed graphs in memory, but don't output them. This is not
      a big difference in case of restricted in- and outdegrees, because all that is done extra is that 
      edges are directed instead of just keeping track of in- and out-degrees. This option is intended only
@@ -49,6 +51,8 @@ Journal of Mathematical Chemistry 46, 1112--1121 (2009)
 October 10, 2011: corrected error caused by overflow of 32bit int used as hashvalue.
 
 Sep, 2012: PROCESS feature added by BDM.
+
+Oct, 2017: digraph6 output added by BDM.
 */
 
 /* PROCESS feature
@@ -71,7 +75,7 @@ Sep, 2012: PROCESS feature added by BDM.
  */
 
 //#include<stdio.h>
-#include "nauty.h"
+#include "gtools.h"
 #include<limits.h>
 #include<string.h>
 
@@ -257,7 +261,9 @@ int double_allowed=1, direct_output=0;
 #define WRITEUP() { aantal_gerichte_grafen+=addnumber; if (direct_output==1) {writeTcode(workg,aantal_toppen);\
 if (addnumber==2) writeTcode_invers(workg,aantal_toppen);} else if (direct_output==3) \
 {writeBcode(workg,aantal_toppen);\
-if (addnumber==2) writeBcode_invers(workg,aantal_toppen);} }
+if (addnumber==2) writeBcode_invers(workg,aantal_toppen);} else if (direct_output==4) \
+{writeZcode(workg,aantal_toppen);\
+if (addnumber==2) writeZcode_invers(workg,aantal_toppen);} }
 #define WRITEUP_COUNT() { aantal_gerichte_grafen+=addnumber; }
 
 #ifdef PROCESS
@@ -332,6 +338,26 @@ if (addnumber==2) writeBcode_invers(workg,aantal_toppen);} }
          putc(0,stdout);
        }
    }
+
+  void writeZcode(graph *g, int aantal_toppen)     /* BDM */
+    { 
+	writed6(stdout,g,1,aantal_toppen);
+    }
+
+  void writeZcode_invers(graph *g, int aantal_toppen)    /* BDM */
+    { int i,j;
+      setword w;
+      graph h[MAXN];
+
+      for (i = 0; i < aantal_toppen; ++i) h[i] = 0;
+
+      for (i = 0; i < aantal_toppen; ++i)
+        {
+          w = g[i];
+          while (w) { TAKEBIT(j,w); h[j] |= bit[i]; }
+        }
+      writed6(stdout,h,1,aantal_toppen);
+    }
 
 void writelab(nvector ptn[], nvector lab[])
 {
@@ -504,13 +530,14 @@ return 1;
 void usage(char name[])
 {
 
-  fprintf(stderr,"usage: %s [ix] [oy] [m] [T] [C] [B] [S] .\n",name);
+  fprintf(stderr,"usage: %s [ix] [oy] [m] [T] [C] [B] [Z] [S] .\n",name);
   fprintf(stderr,"The option ix restricts the maximum indegree to x.\n");
   fprintf(stderr,"The option oy restricts the maximum outdegree to y.\n");
   fprintf(stderr,"The default maximum in- and out-degrees are unlimited. \n");
   fprintf(stderr,"T means: Output directed graphs in T-code -- for details see header\n");
   fprintf(stderr,"B means: Output directed graphs in binary code -- for details see header\n");
-  fprintf(stderr,"C means: Do really construct all the directed graphs in memory, but don't output them.\n");
+  fprintf(stderr,"Z means: Output directed graphs in digraph6 code\n");
+  fprintf(stderr,"C means: Do really construct all the directed graphs in memory, but don't output them (default)\n");
   fprintf(stderr,"S means that for each edge only one direction must be chosen -- not both.\n");
   fprintf(stderr,"Default is that both are allowed\n");
   fprintf(stderr,"  -- so the edge a-b can become a->b AND b->a in the same output graph.\n");
@@ -4015,9 +4042,11 @@ int main(int argc, char *argv[])
 
   if (sizeof(long long int)<8) 
     { 
-      fprintf(stderr,"This may cause problems with the hashing function for large degree -- exit().\n");
+      fprintf(stderr,">E long long too short; This may cause problems with the hashing function for large degree -- exit().\n");
       exit(1); 
     }
+
+  nauty_check(WORDSIZE,1,MAXN,NAUTYVERSIONID);  /* BDM: Check compatible nauty is linked */
 
   for (i=1; i<argc; i++)
     {
@@ -4026,8 +4055,9 @@ int main(int argc, char *argv[])
       else  if (argv[i][0]=='T') direct_output=1; 
 	else  if (argv[i][0]=='C') direct_output=2;
 	  else  if (argv[i][0]=='B') direct_output=3;
-	    else  if (argv[i][0]=='S') double_allowed=0;
-	      else  if (argv[i][0]=='m') { g6code=0; multicode=1; }
+	    else  if (argv[i][0]=='Z') direct_output=4;    /* BDM */
+	      else  if (argv[i][0]=='S') double_allowed=0;
+	        else  if (argv[i][0]=='m') { g6code=0; multicode=1; }
       else usage(argv[0]);
     }
 

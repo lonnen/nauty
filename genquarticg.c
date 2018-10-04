@@ -33,7 +33,6 @@ extern void OUTPROC(FILE*, graph*, int);
 #endif
 
 static DEFAULTOPTIONS_GRAPH(options);
-static int perm[MAXN];
 static setword workspace[50];
 static statsblk(stats);
 
@@ -61,7 +60,7 @@ res/mod : only generate subset res out of subsets 0..mod-1\n\
 
 
 
-static FILE *outfile, *msgfile;             /* file for output graphs */
+static FILE *outfile;             /* file for output graphs */
 static char *outfilename;
 boolean     nooutput;                       /* presence of -u */
 boolean     graph6;                         /* presence of -g */
@@ -232,14 +231,14 @@ static void
 extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
    int *epairorbit, int *multar, setword *zar, int *col00w, boolean connectflag)
 {
-    int   vm1, vm2, vm3, vm4, vt1, vt2, vt3, vt4, c, b, mcol1, mcol,
-          tcol, got_one, i, j, k, numpair1, numdovi, maxdovi, i1, j1, i2, j2,
-          numrival, temp, mult, multm, mult2, rely, numedge, dcol, dcolp, e1, e2;
-    int   firsttime[MAXN], firsttimey[MAXN], mult2i[MAXN], multar1[MAXN],
-          col00[MAXN], col00w1[MAXN], rival[MAXN], tagriv[MAXN], doviorbit[3*MAXN],
+    int   vm1, vm2, vm3, vm4, vt1, vt2, vt3, vt4, c, b, mcol1,
+          tcol, got_one, i, j, numpair1, numdovi, maxdovi, i1, j1, i2, j2,
+          temp, mult, multm, rely, numedge, dcol, dcolp, e1, e2;
+    int   firsttime[MAXN], firsttimey[MAXN], multar1[MAXN],
+          col00[MAXN], col00w1[MAXN], doviorbit[3*MAXN],
           epairorbit1[MAXP], l[MAXN], lab[MAXN], ptn[MAXN], orbits[MAXN];
     int 		antipair[MAXE][MAXE], antiedge[MAXN][MAXN], antidovi[MAXN][MAXN];
-    setword     x, y, z, x1, bitj1, bitj2, biti2;
+    setword     x, y, z, bitj1, bitj2, biti2;
     setword     yi[MAXN], zar1[MAXN];
     CHOISE	colours; 
     pairstruct 	epair1[MAXP];
@@ -263,8 +262,9 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
         {
 
             int eqn[MAXN],neqn;
-            setword zval[MAXN],zz,eqcol0;
+            setword zval[MAXN],eqcol0;
             int dcol0,dcol1;
+            setword xn;
 
             e1 = epair[c].first;
             e2 = epair[c].sec;
@@ -291,14 +291,11 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
             col00w1[n] = col00[n] = -POPCOUNT(z) + ( (4-multm) << 6 );
 
             zval[n] = z; eqcol0 = bit[n]; neqn = 0;
-            setword xn;
             xn = g[n]|bit[n];
-
 
             b = n-1;		
             while( (!got_one)  &&   (b >= 0) )
             {					
-
 
                if(  !((g[b]|bit[b]) & xn )   &&  (multar[b] < 9 ) )
                 {
@@ -1301,7 +1298,7 @@ int main(int argc, char *argv[])
     int 	n, cntr, numpair, numedge, i, j, i1, i2, j1, j2, multm, e1, e2, argnum, sw; //char  sw??
     int         multar[MAXN], col00w[MAXN], epairorbit[MAXP], lab[MAXN], ptn[MAXN], orbits[MAXN];
     int 	antipair[MAXE][MAXE], antiedge[MAXN][MAXN];
-    setword 	x, y;
+    setword 	x;
     pairstruct 	epair[MAXP];
     edgestruct  edge[MAXE];	
     graph 	g[MAXN];

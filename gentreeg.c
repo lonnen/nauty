@@ -2,6 +2,7 @@
 /* This program is a wrapper for the program FreeTrees.c written
  * by Gang Li & Frank Ruskey.  See below for their original
  * comments. */
+/* TODO: splitlevinc */
 
 #define USAGE \
  "gentreeg [-D#] [-Z#:#] [-ulps] [-q] n [res/mod] [file]"
@@ -281,8 +282,6 @@ WriteS6(FILE *f, int vpar[], int n)
 static void
 WriteIt(int level)
 {
-   int i;
-
    if (level < splitlevel && res != 0) return;
 
 #ifdef PRUNE
@@ -570,7 +569,6 @@ PLUGIN_INIT
         {
             if (res == 0)
             {
-                ++nout;
 		par[1] = 0;
                 WriteIt(0);
             }
@@ -579,7 +577,6 @@ PLUGIN_INIT
         {
             if (res == 0)
             {
-                ++nout;
 		par[1] = 0;
 		par[2] = 1;
                 WriteIt(0);

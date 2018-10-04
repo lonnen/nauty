@@ -1,4 +1,4 @@
-/* genbg.c : version 2.4; B D McKay, 20 Jan 2016. */
+/* genbg.c : version 2.5; B D McKay, 14 Nov 2017. */
 
 /* TODO: consider colour swaps */
 
@@ -22,7 +22,8 @@
           neighbours of degree at least 2\n\
   -L    : there is no vertex in the first class whose removal leaves\n\
           the vertices in the second class unreachable from each other\n\
-  -Z#   : two vertices in the second class may have at most # common nbrs\n\
+  -Y#   : two vertices in the second class must have at least # common nbrs\n\
+  -Z#   : two vertices in the second class must have at most # common nbrs\n\
   -A    : no vertex in the second class has a neighbourhood which is a\n\
           subset of another vertex in the second class\n\
   -D#   : specify an upper bound for the maximum degree\n\
@@ -131,7 +132,7 @@ INSTRUMENT feature.
 **************************************************************************
 
     Author:   B. D. McKay, Oct 1994.     bdm@cs.anu.edu.au
-              Copyright  B. McKay (1994-2016).  All rights reserved.
+              Copyright  B. McKay (1994-2017).  All rights reserved.
               This software is subject to the conditions and waivers
               detailed in the file COPYRIGHT.
     1 May 2003 : fixed PRUNE feature
@@ -145,6 +146,7 @@ INSTRUMENT feature.
    23 Jan 2013 : fix splitlevinc initialization
    16 Feb 2014 : add a missing call to PRUNE2
    20 Jan 2016 : changed bigint to nauty_counter
+   14 Nov 2017 : added -Y switch
 
 **************************************************************************/
 
@@ -182,6 +184,7 @@ boolean footfree;               /* presence of -F */
 boolean cutfree;                /* presence of -L */
 boolean antichain;              /* presence of -A */
 int class1size;                 /* same as n1 */
+int mincommon;                  /* -1 or value of -Y */
 int maxcommon;                  /* -1 or value of -Z */
 static int maxdeg1,maxdeg2,n1,maxn2,mine,maxe,nprune,mod,res,curres;
 static int mindeg1,mindeg2;
@@ -1261,6 +1264,15 @@ genextend(graph *g, int n2, int *deg, int ne, boolean rigid, int xlb, int xub)
                 }
                 if (j >= 0) continue;
             }
+            if (mincommon >= 0)
+            {
+                for (j = n2; --j >= 0;)
+                {
+                    y = x & xval[j];
+                    if (XPOPCOUNT(y) < mincommon) break;
+                }
+                if (j >= 0) continue;
+            }
 	    if (antichain)
 	    {
 		for (j = 0; j < n2; ++j)
@@ -1345,6 +1357,15 @@ genextend(graph *g, int n2, int *deg, int ne, boolean rigid, int xlb, int xub)
                 }
                 if (j >= 0) continue;
             }
+            if (mincommon >= 0)
+            {
+                for (j = n2; --j >= 0;)
+                {
+                    y = x & xval[j];
+                    if (XPOPCOUNT(y) < mincommon) break;
+                }
+                if (j >= 0) continue;
+            }
 	    if (antichain)
 	    {
 		for (j = 0; j < n2; ++j)
@@ -1383,7 +1404,7 @@ int
 main(int argc, char *argv[])
 {
     char *arg;
-    boolean badargs,gotD,gote,gotf,gotmr,gotZ,gotd,gotX;
+    boolean badargs,gotD,gote,gotf,gotmr,gotY,gotZ,gotd,gotX;
     long Dval1,Dval2;
     long dval1,dval2;
     int i,j,imin,imax,argnum,sw;
@@ -1424,7 +1445,7 @@ main(int argc, char *argv[])
     gotmr = FALSE;
     gotD = FALSE;
     gotd = FALSE;
-    gotZ = FALSE;
+    gotY = gotZ = FALSE;
     gotX = FALSE;
     outfilename = NULL;
 
@@ -1454,6 +1475,7 @@ main(int argc, char *argv[])
                 else SWBOOLEAN('a',greout)
                 else SWBOOLEAN('g',graph6)
                 else SWBOOLEAN('s',sparse6)
+                else SWINT('Y',gotY,mincommon,"genbg -Y")
                 else SWINT('Z',gotZ,maxcommon,"genbg -Z")
                 else SWINT('X',gotX,splitlevinc,"geng -X")
                 else SWRANGE('D',":-",gotD,Dval1,Dval2,"genbg -D")
@@ -1566,6 +1588,7 @@ PLUGIN_SWITCHES
     }
 
     if (!gotZ) maxcommon = -1;
+    if (!gotY) mincommon = -1;
 
     if (!badargs && (mine > maxe || maxe < 0 || maxdeg1 < 0 || maxdeg2 < 0))
     {
@@ -1647,8 +1670,10 @@ PLUGIN_INIT
         if (footfree) CATMSG0("F");
         if (antichain) CATMSG0("A");
         if (connec) CATMSG0("c");
+        if (mincommon >= 0) CATMSG1("Y%d",mincommon);
         if (maxcommon >= 0) CATMSG1("Z%d",maxcommon);
         if (cutfree) CATMSG0("L");
+        if (canonise) CATMSG0("l");
         if (mod > 1) CATMSG2(" class=%d/%d",res,mod);
         CATMSG0("\n");
         fputs(msg,stderr);

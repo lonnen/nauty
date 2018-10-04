@@ -1,4 +1,4 @@
-# makefile for nauty 2.6
+# makefile for nauty 2.7
 # @configure_input@
 
 SHELL=/bin/sh
@@ -10,6 +10,7 @@ THREADLIB=@threadlib@
 LOK=@lok@         # 0 if no 64-bit integers
 TESTPROGS=@testprogs@
 EXEEXT=@EXEEXT@
+AR?=ar
 
 SMALL=-DMAXN=WORDSIZE
 S1=-DMAXN=WORDSIZE -DWORDSIZE=16
@@ -30,10 +31,10 @@ nauty : dreadnaut nauty.a nauty1.a nautyW.a nautyW1.a nautyL.a nautyL1.a;
 
 gtools : copyg listg labelg dretog amtog geng complg showg NRswitchg \
   biplabg addedgeg deledgeg countg pickg genrang newedgeg catg genbg \
-  directg gentreeg genquarticg \
+  directg gentreeg genquarticg underlyingg assembleg gengL \
   ranlabg multig planarg gentourng linegraphg watercluster2 dretodot \
   subdivideg vcolg delptg cubhamg twohamg hamheuristic converseg \
-  genspecialg genbgL @shortg_or_null@ ;
+  genspecialg edgetransg genbgL @shortg_or_null@ ;
 
 NAUTYO=nauty.o nautil.o nausparse.o naugraph.o schreier.o naurng.o
 NAUTY1O=nauty1.o nautil1.o nausparse.o naugraph1.o schreier.o naurng.o
@@ -192,7 +193,7 @@ rng.o: rng.c nauty.h
 
 dreadnaut: dreadnaut.c naututil.o nautinv.o traces.o gtools.o ${NAUTYO}
 	${CC} -o dreadnaut ${SAFECFLAGS} dreadnaut.c naututil.o \
-		nautinv.o gtools.o traces.o ${NAUTYO} ${LDFLAGS} ${THREADLIB}
+		nautinv.o gtools.o traces.o ${NAUTYO} ${LDFLAGS}
 dreadnautL: dreadnaut.c naututilL.o nautyL.o nautilL.o nautinvL.o \
 	     nausparseL.o naugraphL.o naurng.o schreierL.o tracesL.o gtoolsL.o
 	${CC} -o dreadnautL ${SAFECFLAGS} ${L} dreadnaut.c naututilL.o \
@@ -205,41 +206,41 @@ dreadnaut1: dreadnaut.c naututil1.o nauty1.o nautil1.o nautinv1.o \
 	     nausparse.o schreier.o traces.o ${LDFLAGS}
 
 nauty.a: ${NAUTYO} traces.o gtools.o naututil.o nautinv.o \
-			gutil1.o gutil2.o gtnauty.o naugroup.o
+			gutil1.o gutil2.o gtnauty.o naugroup.o nautycliquer.o
 	rm -f nauty.a
-	ar crs nauty.a ${NAUTYO} traces.o gtools.o naututil.o \
+	${AR} crs nauty.a ${NAUTYO} traces.o gtools.o naututil.o \
 		 nautinv.o gutil1.o gutil2.o gtnauty.o naugroup.o \
-		 naurng.o schreier.o
+		 naurng.o schreier.o nautycliquer.o
 
 nauty1.a: ${NAUTY1O} traces.o gtools.o naututil1.o nautinv1.o \
-	   gutil1.o gutil2.o gtnauty.o naugroup.o
+	   gutil1.o gutil2.o gtnauty.o naugroup.o nautycliquer.o
 	rm -f nauty1.a
-	ar crs nauty1.a ${NAUTY1O} traces.o gtools.o naututil1.o \
-	   nautinv1.o gutil1.o gutil2.o gtnauty.o naugroup.o 
+	${AR} crs nauty1.a ${NAUTY1O} traces.o gtools.o naututil1.o \
+	   nautinv1.o gutil1.o gutil2.o gtnauty.o naugroup.o nautycliquer.o
 
 nautyW.a: ${NAUTYWO} traces.o gtoolsW.o naututilW.o nautinvW.o \
-	   gutil1W.o gutil2W.o gtnautyW.o naugroupW.o 
+	   gutil1W.o gutil2W.o gtnautyW.o naugroupW.o nautycliquerW.o
 	rm -f nautyW.a
-	ar crs nautyW.a ${NAUTYWO} traces.o gtoolsW.o naututilW.o \
-	   nautinvW.o gutil1W.o gutil2W.o gtnautyW.o naugroupW.o
+	${AR} crs nautyW.a ${NAUTYWO} traces.o gtoolsW.o naututilW.o \
+	   nautinvW.o gutil1W.o gutil2W.o gtnautyW.o naugroupW.o nautycliquerW.o
 
 nautyW1.a: ${NAUTYW1O} traces.o gtoolsW.o naututilW1.o nautinvW1.o \
-	   gutil1W1.o gutil2W1.o gtnautyW1.o naugroupW.o 
+	   gutil1W1.o gutil2W1.o gtnautyW1.o naugroupW.o nautycliquerW.o
 	rm -f nautyW1.a
-	ar crs nautyW1.a ${NAUTYW1O} traces.o gtoolsW.o naututilW1.o \
-	   nautinvW1.o gutil1W1.o gutil2W1.o gtnautyW1.o naugroupW.o
+	${AR} crs nautyW1.a ${NAUTYW1O} traces.o gtoolsW.o naututilW1.o \
+	   nautinvW1.o gutil1W1.o gutil2W1.o gtnautyW1.o naugroupW.o nautycliquerW.o
 
 nautyL.a: ${NAUTYLO} traces.o gtoolsL.o naututilL.o nautinvL.o \
-	   gutil1L.o gutil2L.o gtnautyL.o naugroupL.o 
+	   gutil1L.o gutil2L.o gtnautyL.o naugroupL.o nautycliquerL.o
 	rm -f nautyL.a
-	ar crs nautyL.a ${NAUTYLO} traces.o gtoolsL.o naututilL.o \
-	   nautinvL.o gutil1L.o gutil2L.o gtnautyL.o naugroupL.o
+	${AR} crs nautyL.a ${NAUTYLO} traces.o gtoolsL.o naututilL.o \
+	   nautinvL.o gutil1L.o gutil2L.o gtnautyL.o naugroupL.o nautycliquerL.o
 
 nautyL1.a: ${NAUTYL1O} traces.o gtoolsL.o naututilL1.o nautinvL1.o \
-	   gutil1L1.o gutil2L1.o gtnautyL1.o naugroupL.o 
+	   gutil1L1.o gutil2L1.o gtnautyL1.o naugroupL.o nautycliquerL.o
 	rm -f nautyL1.a
-	ar crs nautyL1.a ${NAUTYL1O} traces.o gtoolsL.o naututilL1.o \
-	   nautinvL1.o gutil1L1.o gutil2L1.o gtnautyL1.o naugroupL.o
+	${AR} crs nautyL1.a ${NAUTYL1O} traces.o gtoolsL.o naututilL1.o \
+	   nautinvL1.o gutil1L1.o gutil2L1.o gtnautyL1.o naugroupL.o nautycliquerL.o
 
 clean:
 	rm -f *.o config.log config.cache config.status nauty*.a
@@ -285,12 +286,12 @@ listg : ${GTOOLSH} listg.c gtools.o nautil.o
 labelg : ${GTOOLSH} naututil.h labelg.c gtools.o gtnauty.o ${NAUTYO} \
             nautinv.o nausparse.h gutils.h gutil2.o traces.h traces.o naututil.o
 	${CC} -o labelg ${SAFECFLAGS} labelg.c gtools.o gtnauty.o naututil.o \
-	    nautinv.o gutil2.o traces.o ${NAUTYO} ${LDFLAGS} ${THREADLIB}
+	    nautinv.o gutil2.o traces.o ${NAUTYO} ${LDFLAGS}
 
 shortg : ${GTOOLSH} shortg.c gtools.o gtnauty.o ${NAUTYO} \
             nausparse.h gutils.h gutil2.o nautinv.h nautinv.o traces.o
 	${CC} -o shortg ${CFLAGS} shortg.c gtools.o gtnauty.o nautinv.o \
-            ${NAUTYO} gutil2.o traces.o ${LDFLAGS} ${THREADLIB}
+            ${NAUTYO} gutil2.o traces.o ${LDFLAGS}
 
 dretog : ${GTOOLSH} dretog.c naututil.o gtools.o ${NAUTYO} 
 	${CC} -o dretog ${CFLAGS} dretog.c naututil.o gtools.o \
@@ -318,13 +319,9 @@ geng : ${GTOOLSH} geng.c gtoolsW.o nautyW1.o nautilW1.o naugraphW1.o schreier.o 
 	${CC} -o geng ${CFLAGS} ${W1} geng.c gtoolsW.o nautyW1.o \
 		nautilW1.o naugraphW1.o schreier.o naurng.o ${LDFLAGS}
 
-geng16 : ${GTOOLSH} geng.c gtoolsW.o nautyW1.o nautilW1.o naugraphW1.o schreier.o naurng.o
-	${CC} -o geng16 ${CFLAGS} -DMAXN=16 $W geng.c gtoolsW.o nautyW1.o \
-		nautilW1.o naugraphW1.o schreier.o naurng.o ${LDFLAGS}
-
-geng24 : ${GTOOLSH} geng.c gtoolsW.o nautyW1.o nautilW1.o naugraphW1.o schreier.o naurng.o
-	${CC} -o geng24 ${CFLAGS} -DMAXN=24 $W geng.c gtoolsW.o nautyW1.o \
-		nautilW1.o naugraphW1.o schreier.o naurng.o ${LDFLAGS}
+gengL : ${GTOOLSH} geng.c gtoolsL.o nautyL1.o nautilL1.o naugraphL1.o schreier.o naurng.o
+	${CC} -o gengL ${CFLAGS} ${L1} geng.c gtoolsL.o nautyL1.o \
+		nautilL1.o naugraphL1.o schreier.o naurng.o ${LDFLAGS}
 
 gentourng : ${GTOOLSH} gentourng.c gtoolsW.o nautyW1.o nautilW1.o \
 	    naugraphW1.o schreier.o naurng.o
@@ -363,6 +360,14 @@ converseg : ${GTOOLSH} converseg.c gtools.o ${NAUTYO}
 	${CC} -o converseg ${CFLAGS} converseg.c gtools.o \
 		${NAUTYO} ${LDFLAGS}
 
+assembleg : ${GTOOLSH} assembleg.c gtools.o ${NAUTYO}
+	${CC} -o assembleg ${CFLAGS} assembleg.c gtools.o \
+		${NAUTYO} ${LDFLAGS}
+
+underlyingg : ${GTOOLSH} underlyingg.c gtools.o ${NAUTYO}
+	${CC} -o underlyingg ${CFLAGS} underlyingg.c gtools.o \
+		${NAUTYO} ${LDFLAGS}
+
 linegraphg : ${GTOOLSH} linegraphg.c gtools.o ${NAUTYO}
 	${CC} -o linegraphg ${CFLAGS} linegraphg.c gtools.o \
 		${NAUTYO} ${LDFLAGS}
@@ -371,9 +376,15 @@ subdivideg : ${GTOOLSH} subdivideg.c gtools.o ${NAUTYO}
 	${CC} -o subdivideg ${CFLAGS} subdivideg.c gtools.o \
 		${NAUTYO} ${LDFLAGS}
 
-vcolg : ${GTOOLSH} vcolg.c gtools.o ${NAUTYO} naugroup.o naugroup.h
-	${CC} -o vcolg ${CFLAGS} vcolg.c gtools.o naugroup.o \
-		${NAUTYO} ${LDFLAGS}
+vcolg : ${GTOOLSH} vcolg.c gtools.o ${NAUTYO} naugroup.o gtnauty.o \
+		 nautinv.o naututil.o naugroup.h
+	${CC} -o vcolg ${CFLAGS} vcolg.c gtnauty.o naututil.o \
+		nautinv.o gtools.o naugroup.o ${NAUTYO} ${LDFLAGS}
+
+edgetransg : ${GTOOLSH} edgetransg.c gtools.o ${NAUTYO} naugroup.o \
+		gtnauty.o naututil.o nautinv.o naugroup.h
+	${CC} -o edgetransg ${CFLAGS} edgetransg.c gtnauty.o naututil.o \
+		nautinv.o gtools.o naugroup.o ${NAUTYO} ${LDFLAGS}
 
 biplabg : ${GTOOLSH} gutils.h biplabg.c gtools.o gutil1.o ${NAUTYO}
 	${CC} -o biplabg ${CFLAGS} biplabg.c \
@@ -402,15 +413,15 @@ newedgeg : ${GTOOLSH} gutils.h newedgeg.c gtools.o gtnauty.o ${NAUTYO}
 	${CC} -o newedgeg ${CFLAGS} newedgeg.c gtools.o gtnauty.o \
 		 ${NAUTYO} ${LDFLAGS}
 
-pickg : ${GTOOLSH} gutils.h testg.c splay.c ${NAUTYO} \
-	     gtools.o gtnauty.o gutil1.o gutil2.o nautinv.o 
+pickg : ${GTOOLSH} gutils.h testg.c splay.c ${NAUTYO} nautycliquer.h \
+	     gtools.o gtnauty.o gutil1.o gutil2.o nautinv.o nautycliquer.o
 	${CC} -o pickg ${SAFECFLAGS} testg.c gtools.o gtnauty.o gutil1.o \
-	        gutil2.o nautinv.o ${NAUTYO} ${LDFLAGS}
+	        gutil2.o nautinv.o nautycliquer.o ${NAUTYO} ${LDFLAGS}
 
-countg : ${GTOOLSH} gutils.h testg.c splay.c ${NAUTYO} \
-	     gtools.o gtnauty.o gutil1.o gutil2.o nautinv.o
+countg : ${GTOOLSH} gutils.h testg.c splay.c ${NAUTYO} nautycliquer.h \
+	     gtools.o gtnauty.o gutil1.o gutil2.o nautinv.o nautycliquer.o
 	${CC} -o countg ${SAFECFLAGS} testg.c gtools.o gtnauty.o gutil1.o \
-	         gutil2.o nautinv.o ${NAUTYO} ${LDFLAGS} 
+	         gutil2.o nautinv.o nautycliquer.o ${NAUTYO} ${LDFLAGS} 
 
 directg : ${GTOOLSH} naugroup.h directg.c  gtools.o naugroup.o ${NAUTYO}
 	${CC} -o directg ${CFLAGS} directg.c gtools.o \
@@ -424,9 +435,9 @@ planarg : ${GTOOLSH} planarg.c gtools.o planarity.c
 	${CC} -o planarg ${CFLAGS} \
 		planarg.c planarity.c gtools.o ${LDFLAGS}
 
-watercluster2 : ${GTOOLSH} nauty.h watercluster2.c gtools.o ${NAUTYO}
-	${CC} -o watercluster2 ${CFLAGS} -DMAXN=32 watercluster2.c \
-                 gtools.o ${NAUTYO} ${LDFLAGS}
+watercluster2 : ${GTOOLSH} nauty.h watercluster2.c gtoolsW.o ${NAUTYW1O}
+	${CC} -o watercluster2 ${CFLAGS} ${W1} watercluster2.c \
+                 gtoolsW.o ${NAUTYW1O} ${LDFLAGS}
 
 showg : showg.c
 	${CC} -o showg ${CFLAGS} showg.c ${LDFLAGS}
@@ -455,6 +466,13 @@ naugroupW.o : nauty.h naugroup.h naugroup.c
 naugroupL.o : nauty.h naugroup.h naugroup.c
 	${CCOBJ} ${L} naugroup.c
 
+nautycliquer.o : nauty.h nautycliquer.c nautycliquer.h
+	${CCOBJ} nautycliquer.c
+nautycliquerW.o : nauty.h naugroup.h naugroup.c nautycliquer.c nautycliquer.h
+	${CCOBJ} ${W} nautycliquer.c
+nautycliquerL.o : nauty.h naugroup.h naugroup.c nautycliquer.c nautycliquer.h
+	${CCOBJ} ${L} nautycliquer.c
+
 nautyex1 : nauty.h nautyex1.c nauty.a
 	${CC} -o nautyex1 ${CFLAGS} nautyex1.c nauty.a ${LDFLAGS}
 nautyex2 : nauty.h nautyex2.c ${NAUTYO}
@@ -480,6 +498,8 @@ testprogs: ${TESTPROGS} ;
 
 checks: nauty gtools naucompare ${TESTPROGS}
 	./runalltests
+
+check: checks ;
 
 naucompare : naucompare.c
 	${CC} -o naucompare ${CFLAGS} naucompare.c ${LDFLAGS}

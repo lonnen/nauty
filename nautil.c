@@ -1,6 +1,6 @@
 /*****************************************************************************
 *                                                                            *
-*  Auxiliary source file for version 2.6 of nauty.                           *
+*  Auxiliary source file for version 2.7 of nauty.                           *
 *                                                                            *
 *   Copyright (1984-2013) Brendan McKay.  All rights reserved.               *
 *   Subject to waivers and disclaimers in nauty.h.                           *

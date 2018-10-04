@@ -1,6 +1,6 @@
 /* complg.c  version 2.0; B D McKay, Jun 2015. */
 
-#define USAGE "complg [-lq] [-r|-R] [infile [outfile]]"
+#define USAGE "complg [-lq] [-a] [-L] [-r|-R] [infile [outfile]]"
 
 #define HELPTEXT \
 " Take the complements of a file of graphs.\n\
@@ -12,6 +12,7 @@
     -R  Only complement if the complement has fewer directed edges\n\
         or has the same number of directed edges and is canonically\n\
         less than the original.\n\
+    -a  Also output the input graph (before the complement).\n\
     -L  Complement the loops too. By default, preserve them.\n\
     -l  Canonically label outputs.\n\
     -q  Suppress auxiliary information.\n"
@@ -57,7 +58,7 @@ main(int argc, char *argv[])
 {
     char *infilename,*outfilename;
     FILE *infile,*outfile;
-    boolean dolabel,badargs,restricted,Restricted,quiet;
+    boolean also,dolabel,badargs,restricted,Restricted,quiet;
     boolean digraph,Lswitch;
     int j,m,n,argnum;
     int codetype,outcode;
@@ -78,7 +79,7 @@ main(int argc, char *argv[])
     HELP; PUTVERSION;
 
     infilename = outfilename = NULL;
-    dolabel = badargs = FALSE;
+    dolabel = badargs = also = FALSE;
     restricted = Restricted = quiet = Lswitch = FALSE;
 
     argnum = 0;
@@ -96,6 +97,7 @@ main(int argc, char *argv[])
                 else SWBOOLEAN('R',Restricted)
                 else SWBOOLEAN('l',dolabel)
                 else SWBOOLEAN('L',Lswitch)
+                else SWBOOLEAN('a',also)
                 else SWBOOLEAN('q',quiet)
                 else badargs = TRUE;
             }
@@ -119,12 +121,13 @@ main(int argc, char *argv[])
     if (!quiet)
     {
         fprintf(stderr,">A complg");
-        if (restricted || Restricted || dolabel || Lswitch)
+        if (restricted || Restricted || dolabel || Lswitch || also)
             fprintf(stderr," -");
         if (restricted && !Restricted) fprintf(stderr,"r");
         if (Restricted) fprintf(stderr,"R");
         if (dolabel) fprintf(stderr,"l");
         if (Lswitch) fprintf(stderr,"L");
+        if (also) fprintf(stderr,"a");
         if (argnum > 0) fprintf(stderr," %s",infilename);
         if (argnum > 1) fprintf(stderr," %s",outfilename);
         fprintf(stderr,"\n");
@@ -225,7 +228,7 @@ main(int argc, char *argv[])
                 fcanonise(g,m,n,h,NULL,digraph||loops>0);
                 fcanonise(gc,m,n,hc,NULL,digraph||loopsc>0);
                 for (ii = 0; ii < gwords; ++ii)
-            	if (h[ii] != hc[ii]) break;
+            	    if (h[ii] != hc[ii]) break;
                 if (ii == gwords || hc[ii] < h[ii])
                 {
             	    if (dolabel) gq = hc; else gq = gc;
@@ -249,6 +252,13 @@ main(int argc, char *argv[])
             }
             else
                 gq = gc;
+        }
+
+	if (also)
+	{
+            if (outcode == SPARSE6)       writes6(outfile,g,m,n);
+            else if (outcode == DIGRAPH6) writed6(outfile,g,m,n);
+            else                          writeg6(outfile,g,m,n);
         }
 
         if (outcode == SPARSE6)       writes6(outfile,gq,m,n);

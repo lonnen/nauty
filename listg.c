@@ -1,7 +1,7 @@
-/* listg.c  version 2.2; B D McKay, Aug 2016 */
+/* listg.c  version 2.3; B D McKay, Sep 2018 */
 
 #define USAGE \
- "listg [-fp#:#l#o#Ftq] [-a|-A|-c|-d|-e|-H|-M|-s|-b|-G|-y|-Yxxx]" \
+ "listg [-fp#:#l#o#Ftq] [-a|-A|-c|-d|-e|-H|-M|-W|-L|-s|-b|-G|-y|-Yxxx]" \
        " [infile [outfile]]"
 
 #define HELPTEXT \
@@ -25,6 +25,7 @@
     -H  : write in HCP operations research format\n\
     -M  : write in Magma format\n\
     -W  : write matrix in Maple format\n\
+    -L  : (only with -M or -W) write Laplacian rather than adjacency matrix\n\
     -b  : write in Bliss format\n\
     -G  : write in GRAPE format\n\
     -y  : write in dot file format\n\
@@ -192,8 +193,7 @@ static void
 putHCP(FILE *f, graph *g, int m, int n)
 /* Write list of edges in HCP format.  labelorg is ignored */
 {
-    int i,j,curlen,ne;
-    char s[20];
+    int i,j;
     set *pg;
 
     fprintf(f,"NAME : G%lu\n",nin);
@@ -308,7 +308,6 @@ putdotty(FILE *f, graph *g, unsigned long id, char *extras, int m, int n)
 {
     int i,j;
     setword *pg;
-    boolean first;
 
     fprintf(f,"graph G%lu {\n",id);
     if (extras) fprintf(f,"%s\n",extras);
@@ -435,6 +434,77 @@ putMaple(FILE *outfile, graph *g, int linelength, int m, int n, long index)
 }
 
 /**************************************************************************/
+
+static void
+putLaplacianMagma(FILE *outfile, graph *g, int linelength,
+         int m, int n, long index)
+{
+    int i,j,j0,d;
+    set *gi;
+
+    fprintf(outfile,"g%ld := Matrix(%d,[\n",index,n);
+
+    for (i = 0, gi = (set*)g; i < n; ++i, gi += m)
+    {
+	d = 0;
+	for (j = 0; j < m; ++j) d += POPCOUNT(gi[j]);
+
+        for (j = 0; j < n; ++j)
+	{
+	    if (j == i)
+		if (ISELEMENT(gi,j)) fprintf(outfile,"%d",d-1);
+	        else                 fprintf(outfile,"%d",d);
+	    else
+		if (ISELEMENT(gi,j)) fprintf(outfile,"%d",-1);
+	        else                 fprintf(outfile,"%d",0);
+	    if (j < n-1) fprintf(outfile,",");
+        }
+        if (i < n-1) fprintf(outfile,",\n");
+	else         fprintf(outfile,"]);\n");
+    }
+}
+
+/**************************************************************************/
+
+static void
+putLaplacianMaple(FILE *outfile, graph *g, int linelength,
+                                              int m, int n, long index)
+{
+    int i,j,d;
+    set *gi;
+    boolean first;
+
+#if MAPLE_MATRIX
+    fprintf(outfile,"f%ld := Matrix(%d,%d,[\n",index,n,n);
+#else
+    fprintf(outfile,"f%ld := array(1..%d,1..%d,[\n",index,n,n);
+#endif
+
+    for (i = 0, gi = (set*)g; i < n; ++i, gi += m)
+    {
+	d = 0;
+	for (j = 0; j < m; ++j) d += POPCOUNT(gi[j]);
+
+        fprintf(outfile,"[");
+        first = TRUE;
+        for (j = 0; j < n; ++j)
+        {
+            if (!first) fprintf(outfile,",");
+            first = FALSE;
+	    if (j == i)
+		if (ISELEMENT(gi,j)) fprintf(outfile,"%d",d-1);
+	        else                 fprintf(outfile,"%d",d);
+	    else
+		if (ISELEMENT(gi,j)) fprintf(outfile,"%d",-1);
+	        else                 fprintf(outfile,"%d",0);
+        }
+        fprintf(outfile,"]");
+        if (i != n-1) fprintf(outfile,",\n");
+    }
+    fprintf(outfile,"]);\n");
+}
+
+/**************************************************************************/
 /**************************************************************************/
 
 int
@@ -450,7 +520,7 @@ main(int argc, char *argv[])
     boolean fswitch,pswitch,cswitch,dswitch;
     boolean aswitch,lswitch,oswitch,Fswitch;
     boolean Aswitch,eswitch,tswitch,qswitch;
-    boolean sswitch,Mswitch,Wswitch,Eswitch;
+    boolean sswitch,Mswitch,Wswitch,Lswitch,Eswitch;
     boolean bswitch,Gswitch,yswitch,Yswitch,Hswitch;
     int linelength;
     char *infilename,*outfilename,*yarg;
@@ -460,7 +530,7 @@ main(int argc, char *argv[])
     fswitch = pswitch = cswitch = dswitch = FALSE;
     aswitch = lswitch = oswitch = Fswitch = FALSE;
     Aswitch = eswitch = tswitch = qswitch = FALSE;
-    sswitch = Mswitch = Wswitch = Eswitch = FALSE;
+    sswitch = Mswitch = Wswitch = Lswitch = Eswitch = FALSE;
     bswitch = Gswitch = yswitch = Yswitch = Hswitch = FALSE;
     infilename = outfilename = NULL;
     linelength = LINELEN;
@@ -492,6 +562,7 @@ main(int argc, char *argv[])
                 else SWBOOLEAN('q',qswitch)
                 else SWBOOLEAN('M',Mswitch)
                 else SWBOOLEAN('W',Wswitch)
+                else SWBOOLEAN('L',Lswitch)
                 else SWBOOLEAN('s',sswitch)
                 else SWBOOLEAN('y',yswitch)
                 else SWRANGE('p',":-",pswitch,pval1,pval2,"listg -p")
@@ -524,6 +595,9 @@ main(int argc, char *argv[])
         (Eswitch!=0) + (bswitch!=0) + (Gswitch!=0) + (yswitch!=0) +
         (Hswitch!=0) > 1)
         gt_abort(">E listg: -aAbMWeEHcdsGy are incompatible\n");
+
+    if (Lswitch && !Mswitch && !Wswitch)
+        gt_abort(">E listg: -L is only allowed with -M or -W\n");
 
     if (badargs)
     {
@@ -592,9 +666,19 @@ main(int argc, char *argv[])
             if (!qswitch) fprintf(outfile,"$$\n");
         }
         else if (Mswitch)
-            putMagma(outfile,g,linelength,digraph,m,n,pval1+nin-1);
+        {
+	    if (Lswitch)
+                putLaplacianMagma(outfile,g,linelength,m,n,pval1+nin-1);
+            else
+                putMagma(outfile,g,linelength,digraph,m,n,pval1+nin-1);
+	}
         else if (Wswitch)
-            putMaple(outfile,g,linelength,m,n,pval1+nin-1);
+        {
+	    if (Lswitch)
+                putLaplacianMaple(outfile,g,linelength,m,n,pval1+nin-1);
+            else
+                putMaple(outfile,g,linelength,m,n,pval1+nin-1);
+        }
         else if (sswitch)
             putve(outfile,pval1+nin-1,g,digraph,m,n);
         else if (bswitch)

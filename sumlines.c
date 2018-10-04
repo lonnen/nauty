@@ -1,5 +1,5 @@
 /* sumlines.c - total the numbers appearing in various input lines. */
-/* B. D. McKay.  Version of June 18, 2016. */
+/* B. D. McKay.  Version of March 30, 2017. */
 
 #ifndef GMP
 #define GMP 1  /* Non-zero if gmp multi-precise integers are allowed.
@@ -65,10 +65,6 @@
    integers %d or real numbers %f in the lines which match.  If there are
    any %s or %c controls in the format, the output is given separately for
    each value of the matching strings which appear in the input lines.
-   %m is like %d but allows arbitrarily large integers.
-   %x is like %d but the maximum rather than the sum is accumulated.
-   %p is like %d but the value is accumulated modulo some base.
-   %h is like %d:%d:%f taken as h:m:s with a single floating value.
 
    In the case of the COUNT flag, the program only reports the number of
    input lines which matched the format.
@@ -83,10 +79,12 @@
 
    %d  - matches an integer (small enough for 64 bits)
    %x  - same as %d but accumulates maximum rather than the sum
+   %n  - same as %d but accumulates minimum rather than the sum
    %p  - same as %d but accumulates the value modulo a base
    %m  - matches a integer of unbounded size (if GMP!=0)
    %f  - matches a real number of the form ddddd.ddd or -ddddd.ddd
    %v  - same as %f but reports the average rather than the sum
+   %X  - same as %f but reports the maximum rather than the sum
    %h  - similar to %d:%d:%f taken as h:m:s with a single floating value
    %sx - matches a string, where 'x' is any character. 
          If 'x' is not a space, match zero or more characters from the
@@ -136,9 +134,9 @@
 
 #if defined(__alpha)
 typedef long integer;
-#define DOUT "%ld"       /* Formats used to output %d/%x/%p,%f,%v quantities */
-#define FOUT "%.2f"
-#define VOUT "%.4f"
+#define DOUT "%ld"       /* Format used to output %d/%x/%n/%p quantities */
+#define FOUT "%.2f"      /* Format used to output %f/%X quantities */
+#define VOUT "%.4f"      /* Format used to output %v quantities */
 #define HMSOUT1 "%ld:%ld:%ld"
 #define HMSOUT2 "%ld:%ld:%.2f"
 #elif defined(__sun) || defined(__GNUC__) || (__STDC_VERSION__ > 199900L)
@@ -157,7 +155,7 @@ typedef long long integer;
 #define HMSOUT2 "%Ld:%Ld:%.2f"
 #endif
 
-static char *dout,*fout,*vout,*hmsout1,*hmsout2;
+static char *dout,*fout,*Xout,*vout,*hmsout1,*hmsout2;
 static integer maxint;   /* set by find_maxint() */
 
 
@@ -194,11 +192,13 @@ typedef union
 #define P 5    /* Code for "integer, modulo some base" */
 #define LD 6   /* Code for "list of integer" */
 #define H 8    /* Code for "h:m:s" */
+#define FX 9   /* Code for "real, take maximum" */
+#define N 10   /* Code for "integer, take minimum" */
 
 #define MAXLINELEN 100000   /* Maximum input line size
                               (longer lines are broken in bits) */
 #define MAXVALUES 32  /* Maximum  total number of 
-                             %d,%x,%p,%m,%v,%f,%h or %l items in a format */
+                          %d,%x,%n,%p,%m,%v,%f,%h or %l items in a format */
 
 #define MAXFORMATS 1000
 
@@ -240,7 +240,7 @@ static integerlist il[MAXVALUES];
 #define GLOB_BRACE 0
 #endif
 
-#ifndef GLOB_TILDE      /* Allow ~  processing -- Linux extension */
+#ifndef GLOB_TILDE      /* Allow ~ processing -- Linux extension */
 #define GLOB_TILDE 0
 #endif
 
@@ -343,12 +343,15 @@ writeline(char *outf, number *val, unsigned long count)
             ++outf;
             if (*outf == '%' || *outf == '#')
                 putchar(*outf);
-            else if (*outf == 'd' || *outf == 'x' || *outf == 'p')
+            else if (*outf == 'd' || *outf == 'x'
+                           || *outf == 'n' || *outf == 'p')
                 printf(dout,val[n++].d);
             else if (*outf == 'f')
                 printf(fout,val[n++].f);
             else if (*outf == 'v')
                 printf(vout,val[n++].f/count);
+            else if (*outf == 'X')
+                printf(Xout,val[n++].f);
 	    else if (*outf == 'h')
 	    {
 		if (val[n].f < 0)
@@ -592,6 +595,8 @@ add_one(countnode **to_root, char *fmt, integer pmod, int nval,
                     {INCR(p->total[i].d,val[i].d);}
                 else if (valtype[i] == X)
                     {if (val[i].d > p->total[i].d) p->total[i].d = val[i].d;}
+                else if (valtype[i] == N)
+                    {if (val[i].d < p->total[i].d) p->total[i].d = val[i].d;}
                 else if (valtype[i] == P)
                     {w = val[i].d % pmod; INCR(p->total[i].d,w);
                       p->total[i].d %= pmod;}
@@ -623,6 +628,8 @@ add_one(countnode **to_root, char *fmt, integer pmod, int nval,
                 else if (valtype[i] == M) 
                     mpz_add(*(p->total[i].m),*(p->total[i].m),*(val[i].m));
 #endif
+		else if (valtype[i] == FX)
+		    {if (val[i].f > p->total[i].f) p->total[i].f = val[i].f;}
                 else  
                     p->total[i].f += val[i].f;   /* F, V and H */
             ++p->count;
@@ -819,10 +826,11 @@ scanline(char *s, char *f, number *val, int *valtype,
                 ++f;
             }
 #if GMP         
-            else if (*f == 'd' || *f == 'x' || *f == 'p')
+            else if (*f == 'd' || *f == 'x' || *f == 'n' || *f == 'p')
             {
 #else
-            else if (*f == 'd' || *f == 'x' || *f == 'p' || *f == 'm')
+            else if (*f == 'd' || *f == 'x' || *f == 'n' 
+				|| *f == 'p' || *f == 'm')
             {
                 if (*f == 'm' && !gmp_warning)
                 {
@@ -856,6 +864,11 @@ scanline(char *s, char *f, number *val, int *valtype,
                     {
                         *outf++ = 'x';
                         valtype[n] = X;
+                    }
+                    else if (*f == 'n')
+                    {
+                        *outf++ = 'n';
+                        valtype[n] = N;
                     }
                     else
                     {
@@ -979,7 +992,7 @@ scanline(char *s, char *f, number *val, int *valtype,
                 *outf++ = '#';
                 ++f;
             }
-            else if (*f == 'f' || *f == 'v')
+            else if (*f == 'f' || *f == 'v' || *f == 'X')
             {
                 while (*s == ' ' || *s == '\t') ++s;
 
@@ -1001,7 +1014,7 @@ scanline(char *s, char *f, number *val, int *valtype,
                 }
                 if (doass)
                 {
-                    valtype[n] = (*f == 'f' ? F : V);
+                    valtype[n] = (*f == 'f' ? F : (*f == 'v' ? V : FX));
                     val[n++].f = (neg ? -dval : dval);
                     *outf++ = '%';
                     *outf++ = *f;
@@ -1454,6 +1467,7 @@ main(int argc, char *argv[])
     dout = DOUT;
     fout = FOUT;
     vout = VOUT;
+    Xout = FOUT;
     hmsout1 = HMSOUT1;
     hmsout2 = HMSOUT2;
 

@@ -78,6 +78,7 @@ long
 cyclecount(graph *g, int m, int n)
 /* The total number of cycles in g (assumed no loops) */
 {
+    if (n == 0) return 0;
     if (m == 1) return cyclecount1(g,n);
 
     gt_abort(">E cycle counting is only implemented for n <= WORDSIZE\n");
@@ -144,6 +145,7 @@ long
 indcyclecount(graph *g, int m, int n)
 /* The total number of induced cycles in g (assumed no loops) */
 {
+    if (n == 0) return 0;
     if (m == 1) return indcyclecount1(g,n);
 
     gt_abort(
@@ -243,6 +245,12 @@ commonnbrs(graph *g, int *minadj, int *maxadj, int *minnon, int *maxnon,
     int cn;
     set *gi,*gj;
     setword w;
+
+    if (n == 0)
+    {
+	*minadj = *maxadj = *minnon = *maxnon = 0;
+	return;
+    }
 
     mina = minn = n+1;
     maxa = maxn = -1;
@@ -517,6 +525,8 @@ stronglyconnected(graph *g, int m, int n)
     DYNALLOC1(int,stack,stack_sz,n,"stronglyconnected");
 #endif
 
+    if (n == 0) return FALSE;
+
     num[0] = 0;
     for (v = 1; v < n; ++v) num[v] = -1;
     lowlink[0] = 0;
@@ -554,5 +564,3 @@ stronglyconnected(graph *g, int m, int n)
 
     return numvis == n;
 }
-
-/**************************************************************************/

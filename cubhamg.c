@@ -55,7 +55,7 @@ cubhamg [-#] [-v|-V] [-n#-#|-y#-#|-i|-I|-o|-x|-e|-E] [-b|-t] [infile [outfile]]
 **************************************************************************/
 
 #ifndef MAXN
-#define MAXN 152  /* 2 more than largest graph size! */
+#define MAXN 30002  /* 2 more than largest graph size! */
 #endif
 
 #if MAXN==0

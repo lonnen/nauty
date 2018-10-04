@@ -1,11 +1,39 @@
-dnl Process this file with autoconf to produce a configure script.
+# Process this file with autoconf to produce a configure script.
 AC_INIT(nauty-h.in)
 
+# ======================================================================
+# First we define some functions
+
+dnl AC_TRY_CFLAGS(CFLAGS, [ACTION-IF-WORKS], [ACTION-IF-FAILS])
+dnl Check if $CC supports a given set of cflags
+AC_DEFUN([AC_TRY_CFLAGS],
+    [AC_MSG_CHECKING([if $CC supports $1 flags])
+    SAVE_CFLAGS="$CFLAGS"
+    CFLAGS="$1"
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], \
+                [[]])],[ac_cv_try_cflags_ok=yes],[ac_cv_try_cflags_ok=no])
+    CFLAGS="$SAVE_CFLAGS"
+    AC_MSG_RESULT([$ac_cv_try_cflags_ok])
+    if test "x$ac_cv_try_cflags_ok" = xyes; then
+        ifelse([$2],[],[:],[$2])
+    else
+        ifelse([$3],[],[:],[$3])
+    fi])
+
+dnl CVT_YESNO([YES-NO VARIABLE],[0-1 VARIABLE])
+dnl Make a 0-1 output variable from a yes/no shell variable
+AC_DEFUN(CVT_YESNO,[if test "x$$1" = xyes; then
+  $2=1
+else
+  $2=0
+fi
+AC_SUBST($2)])
+
+dnl Check for thread-local attribute
 AC_DEFUN([AX_TLS], [
-  AC_MSG_CHECKING(for thread local storage (TLS) class)
-  AC_CACHE_VAL(ac_cv_tls, [
-    ax_tls_keywords="__thread __declspec(thread) none"
-    for ax_tls_keyword in $ax_tls_keywords; do
+  AC_MSG_CHECKING([for thread local storage (TLS) class])
+  AC_CACHE_VAL([ac_cv_tls],
+   [for ax_tls_keyword in _Thread_local __thread '__declspec(thread)' none; do
        AS_CASE([$ax_tls_keyword],
           [none], [ac_cv_tls=none ; break],
           [AC_TRY_COMPILE(
@@ -21,42 +49,67 @@ AC_DEFUN([AX_TLS], [
            )])
     done
   ])
-  AC_MSG_RESULT($ac_cv_tls)
+  AC_MSG_RESULT([$ac_cv_tls])
 
-  AS_IF([test "$ac_cv_tls" != "none"],
-    AC_DEFINE_UNQUOTED([TLS], $ac_cv_tls, [If the compiler supports a TLS storage class define it to that here])
-      m4_ifnblank([$1], [$1]),
-    m4_ifnblank([$2], [$2])
-  )
+  AS_IF([test "x$ac_cv_tls" != xnone],
+        [AC_DEFINE_UNQUOTED([TLS],[$ac_cv_tls],
+        [If the compiler supports a TLS storage class define it to that here])
+     m4_ifnblank([$1],[$1])],
+    [m4_ifnblank([$2],[$2])])
 ])
 
-dnl AC_TRY_CFLAGS (CFLAGS, [ACTION-IF-WORKS], [ACTION-IF-FAILS])
-dnl Check if $CC supports a given set of cflags
-AC_DEFUN([AC_TRY_CFLAGS],
-    [AC_MSG_CHECKING([if $CC supports $1 flags])
-    SAVE_CFLAGS="$CFLAGS"
-    CFLAGS="$1"
-    AC_TRY_RUN([main(){exit(0);}],[ac_cv_try_cflags_ok=yes],
-	[ac_cv_try_cflags_ok=no],[ac_cv_try_cflags_ok=no])
-    CFLAGS="$SAVE_CFLAGS"
-    AC_MSG_RESULT([$ac_cv_try_cflags_ok])
-    if test x"$ac_cv_try_cflags_ok" = x"yes"; then
-        ifelse([$2],[],[:],[$2])
-    else
-        ifelse([$3],[],[:],[$3])
-    fi])
+# ======================================================================
+# First we check for configuration switches
 
-dnl CVT_YESNO([YES-NO VARIABLE],[0-1 VARIABLE])
-dnl Make a 0-1 output variable from a yes/no shell variable
-AC_DEFUN(CVT_YESNO,[if test x"$$1" = x"yes"; then
-$2=1
-else
-$2=0
-fi
-AC_SUBST($2)])
+dnl --disable-popcnt disallows popcount instruction, otherwise they are tested for
+AC_ARG_ENABLE([popcnt],
+   AS_HELP_STRING([--disable-popcnt], [Disable popcnt extensions]),
+   [enablearg=given], [enablearg=notgiven])
+AS_IF([test $enablearg = notgiven || test "x$enable_popcnt" = xyes],[allow_popcnt=1],[allow_popcnt=0])
+
+dnl --disable-clz disallows clz instructions, otherwise they are tested for
+AC_ARG_ENABLE([clz],
+   AS_HELP_STRING([--disable-clz], [Disable clz extensions]),
+   [enablearg=given], [enablearg=notgiven])
+AS_IF([test $enablearg = notgiven || test "x$enable_clz" = xyes],[allow_clz=1],[allow_clz=0])
+
+dnl --enable-generic disallows -march=native, otherwise it is tested for
+AC_ARG_ENABLE([generic],
+   AS_HELP_STRING([--enable-generic], [Disable -march=native switch]),
+   [enablearg=given], [enablearg=notgiven])
+AS_IF([test $enablearg = notgiven || test "x$enable_generic" = xno],[allow_native=1],[allow_native=0])
+
+dnl --enable-tls specifies thread-local storage, if possible
+AC_ARG_ENABLE([tls],
+   AS_HELP_STRING([--enable-tls], [Enable thread-local storage]),
+   [enablearg=given], [enablearg=notgiven])
+AS_IF([test $enablearg = notgiven || test "x$enable_tls" = xno],[allow_tls=0],[allow_tls=1])
+
+dnl --enable-ansi specifies ANSI controls are allowed in output
+AC_ARG_ENABLE([ansi],
+   AS_HELP_STRING([--enable-ansi], [Enable ANSI controls in output]),
+   [enablearg=given], [enablearg=notgiven])
+AS_IF([test $enablearg = notgiven || test "x$enable_ansi" = xno],[allow_ansi=0],[allow_ansi=1])
+
+dnl --disable-interrupt prevents nauty or traces catching control-C, otherwise allow it
+AC_ARG_ENABLE([interrupt],
+   AS_HELP_STRING([--disable-interrupt], [Disable interrupt catching in nauty&traces]),
+   [enablearg=given], [enablearg=notgiven])
+AS_IF([test $enablearg = notgiven || test "x$enable_interrupt" = xyes],[allow_interrupt=1],[allow_interrupt=0])
+
+dnl --enable-wordsize=value overrides default rule for choosing WORDSIZE
+AC_ARG_ENABLE([wordsize],
+   AS_HELP_STRING([--enable-wordsize=value], [Override default WORDSIZE choice]))
+AS_IF([test "x$enable_wordsize" = x16],[default_wordsize=16],[default_wordsize=0])
+AS_IF([test "x$enable_wordsize" = x32],[default_wordsize=32])
+AS_IF([test "x$enable_wordsize" = x64],[default_wordsize=64])
+
+# ======================================================================
+# Next we get to work
 
 dnl Checks for system features
 AC_CANONICAL_HOST
+
 case "$host" in
   *powerpc*)
      is_powerpc=1 ;;
@@ -69,13 +122,6 @@ case "$build" in
      is_cygwin=1 ;;
   *)
      is_cygwin=0 ;;
-esac
-
-case "$CC" in
-  gcc*)
-     gccver=`"$CC" -dumpversion` ;;
-  *)
-     gccver=0.0.0 ;;
 esac
 
 dnl Checks for C compiler and sets CFLAGS if not set by user
@@ -102,6 +148,13 @@ AS_IF([test "x$user_cflags" = x || test "x$user_cflags" = x-m32],
        ])
     ])
 ])
+ 
+case "$CC" in
+  gcc*)
+     gccver=`"$CC" -dumpversion` ;;
+  *)
+     gccver=0.0.0 ;;
+esac
 
 dnl Checks relevant to Cygwin and other Windows things
 AC_EXEEXT
@@ -126,10 +179,9 @@ CVT_YESNO(ac_cv_type_pid_t,have_pid_t)
 AC_MSG_CHECKING(if malloc is declared in stdlib.h or malloc.h)
 AC_EGREP_HEADER([(^|[^a-zA-Z_0-9])malloc[^a-zA-Z_0-9]],stdlib.h,
   malloc_dec=1,malloc_dec=0)
-if test $malloc_dec -eq 0; then
-  AC_EGREP_HEADER([(^|[^a-zA-Z_0-9])malloc[^a-zA-Z_0-9]],malloc.h,
-  malloc_dec=2,malloc_dec=0)
-fi
+AS_IF([test $malloc_dec -eq 0],
+      [AC_EGREP_HEADER([(^|[^a-zA-Z_0-9])malloc[^a-zA-Z_0-9]],malloc.h,
+       malloc_dec=2,malloc_dec=0)])
 AC_SUBST(malloc_dec)
 AC_MSG_RESULT($malloc_dec)
 
@@ -175,32 +227,30 @@ AC_SUBST(has_math_inf)
 AC_MSG_RESULT($has_math_inf)
 
 dnl Checks for sizes of integer types; avoid 64-bit if necessary
-AC_CHECK_SIZEOF([int],4)
+AC_CHECK_SIZEOF([int])
 AC_SUBST(ac_cv_sizeof_int)
-AC_CHECK_SIZEOF([long],4)
+AC_CHECK_SIZEOF([long])
 AC_SUBST(ac_cv_sizeof_long)
-AC_CHECK_SIZEOF([long long],0)
+AC_CHECK_SIZEOF([long long])
 AC_SUBST(ac_cv_sizeof_long_long)
-AC_CHECK_SIZEOF([__int128_t],0)
+AC_CHECK_SIZEOF([void*])
+AC_SUBST(ac_cv_sizeof_voidp)
+AC_CHECK_SIZEOF([__int128])
+AC_SUBST(ac_cv_sizeof___int128)
+AC_CHECK_SIZEOF([__int128_t])
 AC_SUBST(ac_cv_sizeof___int128_t)
 lok=0
 testprogs="dreadtest dreadtestS dreadtestS1 dreadtest4K"
 testprogs="$testprogs dreadtest1 dreadtestW dreadtestW1"
 
-if test $ac_cv_sizeof_long_long -eq 8; then
-   lok=1
-   testprogs="$testprogs dreadtestL1 dreadtestL"
-else
-   if test $ac_cv_sizeof_long -eq 8; then
-      lok=1
-   fi
-fi
+AS_IF([test $ac_cv_sizeof_long_long -eq 8],
+      [lok=1
+       testprogs="$testprogs dreadtestL1 dreadtestL"],
+      [AS_IF([test $ac_cv_sizeof_long -eq 8],
+             [lok=1])
+    ])
 AC_SUBST(lok)
 AC_SUBST(testprogs)
-
-dnl Checks for typedefs, structures, and compiler characteristics.
-AC_C_CONST
-CVT_YESNO(ac_cv_c_const,have_const)
 
 dnl Checks for library functions.
 AC_CHECK_FUNC(isatty,have_isatty=1,have_isatty=0)
@@ -236,19 +286,15 @@ AC_CHECK_FUNC(sigprocmask,have_sigprocmask=1,have_sigprocmask=0)
 AC_SUBST(have_sigprocmask)
 
 dnl --check if popcnt instruction is available and desired
-dnl --disable-popcnt disables the use of gcc extensions __builtin_popcount*()
-
 AC_MSG_CHECKING(if popcnt instruction is available and requested)
-AC_ARG_ENABLE([popcnt],
-   AS_HELP_STRING([--disable-popcnt], [Disable popcnt extensions]), [popcntarg=given], [popcntarg=notgiven])
-AS_IF([test "x$popcntarg" = "xnotgiven" -o "x$enable_popcnt" = "xyes"], [
-have_hwpopcnt=0
-test -e /proc/cpuinfo && grep -i popcnt /proc/cpuinfo >/dev/null && have_hwpopcnt=1 
+AS_IF([test "$allow_popcnt" -eq 1],
+      [have_hwpopcnt=0
+test -f /proc/cpuinfo && grep -i popcnt /proc/cpuinfo >/dev/null && have_hwpopcnt=1 
 test $have_hwpopcnt -eq 0 && sysctl machdep.cpu.features 2>/dev/null | grep -i popcnt >/dev/null && have_hwpopcnt=1
-test $have_hwpopcnt -eq 0 && isainfo -x -v 2>/dev/null | grep -i popc >/dev/null && have_hwpopcnt=1 
-],[
-have_hwpopcnt=0
+test $have_hwpopcnt -eq 0 && isainfo -x -v 2>/dev/null | grep -i popc >/dev/null && have_hwpopcnt=1 ],
+      [have_hwpopcnt=0
 ])
+# Some problems with popcnt on powerpc are not resolved yet
 test $is_powerpc -eq 1 && have_hwpopcnt=0
 AC_MSG_RESULT($have_hwpopcnt)
 AC_SUBST(have_hwpopcnt)
@@ -260,76 +306,108 @@ have_popcntll=0
 have_mmpop32=0
 have_mmpop64=0
 
-AS_IF([test $have_hwpopcnt -eq 1], [
-AS_IF([test "$CC" = "icc"],[
-AC_MSG_CHECKING(if _mm_popcnt_u32() is supported)
-AC_LINK_IFELSE([AC_LANG_SOURCE([#include <nmmintrin.h>
-main(){unsigned int x; x = _mm_popcnt_u32(x);}])], [have_mmpop32=1], [have_mmpop32=0])
-AC_MSG_RESULT($have_mmpop32)
-AC_MSG_CHECKING(if _mm_popcnt_u64() is supported)
-AC_LINK_IFELSE([AC_LANG_SOURCE([#include <nmmintrin.h>
-main(){unsigned int x; x = _mm_popcnt_u64(x);}])], [have_mmpop64=1], [have_mmpop64=0])
-AC_MSG_RESULT($have_mmpop64)
-], [
-CFLAGS="$CFLAGS -mpopcnt"
-AC_MSG_CHECKING(if __builtin_popcount() is supported)
-AC_LINK_IFELSE([AC_LANG_SOURCE([main(){unsigned int x; x = __builtin_popcount(x);}])], [have_popcnt=1], [have_popcnt=0])
-AC_MSG_RESULT($have_popcnt)
-AC_MSG_CHECKING(if __builtin_popcountl() is supported)
-AC_LINK_IFELSE([AC_LANG_SOURCE([main(){unsigned long x; x = __builtin_popcountl(x);}])], [have_popcntl=1], [have_popcntl=0])
-AC_MSG_RESULT($have_popcntl)
-AC_MSG_CHECKING(if __builtin_popcountll() is supported)
-AC_LINK_IFELSE([AC_LANG_SOURCE([main(){unsigned long long x; x = __builtin_popcountll(x);}])], [have_popcntll=1], [have_popcntll=0])
-AC_MSG_RESULT($have_popcntll)
-AS_IF([test $have_popcnt -eq 1 -o $have_popcntl -eq 1 -o $have_popcntll -eq 1],
-   [MORECFLAGS="$MORECFLAGS -mpopcnt"],[])
-])],[])
+AS_IF([test $have_hwpopcnt -eq 1],
+      [AS_IF([test "$CC" = "icc"],
+             [AC_MSG_CHECKING(if _mm_popcnt_u32() is supported)
+              AC_LINK_IFELSE([AC_LANG_SOURCE([#include <nmmintrin.h>
+                   int main(){unsigned int x; x = _mm_popcnt_u32(x);}])],
+                             [have_mmpop32=1], [have_mmpop32=0])
+              AC_MSG_RESULT($have_mmpop32)
+              AC_MSG_CHECKING(if _mm_popcnt_u64() is supported)
+              AC_LINK_IFELSE([AC_LANG_SOURCE([#include <nmmintrin.h>
+                   int main(){unsigned int x; x = _mm_popcnt_u64(x);}])],
+                             [have_mmpop64=1], [have_mmpop64=0])
+              AC_MSG_RESULT($have_mmpop64)],
+             [CFLAGS="$CFLAGS -mpopcnt"
+              AC_MSG_CHECKING(if __builtin_popcount() is supported)
+              AC_LINK_IFELSE([AC_LANG_SOURCE([int main(){unsigned int x; x = __builtin_popcount(x);}])],
+                             [have_popcnt=1], [have_popcnt=0])
+              AC_MSG_RESULT($have_popcnt)
+              AC_MSG_CHECKING(if __builtin_popcountl() is supported)
+              AC_LINK_IFELSE([AC_LANG_SOURCE([int main(){unsigned long x; x = __builtin_popcountl(x);}])],
+                             [have_popcntl=1], [have_popcntl=0])
+              AC_MSG_RESULT($have_popcntl)
+              AC_MSG_CHECKING(if __builtin_popcountll() is supported)
+              AC_LINK_IFELSE([AC_LANG_SOURCE([int main(){unsigned long long x; x = __builtin_popcountll(x);}])],
+                             [have_popcntll=1], [have_popcntll=0])
+              AC_MSG_RESULT($have_popcntll)
+              AS_IF([test $have_popcnt -eq 1 || test $have_popcntl -eq 1 || test $have_popcntll -eq 1],
+                    [MORECFLAGS="$MORECFLAGS -mpopcnt"])
+])])
 CFLAGS="$SAVE_CFLAGS"
 AC_SUBST(have_popcnt)
 AC_SUBST(have_popcntl)
 AC_SUBST(have_popcntll)
 AC_SUBST(have_mmpop32)
 AC_SUBST(have_mmpop64)
+
+# Unless --enable-generic is given to configure, we try to use the -march=native compiler
+#   switch.  However, it breaks some versions of gcc on MacOSX due to a compiler bug, so
+#   we will also add --mno-avx if that is necessary.
+
+AS_IF([test "$allow_native" -eq 1],
+[
+    SAVE_CFLAGS="$CFLAGS"
+    CFLAGS="$CFLAGS -march=native"
+    AC_MSG_CHECKING([if $CC supports -march=native])
+    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[#include <stdio.h>
+                                        int main() { double t; long int q; scanf("%ld",&q);
+                                        t = q; printf("t = %f\n",t); return 0; }]]
+                                     )
+                      ],
+                      [ac_cv_native_ok=yes], [ac_cv_native_ok=no])
+    AC_MSG_RESULT([$ac_cv_native_ok])
+    CFLAGS="$SAVE_CFLAGS"
+    AS_IF([test "x$ac_cv_native_ok" = xyes],
+          [MORECFLAGS="$MORECFLAGS -march=native"],
+          [AC_TRY_CFLAGS([-march=native -mno-avx],
+                         [MORECFLAGS="$MORECFLAGS -march=native -mno-avx"])]
+         )
+])
+
 AC_SUBST(MORECFLAGS)
 
-dnl --disable-clz disables the use of gcc extensions __builtin_clz*()
+echo CC="$CC"
+echo CFLAGS="$CFLAGS"
+echo MORECFLAGS="$MORECFLAGS"
 
-AC_ARG_ENABLE([clz],
-   AS_HELP_STRING([--disable-clz], [Disable clz extensions]), [clzarg=given], [clzarg=notgiven])
-AS_IF([test "x$clzarg" = "xnotgiven" -o "x$enable_clz" = "xyes"], [
-AC_MSG_CHECKING(if __builtin_clz() is supported)
-AC_LINK_IFELSE([AC_LANG_SOURCE([main(){unsigned int x; x = __builtin_clz(x);}])], [have_clz=1], [have_clz=0])
-AC_MSG_RESULT($have_clz)
-AC_MSG_CHECKING(if __builtin_clzl() is supported)
-AC_LINK_IFELSE([AC_LANG_SOURCE([main(){unsigned long x; x = __builtin_clzl(x);}])], [have_clzl=1], [have_clzl=0])
-AC_MSG_RESULT($have_clzl)
-AC_MSG_CHECKING(if __builtin_clzll() is supported)
-AC_LINK_IFELSE([AC_LANG_SOURCE([main(){unsigned long long x; x = __builtin_clzll(x);}])], [have_clzll=1], [have_clzll=0])
-AC_MSG_RESULT($have_clzll)
-],[
-have_clz=0
-have_clzl=0
-have_clzll=0
+dnl Check for existence of gcc clz extensions
+AS_IF([test "$allow_clz" -eq 1],
+      [ AC_MSG_CHECKING(if __builtin_clz() is supported)
+        AC_LINK_IFELSE([AC_LANG_SOURCE([int main(){unsigned int x; x = __builtin_clz(x);}])],
+                       [have_clz=1], [have_clz=0])
+        AC_MSG_RESULT($have_clz)
+        AC_MSG_CHECKING(if __builtin_clzl() is supported)
+        AC_LINK_IFELSE([AC_LANG_SOURCE([int main(){unsigned long x; x = __builtin_clzl(x);}])],
+                       [have_clzl=1], [have_clzl=0])
+        AC_MSG_RESULT($have_clzl)
+        AC_MSG_CHECKING(if __builtin_clzll() is supported)
+        AC_LINK_IFELSE([AC_LANG_SOURCE([int main(){unsigned long long x; x = __builtin_clzll(x);}])],
+                       [have_clzll=1], [have_clzll=0])
+        AC_MSG_RESULT($have_clzll) ],
+      [
+        have_clz=0
+        have_clzl=0
+        have_clzll=0
 ])
 AC_SUBST(have_clz)
 AC_SUBST(have_clzl)
 AC_SUBST(have_clzll)
 
+AC_SUBST(default_wordsize)
+
 AC_CHECK_FUNC(pthread_create,have_pthread=1,have_pthread=0)
-AS_IF([test $have_pthread -eq 1],
-[threadlib=],
-[
-    AC_CHECK_LIB(pthread,pthread_create,have_pthread=1,have_pthread=0)
-    AS_IF([test $have_pthread -eq 1],[threadlib=-lpthread],[threadlib=])
+AS_IF([test $have_pthread -eq 0],
+      [threadlib=],
+      [ AC_CHECK_LIB(pthread,pthread_create,have_pthread=1,have_pthread=0)
+        AS_IF([test $have_pthread -eq 1],[threadlib=-lpthread],[threadlib=])
 ])
 
-if test $have_pipe -eq 1 -a $have_wait -eq 1 -a $have_fork -eq 1 ; then
-    shortg=1
-    shortg_or_null=shortg
-else
-    shortg=0
-    shortg_or_null=
-fi
+AS_IF([test $have_pipe -eq 1 && test $have_wait -eq 1 && test $have_fork -eq 1],
+    [shortg=1
+     shortg_or_null=shortg],
+    [shortg=0
+     shortg_or_null=])
 AC_SUBST(shortg_or_null)
 
 AC_SUBST(have_pthread)
@@ -337,69 +415,39 @@ AC_SUBST(threadlib)
 
 AC_CHECK_FUNC(getc_unlocked,have_getc_unlocked=1,have_getc_unlocked=0)
 AC_CHECK_FUNC(flockfile,have_flockfile=1,have_flockfile=0)
-if test $have_getc_unlocked -eq 1 -a $have_flockfile -eq 1 ; then
-    stdio_nolock=1
-else
-    stdio_nolock=0
-fi
+AS_IF([test $have_getc_unlocked -eq 1 && test $have_flockfile -eq 1],
+      [stdio_nolock=1],[stdio_nolock=0])
 AC_SUBST(stdio_nolock)
 
-dnl --enable-tls enables tests for thread-local attributes
-AC_ARG_ENABLE([tls],
-   AS_HELP_STRING([--enable-tls], [Enable thread-local variables]))
-AS_IF([test "x$enable_tls" = "xyes"], [
-AX_TLS([have_tls=1],[have_tls=0])
-],[have_tls=0])
-
-if test "$have_tls" -eq 0 ; then
-    ac_cv_tls=
-fi
+dnl Check for thread-local storage attribute
+AS_IF([test "$allow_tls" -eq 1],
+      [ AX_TLS([have_tls=1],[have_tls=0]) ],
+      [have_tls=0])
+AS_IF([test "$have_tls" -eq 0],[ac_cv_tls=])
 AC_SUBST(ac_cv_tls)
 AC_SUBST(have_tls)
 
-dnl --enable-wordsize=value overrides default rule for choosing WORDSIZE
-AC_ARG_ENABLE([wordsize],
-   AS_HELP_STRING([--enable-wordsize=value], [Override default WORDSIZE choice]))
-AS_IF([test "x$enable_wordsize" = "x16"],[default_wordsize=16],[default_wordsize=0])
-AS_IF([test "x$enable_wordsize" = "x32"],[default_wordsize=32],[])
-AS_IF([test "x$enable_wordsize" = "x64"],[default_wordsize=64],[])
-AC_SUBST(default_wordsize)
-
-dnl --enable-ansicontrols enables ANSI terminal control sequences
-AC_ARG_ENABLE([ansicontrols],
-   AS_HELP_STRING([--enable-ansicontrols], [Enable ANSI terminal control sequences]))
-AS_IF([test "x$enable_ansicontrols" = "xyes"],[have_ansicontrols=1],[have_ansicontrols=0])
+dnl ANSI terminal control sequences
+have_ansicontrols=$allow_ansi
 AC_SUBST(have_ansicontrols)
 
-dnl --disable-interrupt disables SIGINT catching in dreadnaut
-AC_ARG_ENABLE([interrupt],
-   AS_HELP_STRING([--disable-interrupt], [Disable SIGINT catching in dreadnaut]),[intarg=given],[intarg=notgiven])
-AS_IF([test "x$intarg" = "xnotgiven" -o "x$enable_interrupt" = "xyes"], [allow_interrupt=1],[allow_interrupt=0])
+dnl SIGINT catching in dreadnaut
 AC_SUBST(allow_interrupt)
 
-case "$build" in
-   *cygwin*)
-       AC_PATH_PROGS(sort_prog,[gsort sort],no_sort_found,
-             [/usr/bin$PATH_SEPARATOR/bin$PATH_SEPARATOR$PATH]) ;;
-   *)
-       AC_CHECK_PROGS(sort_prog,[gsort sort],no_sort_found) ;;
-esac
+dnl Existence and attributes of sort program
+AS_IF([test $is_cygwin -eq 1],
+      [ AC_PATH_PROGS(sort_prog,[gsort sort],no_sort_found,
+             [/usr/bin$PATH_SEPARATOR/bin$PATH_SEPARATOR$PATH])],
+      [ AC_CHECK_PROGS(sort_prog,[gsort sort],no_sort_found)])
 
 AC_MSG_CHECKING(if sort supports the -k switch)
-if { $sort_prog -k "2,3" </dev/null >/dev/null 2>&1 ; } ; then
-   sort_newparams_ok=1
-else
-   sort_newparams_ok=0
-fi
+AS_IF([{ $sort_prog -k "2,3" </dev/null >/dev/null 2>&1 ; }],
+      [sort_newparams_ok=1], [sort_newparams_ok=0])
 AC_SUBST(sort_newparams_ok)
 AC_MSG_RESULT($sort_newparams_ok)
 
 edit_msg="++++++ This file is automatically generated, don't edit it by hand! ++++++"
 AC_SUBST(edit_msg)
 
-echo CFLAGS=$CFLAGS
-echo MORECFLAGS=$MORECFLAGS
-
 AC_OUTPUT(makefile:makefile.in nauty.h:nauty-h.in
     naututil.h:naututil-h.in gtools.h:gtools-h.in)
-

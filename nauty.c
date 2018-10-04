@@ -1,8 +1,8 @@
 /*****************************************************************************
 *                                                                            *
-*  Main source file for version 2.6 of nauty.                                *
+*  Main source file for version 2.7 of nauty.                                *
 *                                                                            *
-*   Copyright (1984-2016) Brendan McKay.  All rights reserved.  Permission   *
+*   Copyright (1984-2018) Brendan McKay.  All rights reserved.  Permission   *
 *   Subject to the waivers and disclaimers in nauty.h.                       *
 *                                                                            *
 *   CHANGE HISTORY                                                           *
@@ -65,6 +65,7 @@
 *       15-Jan-12 : added TLS_ATTR to static declarations                    *
 *       18-Jan-13 : added signal aborting                                    *
 *       19-Jan-13 : added usercanonproc()                                    *
+*       14-Oct-17 : corrected code for n=0                                   *
 *                                                                            *
 *****************************************************************************/
 
@@ -329,6 +330,17 @@ nauty(graph *g_arg, int *lab, int *ptn, set *active_arg,
         stats_arg->invapplics = 0;
         stats_arg->invsuccesses = 0;
         stats_arg->invarsuclevel = 0;
+
+        g = canong = NULL;
+        initstatus = 0;
+        OPTCALL(dispatch.init)(g_arg,&g,canong_arg,&canong,
+                lab,ptn,active,options,&initstatus,m,n);
+        if (initstatus) stats->errstatus = initstatus;
+
+        if (g == NULL) g = g_arg;
+        if (canong == NULL) canong = canong_arg;
+        OPTCALL(dispatch.cleanup)(g_arg,&g,canong_arg,&canong,
+                                           lab,ptn,options,stats,m,n);
         return;
     }
 

@@ -1,7 +1,7 @@
 /*****************************************************************************
 *                                                                            *
-* This is the main file for dreadnaut() version 2.6, which is a test-bed     *
-*   for nauty() version 2.6.                                                 *
+* This is the main file for dreadnaut() version 2.7, which is a test-bed     *
+*   for nauty() version 2.7 and traces version 2.2.                          *
 *                                                                            *
 *   Subject to the copyright notice in the file COPYRIGHT.                   *
 *                                                                            *

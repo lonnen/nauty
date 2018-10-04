@@ -1,11 +1,11 @@
-/* vcolg.c version 1.0; B D McKay, Aug 31, 2013 */
+/* vcolg.c version 2.0; B D McKay, May 11, 2017 */
 
 #define USAGE \
 "vcolg [-q] [-u|-T|-G|-A|-B] [-e#|-e#:#] \n" \
-"       [-m#] [-f#] [-D#|-r#|-l#] [infile [outfile]]"
+"       [-m#] [-f#] [infile [outfile]]"
 
 #define HELPTEXT \
-" Read undirected loop-free graphs and colour their vertices in\n\
+"  Read graphs or digraphs and colour their vertices in\n\
   in all possible ways with colours 0,1,2,... .\n\
   Isomorphic graphs derived from the same input are suppressed.\n\
   If the input graphs are non-isomorphic then the output graphs are also.\n\
@@ -21,12 +21,12 @@
 
 #include "gtools.h"
 #include "naugroup.h"
+#include "nautinv.h"
 
 nauty_counter vc_nin,vc_nout;
 FILE *outfile;
 
 #define MAXNV 128 
-#define MAXNE 1024
 
 static int col[MAXNV];
 static boolean first;
@@ -132,7 +132,7 @@ testmax(int *p, int n, int *abort)
 /**************************************************************************/
 
 static int
-trythisone(grouprec *group, graph *g, int m, int n)
+trythisone(grouprec *group, graph *g, boolean digraph, int m, int n)
 /* Try one solution, accept if maximal. */
 /* Return value is level to return to. */
 {
@@ -178,14 +178,19 @@ trythisone(grouprec *group, graph *g, int m, int n)
 	    ne = 0;
 	    for (gi = g + m*(size_t)n; --gi >= g; )
 		ne += POPCOUNT(*gi);
-	    ne /= 2;
+	    if (!digraph)
+	    {
+		for (i = 0, gi = g; i < n; ++i, gi += m)
+		    if (ISELEMENT(gi,i)) ++ne;
+	        ne /= 2;
+	    }
             fprintf(outfile,"%d %lu",n,(unsigned long)ne);
     
 	    for (i = 0; i < n; ++i) fprintf(outfile," %d",col[i]);
 	    fprintf(outfile," ");
 	    for (i = 0, gi = g; i < n; ++i, gi += m)
 	    {
-		for (j = i; (j = nextelement(gi,m,j)) >= 0; )
+		for (j = (digraph?-1:i-1); (j = nextelement(gi,m,j)) >= 0; )
                     fprintf(outfile," %d %d",i,j);
 	    }
             fprintf(outfile,"\n");
@@ -200,7 +205,7 @@ trythisone(grouprec *group, graph *g, int m, int n)
 /**************************************************************************/
 
 static int
-scan(int level, graph *g, int *prev, long minedges, long maxedges,
+scan(int level, graph *g, boolean digraph, int *prev, long minedges, long maxedges,
     long sofar, long numcols, grouprec *group, int m, int n)
 /* Recursive scan for default case */
 /* Returned value is level to return to. */
@@ -209,7 +214,7 @@ scan(int level, graph *g, int *prev, long minedges, long maxedges,
     long min,max,k,ret;
 
     if (level == n)
-        return trythisone(group,g,m,n);
+        return trythisone(group,g,digraph,m,n);
 
     left = n - level - 1;
     min = minedges - sofar - numcols*left;
@@ -222,7 +227,7 @@ scan(int level, graph *g, int *prev, long minedges, long maxedges,
     for (k = min; k <= max; ++k)
     {
         col[level] = k;
-        ret = scan(level+1,g,prev,minedges,maxedges,sofar+k,numcols,group,m,n);
+        ret = scan(level+1,g,digraph,prev,minedges,maxedges,sofar+k,numcols,group,m,n);
 	if (ret < level) return ret;
     }
 
@@ -231,50 +236,35 @@ scan(int level, graph *g, int *prev, long minedges, long maxedges,
 
 /**************************************************************************/
 
-#define SORT_OF_SORT 3
-#define SORT_NAME sortwt
-#define SORT_TYPE1 int
-#define SORT_TYPE2 int
-#include "sorttemplates.c"
-
 static void
-setlab(int *weight, int *lab, int *ptn, int n)
-/* Define (lab,ptn) according to weights. */
-{
-    int i;
-
-    for (i = 0; i < n; ++i) lab[i] = i;
-
-    sortwt(lab,weight,n);
-    for (i = 0; i < n-1; ++i)
-    {
-        if (weight[lab[i]] != weight[lab[i+1]])
-	    ptn[i] = 0;
-	else
-	    ptn[i] = 1;
-    }
-    ptn[n-1] = 0;
-}
-
-/**************************************************************************/
-
-static void
-colourit(graph *g, int nfixed, long minedges, long maxedges,
+colourgraph(graph *g, int nfixed, long minedges, long maxedges,
          long numcols, int m, int n)
 {
     static DEFAULTOPTIONS_GRAPH(options);
     statsblk stats;
-    setword workspace[100];
+    setword workspace[MAXNV];
     grouprec *group;
-    int i,j,k;
+    int i,j,k,nloops;
     set *gi,*gj;
-    int lab[MAXNV],ptn[MAXNV],orbits[MAXNV],deg[MAXNV];
+    int lab[MAXNV],ptn[MAXNV],orbits[MAXNV];
+    boolean loop[MAXNV];
     int prev[MAXNV]; /* If >= 0, earlier point that must have greater colour */
     int weight[MAXNV];
-    int last0,lastn,thisdeg,region,start,stop;
+    int region,start,stop;
 
     if (n > MAXNV) gt_abort(">E vcolg: MAXNV exceeded\n");
     nauty_check(WORDSIZE,m,n,NAUTYVERSIONID);
+
+    nloops = 0;
+    for (i = 0, gi = g; i < n; ++i, gi += m)
+        if (ISELEMENT(gi,i))
+	{
+	    DELELEMENT(gi,i);
+	    loop[i] = TRUE;
+	    ++nloops;
+	}
+	else
+	    loop[i] = FALSE;
 
     for (region = 0; region < 2; ++region)
     {
@@ -294,8 +284,10 @@ colourit(graph *g, int nfixed, long minedges, long maxedges,
 	
 	for (i = start, gi = g + m*(size_t)start; i < stop; ++i, gi += m)
 	{
+            /* Find most recent equivalent j. */
 	    for (j = i-1, gj = gi-m; j >= start; --j, gj -= m)
 	    {
+		if (loop[j] != loop[i]) continue;
 		for (k = 0; k < m; ++k) if (gi[k] != gj[k]) break;
 		if (k < m)
 		{
@@ -318,6 +310,12 @@ colourit(graph *g, int nfixed, long minedges, long maxedges,
 	}
     }
 
+    if (n == 0)
+    {
+        scan(0,g,FALSE,prev,minedges,maxedges,0,numcols,FALSE,m,n);
+	return;
+    }
+
     for (i = nfixed; i < n; ++i) weight[i] += nfixed;
 
     if (maxedges == NOLIMIT || maxedges > n*numcols) maxedges = n*numcols;
@@ -326,10 +324,15 @@ colourit(graph *g, int nfixed, long minedges, long maxedges,
     options.userautomproc = groupautomproc;
     options.userlevelproc = grouplevelproc;
     options.defaultptn = FALSE;
+    options.digraph = (nloops > 0);
 
-    setlab(weight,lab,ptn,n);
+    setlabptn(weight,lab,ptn,n);
+
+    if (nloops > 0)
+        for (i = 0, gi = g; i < n; ++i, gi += m)
+	    if (loop[i]) ADDELEMENT(gi,i);
  
-    nauty(g,lab,ptn,NULL,orbits,&options,&stats,workspace,100,m,n,NULL);
+    nauty(g,lab,ptn,NULL,orbits,&options,&stats,workspace,MAXNV,m,n,NULL);
 
     if (stats.grpsize2 == 0)
         groupsize = stats.grpsize1 + 0.1;
@@ -352,7 +355,148 @@ colourit(graph *g, int nfixed, long minedges, long maxedges,
     lastrejok = FALSE;
     for (i = 0; i < n; ++i) col[i] = 0;
 
-    scan(0,g,prev,minedges,maxedges,0,numcols,group,m,n);
+    scan(0,g,FALSE,prev,minedges,maxedges,0,numcols,group,m,n);
+}
+
+/**************************************************************************/
+
+static void
+colourdigraph(graph *g, int nfixed, long minedges, long maxedges,
+         long numcols, int m, int n)
+{
+    static DEFAULTOPTIONS_GRAPH(options);
+    statsblk stats;
+    setword workspace[MAXNV];
+    grouprec *group;
+    int i,j,k,nloops;
+    size_t ii;
+    set *gi,*gj,*gci,*gcj;
+    int lab[MAXNV],ptn[MAXNV],orbits[MAXNV];
+    boolean loop[MAXNV];
+    int prev[MAXNV]; /* If >= 0, earlier point that must have greater colour */
+    int weight[MAXNV];
+    int region,start,stop;
+    DYNALLSTAT(graph,gconv,gconv_sz);
+
+    if (n > MAXNV) gt_abort(">E vcolg: MAXNV exceeded\n");
+    nauty_check(WORDSIZE,m,n,NAUTYVERSIONID);
+
+    DYNALLOC2(graph,gconv,gconv_sz,n,m,"colourdigraph");
+
+    nloops = 0;
+    for (i = 0, gi = g; i < n; ++i, gi += m)
+        if (ISELEMENT(gi,i))
+	{
+	    DELELEMENT(gi,i);
+	    loop[i] = TRUE;
+	    ++nloops;
+	}
+	else
+	    loop[i] = FALSE;
+
+    for (ii = 0; ii < m*(size_t)n; ++ii) gconv[ii] = g[ii];
+    converse(gconv,m,n);
+
+    for (region = 0; region < 2; ++region)
+    {
+	if (region == 0)
+	{
+	    if (nfixed == 0) continue;
+	    start = 0;
+	    stop = nfixed;
+	    if (stop > n) stop = n;
+	}
+	else
+	{
+	    if (nfixed >= n) continue;
+	    start = nfixed;
+	    stop = n;
+	}
+	
+	for (i = start,
+                    gi = g + m*(size_t)start, gci = gconv + m*(size_t)start;
+             i < stop; ++i, gi += m, gci += m)
+	{
+            /* Find most recent equivalent j. */
+	    for (j = i-1, gj = gi-m, gcj = gci-m; j >= start;
+                                                   --j, gj -= m, gcj -= m)
+	    {
+		if (loop[j] != loop[i]
+                       || ISELEMENT(gi,j) != ISELEMENT(gj,i)) continue;
+		for (k = 0; k < m; ++k)
+                     if (gi[k] != gj[k] || gci[k] != gcj[k]) break;
+		if (k < m)
+		{
+		    FLIPELEMENT(gi,i); FLIPELEMENT(gj,j);
+		    FLIPELEMENT(gci,i); FLIPELEMENT(gcj,j);
+		    for (k = 0; k < m; ++k)
+                        if (gi[k] != gj[k] || gci[k] != gcj[k]) break;
+		    FLIPELEMENT(gci,i); FLIPELEMENT(gcj,j);
+		    FLIPELEMENT(gi,i); FLIPELEMENT(gj,j);
+		}
+		if (k == m) break;
+	    }
+	    if (j >= start)
+	    {
+		prev[i] = j;
+		weight[i] = weight[j] + 1;
+	    }
+	    else
+	    {
+		prev[i] = -1;
+		weight[i] = 0;
+	    }
+	}
+    }
+
+    for (i = nfixed; i < n; ++i) weight[i] += nfixed;
+
+    if (maxedges == NOLIMIT || maxedges > n*numcols) maxedges = n*numcols;
+    if (n*numcols < minedges) return;
+
+    if (n == 0)
+    {
+        scan(0,g,TRUE,prev,minedges,maxedges,0,numcols,FALSE,m,n);
+        return;
+    }
+
+    options.userautomproc = groupautomproc;
+    options.userlevelproc = grouplevelproc;
+    options.defaultptn = FALSE;
+    options.digraph = TRUE;
+    options.invarproc = adjacencies;
+    options.maxinvarlevel = n;
+
+    setlabptn(weight,lab,ptn,n);
+
+    if (nloops > 0)
+        for (i = 0, gi = g; i < n; ++i, gi += m)
+	    if (loop[i]) ADDELEMENT(gi,i);
+ 
+    nauty(g,lab,ptn,NULL,orbits,&options,&stats,workspace,MAXNV,m,n,NULL);
+
+    if (stats.grpsize2 == 0)
+        groupsize = stats.grpsize1 + 0.1;
+    else
+        groupsize = 0;
+
+    group = groupptr(FALSE);
+    makecosetreps(group);
+
+    if (stats.numorbits < n)
+    {
+	j = n;
+	for (i = 0; i < n; ++i)
+	    if (orbits[i] < i && orbits[i] < j) j = orbits[i];
+
+	for (i = j + 1; i < n; ++i)
+	    if (orbits[i] == j) prev[i] = j;
+    }
+
+    lastrejok = FALSE;
+    for (i = 0; i < n; ++i) col[i] = 0;
+
+    scan(0,g,TRUE,prev,minedges,maxedges,0,numcols,group,m,n);
 }
 
 /**************************************************************************/
@@ -361,10 +505,10 @@ int
 main(int argc, char *argv[])
 {
     graph *g;
-    int i,m,n,codetype;
+    int m,n,codetype;
     int argnum,j,nfixed;
     char *arg,sw;
-    boolean badargs;
+    boolean badargs,digraph;
     boolean fswitch,uswitch,eswitch,qswitch,mswitch;
     long minedges,maxedges,numcols;
     double t;
@@ -470,8 +614,6 @@ main(int argc, char *argv[])
     if (!infile) exit(1);
     if (!infilename) infilename = "stdin";
 
-    NODIGRAPHSYET(codetype);
-
     if (uswitch)
         outfile = NULL;
     else
@@ -493,12 +635,15 @@ main(int argc, char *argv[])
     t = CPUTIME;
     while (TRUE)
     {
-        if ((g = readg(infile,NULL,0,&m,&n)) == NULL) break;
+        if ((g = readgg(infile,NULL,0,&m,&n,&digraph)) == NULL) break;
         ++vc_nin;
 
-        colourit(g,nfixed,minedges,maxedges,numcols,m,n);
-	if (!uswitch && ferror(outfile))
-	    gt_abort(">E vcolg output error\n");
+	if (!digraph)
+             colourgraph(g,nfixed,minedges,maxedges,numcols,m,n);
+	else
+	     colourdigraph(g,nfixed,minedges,maxedges,numcols,m,n);
+
+	if (!uswitch && ferror(outfile)) gt_abort(">E vcolg output error\n");
         FREES(g);
     }
     t = CPUTIME - t;

@@ -626,13 +626,13 @@ sort_newparams_ok
 sort_prog
 allow_interrupt
 have_ansicontrols
-default_wordsize
 have_tls
 ac_cv_tls
 stdio_nolock
 threadlib
 have_pthread
 shortg_or_null
+default_wordsize
 have_clzll
 have_clzl
 have_clz
@@ -658,10 +658,11 @@ have_times
 have_gettimeofday
 have_time
 have_isatty
-have_const
 testprogs
 lok
 ac_cv_sizeof___int128_t
+ac_cv_sizeof___int128
+ac_cv_sizeof_voidp
 ac_cv_sizeof_long_long
 ac_cv_sizeof_long
 ac_cv_sizeof_int
@@ -742,13 +743,14 @@ SHELL'
 ac_subst_files=''
 ac_user_opts='
 enable_option_checking
-enable_largefile
 enable_popcnt
 enable_clz
+enable_generic
 enable_tls
-enable_wordsize
-enable_ansicontrols
+enable_ansi
 enable_interrupt
+enable_wordsize
+enable_largefile
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1370,13 +1372,14 @@ Optional Features:
   --disable-option-checking  ignore unrecognized --enable/--with options
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
-  --disable-largefile     omit support for large files
   --disable-popcnt        Disable popcnt extensions
   --disable-clz           Disable clz extensions
-  --enable-tls            Enable thread-local variables
+  --enable-generic        Disable -march=native switch
+  --enable-tls            Enable thread-local storage
+  --enable-ansi           Enable ANSI controls in output
+  --disable-interrupt     Disable interrupt catching in nauty&traces
   --enable-wordsize=value Override default WORDSIZE choice
-  --enable-ansicontrols   Enable ANSI terminal control sequences
-  --disable-interrupt     Disable SIGINT catching in dreadnaut
+  --disable-largefile     omit support for large files
 
 Some influential environment variables:
   CC          C compiler command
@@ -1506,48 +1509,6 @@ fi
 
 } # ac_fn_c_try_compile
 
-# ac_fn_c_try_run LINENO
-# ----------------------
-# Try to link conftest.$ac_ext, and return whether this succeeded. Assumes
-# that executables *can* be run.
-ac_fn_c_try_run ()
-{
-  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
-  if { { ac_try="$ac_link"
-case "(($ac_try" in
-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
-  *) ac_try_echo=$ac_try;;
-esac
-eval ac_try_echo="\"\$as_me:${as_lineno-$LINENO}: $ac_try_echo\""
-$as_echo "$ac_try_echo"; } >&5
-  (eval "$ac_link") 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; } && { ac_try='./conftest$ac_exeext'
-  { { case "(($ac_try" in
-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
-  *) ac_try_echo=$ac_try;;
-esac
-eval ac_try_echo="\"\$as_me:${as_lineno-$LINENO}: $ac_try_echo\""
-$as_echo "$ac_try_echo"; } >&5
-  (eval "$ac_try") 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; }; then :
-  ac_retval=0
-else
-  $as_echo "$as_me: program exited with status $ac_status" >&5
-       $as_echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-       ac_retval=$ac_status
-fi
-  rm -rf conftest.dSYM conftest_ipa8_conftest.oo
-  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
-  as_fn_set_status $ac_retval
-
-} # ac_fn_c_try_run
-
 # ac_fn_c_try_cpp LINENO
 # ----------------------
 # Try to preprocess conftest.$ac_ext, and return whether this succeeded.
@@ -1671,6 +1632,48 @@ fi
   eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
 
 } # ac_fn_c_check_header_mongrel
+
+# ac_fn_c_try_run LINENO
+# ----------------------
+# Try to link conftest.$ac_ext, and return whether this succeeded. Assumes
+# that executables *can* be run.
+ac_fn_c_try_run ()
+{
+  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
+  if { { ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval ac_try_echo="\"\$as_me:${as_lineno-$LINENO}: $ac_try_echo\""
+$as_echo "$ac_try_echo"; } >&5
+  (eval "$ac_link") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; } && { ac_try='./conftest$ac_exeext'
+  { { case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval ac_try_echo="\"\$as_me:${as_lineno-$LINENO}: $ac_try_echo\""
+$as_echo "$ac_try_echo"; } >&5
+  (eval "$ac_try") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; }; then :
+  ac_retval=0
+else
+  $as_echo "$as_me: program exited with status $ac_status" >&5
+       $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+       ac_retval=$ac_status
+fi
+  rm -rf conftest.dSYM conftest_ipa8_conftest.oo
+  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
+  as_fn_set_status $ac_retval
+
+} # ac_fn_c_try_run
 
 # ac_fn_c_check_header_compile LINENO HEADER VAR INCLUDES
 # -------------------------------------------------------
@@ -2405,11 +2408,115 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 
+# ======================================================================
+# First we define some functions
 
 
 
 
 
+
+
+# ======================================================================
+# First we check for configuration switches
+
+# Check whether --enable-popcnt was given.
+if test "${enable_popcnt+set}" = set; then :
+  enableval=$enable_popcnt; enablearg=given
+else
+  enablearg=notgiven
+fi
+
+if test $enablearg = notgiven || test "x$enable_popcnt" = xyes; then :
+  allow_popcnt=1
+else
+  allow_popcnt=0
+fi
+
+# Check whether --enable-clz was given.
+if test "${enable_clz+set}" = set; then :
+  enableval=$enable_clz; enablearg=given
+else
+  enablearg=notgiven
+fi
+
+if test $enablearg = notgiven || test "x$enable_clz" = xyes; then :
+  allow_clz=1
+else
+  allow_clz=0
+fi
+
+# Check whether --enable-generic was given.
+if test "${enable_generic+set}" = set; then :
+  enableval=$enable_generic; enablearg=given
+else
+  enablearg=notgiven
+fi
+
+if test $enablearg = notgiven || test "x$enable_generic" = xno; then :
+  allow_native=1
+else
+  allow_native=0
+fi
+
+# Check whether --enable-tls was given.
+if test "${enable_tls+set}" = set; then :
+  enableval=$enable_tls; enablearg=given
+else
+  enablearg=notgiven
+fi
+
+if test $enablearg = notgiven || test "x$enable_tls" = xno; then :
+  allow_tls=0
+else
+  allow_tls=1
+fi
+
+# Check whether --enable-ansi was given.
+if test "${enable_ansi+set}" = set; then :
+  enableval=$enable_ansi; enablearg=given
+else
+  enablearg=notgiven
+fi
+
+if test $enablearg = notgiven || test "x$enable_ansi" = xno; then :
+  allow_ansi=0
+else
+  allow_ansi=1
+fi
+
+# Check whether --enable-interrupt was given.
+if test "${enable_interrupt+set}" = set; then :
+  enableval=$enable_interrupt; enablearg=given
+else
+  enablearg=notgiven
+fi
+
+if test $enablearg = notgiven || test "x$enable_interrupt" = xyes; then :
+  allow_interrupt=1
+else
+  allow_interrupt=0
+fi
+
+# Check whether --enable-wordsize was given.
+if test "${enable_wordsize+set}" = set; then :
+  enableval=$enable_wordsize;
+fi
+
+if test "x$enable_wordsize" = x16; then :
+  default_wordsize=16
+else
+  default_wordsize=0
+fi
+if test "x$enable_wordsize" = x32; then :
+  default_wordsize=32
+fi
+if test "x$enable_wordsize" = x64; then :
+  default_wordsize=64
+fi
+
+# ======================================================================
+# Next we get to work
 
 ac_aux_dir=
 for ac_dir in "$srcdir" "$srcdir/.." "$srcdir/../.."; do
@@ -2511,6 +2618,7 @@ IFS=$ac_save_IFS
 case $host_os in *\ *) host_os=`echo "$host_os" | sed 's/ /-/g'`;; esac
 
 
+
 case "$host" in
   *powerpc*)
      is_powerpc=1 ;;
@@ -2523,13 +2631,6 @@ case "$build" in
      is_cygwin=1 ;;
   *)
      is_cygwin=0 ;;
-esac
-
-case "$CC" in
-  gcc*)
-     gccver=`"$CC" -dumpversion` ;;
-  *)
-     gccver=0.0.0 ;;
 esac
 
 user_cflags="$CFLAGS"
@@ -3537,26 +3638,28 @@ if test "x$user_cflags" = x || test "x$user_cflags" = x-m32; then :
 $as_echo_n "checking if $CC supports -O3 flags... " >&6; }
     SAVE_CFLAGS="$CFLAGS"
     CFLAGS="-O3"
-    if test "$cross_compiling" = yes; then :
-  ac_cv_try_cflags_ok=no
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-main(){exit(0);}
+
+int
+main ()
+{
+\
+
+  ;
+  return 0;
+}
 _ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
+if ac_fn_c_try_compile "$LINENO"; then :
   ac_cv_try_cflags_ok=yes
 else
   ac_cv_try_cflags_ok=no
 fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     CFLAGS="$SAVE_CFLAGS"
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_try_cflags_ok" >&5
 $as_echo "$ac_cv_try_cflags_ok" >&6; }
-    if test x"$ac_cv_try_cflags_ok" = x"yes"; then
+    if test "x$ac_cv_try_cflags_ok" = xyes; then
         CFLAGS="$CFLAGS -O3"
     else
         :
@@ -3566,26 +3669,28 @@ $as_echo "$ac_cv_try_cflags_ok" >&6; }
 $as_echo_n "checking if $CC supports -O2 flags... " >&6; }
     SAVE_CFLAGS="$CFLAGS"
     CFLAGS="-O2"
-    if test "$cross_compiling" = yes; then :
-  ac_cv_try_cflags_ok=no
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-main(){exit(0);}
+
+int
+main ()
+{
+\
+
+  ;
+  return 0;
+}
 _ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
+if ac_fn_c_try_compile "$LINENO"; then :
   ac_cv_try_cflags_ok=yes
 else
   ac_cv_try_cflags_ok=no
 fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     CFLAGS="$SAVE_CFLAGS"
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_try_cflags_ok" >&5
 $as_echo "$ac_cv_try_cflags_ok" >&6; }
-    if test x"$ac_cv_try_cflags_ok" = x"yes"; then
+    if test "x$ac_cv_try_cflags_ok" = xyes; then
         CFLAGS="$CFLAGS -O2"
     else
         CFLAGS="$CFLAGS -O"
@@ -3596,26 +3701,28 @@ else
 $as_echo_n "checking if $CC supports -O4 -Werror flags... " >&6; }
     SAVE_CFLAGS="$CFLAGS"
     CFLAGS="-O4 -Werror"
-    if test "$cross_compiling" = yes; then :
-  ac_cv_try_cflags_ok=no
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-main(){exit(0);}
+
+int
+main ()
+{
+\
+
+  ;
+  return 0;
+}
 _ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
+if ac_fn_c_try_compile "$LINENO"; then :
   ac_cv_try_cflags_ok=yes
 else
   ac_cv_try_cflags_ok=no
 fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     CFLAGS="$SAVE_CFLAGS"
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_try_cflags_ok" >&5
 $as_echo "$ac_cv_try_cflags_ok" >&6; }
-    if test x"$ac_cv_try_cflags_ok" = x"yes"; then
+    if test "x$ac_cv_try_cflags_ok" = xyes; then
         CFLAGS="$CFLAGS -O4"
     else
         :
@@ -3625,26 +3732,28 @@ $as_echo "$ac_cv_try_cflags_ok" >&6; }
 $as_echo_n "checking if $CC supports -O3 flags... " >&6; }
     SAVE_CFLAGS="$CFLAGS"
     CFLAGS="-O3"
-    if test "$cross_compiling" = yes; then :
-  ac_cv_try_cflags_ok=no
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-main(){exit(0);}
+
+int
+main ()
+{
+\
+
+  ;
+  return 0;
+}
 _ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
+if ac_fn_c_try_compile "$LINENO"; then :
   ac_cv_try_cflags_ok=yes
 else
   ac_cv_try_cflags_ok=no
 fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     CFLAGS="$SAVE_CFLAGS"
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_try_cflags_ok" >&5
 $as_echo "$ac_cv_try_cflags_ok" >&6; }
-    if test x"$ac_cv_try_cflags_ok" = x"yes"; then
+    if test "x$ac_cv_try_cflags_ok" = xyes; then
         CFLAGS="$CFLAGS -O3"
     else
         :
@@ -3654,26 +3763,28 @@ $as_echo "$ac_cv_try_cflags_ok" >&6; }
 $as_echo_n "checking if $CC supports -O2 flags... " >&6; }
     SAVE_CFLAGS="$CFLAGS"
     CFLAGS="-O2"
-    if test "$cross_compiling" = yes; then :
-  ac_cv_try_cflags_ok=no
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-main(){exit(0);}
+
+int
+main ()
+{
+\
+
+  ;
+  return 0;
+}
 _ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
+if ac_fn_c_try_compile "$LINENO"; then :
   ac_cv_try_cflags_ok=yes
 else
   ac_cv_try_cflags_ok=no
 fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     CFLAGS="$SAVE_CFLAGS"
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_try_cflags_ok" >&5
 $as_echo "$ac_cv_try_cflags_ok" >&6; }
-    if test x"$ac_cv_try_cflags_ok" = x"yes"; then
+    if test "x$ac_cv_try_cflags_ok" = xyes; then
         CFLAGS="$CFLAGS -O2"
     else
         CFLAGS="$CFLAGS -O"
@@ -3685,6 +3796,13 @@ fi
 fi
 
 fi
+
+case "$CC" in
+  gcc*)
+     gccver=`"$CC" -dumpversion` ;;
+  *)
+     gccver=0.0.0 ;;
+esac
 
 
 
@@ -4139,58 +4257,58 @@ fi
 
 done
 
-if test x"$ac_cv_header_stddef_h" = x"yes"; then
-header_stddef_h=1
+if test "x$ac_cv_header_stddef_h" = xyes; then
+  header_stddef_h=1
 else
-header_stddef_h=0
+  header_stddef_h=0
 fi
 
-if test x"$ac_cv_header_unistd_h" = x"yes"; then
-header_unistd_h=1
+if test "x$ac_cv_header_unistd_h" = xyes; then
+  header_unistd_h=1
 else
-header_unistd_h=0
+  header_unistd_h=0
 fi
 
-if test x"$ac_cv_header_stdlib_h" = x"yes"; then
-header_stdlib_h=1
+if test "x$ac_cv_header_stdlib_h" = xyes; then
+  header_stdlib_h=1
 else
-header_stdlib_h=0
+  header_stdlib_h=0
 fi
 
-if test x"$ac_cv_header_string_h" = x"yes"; then
-header_string_h=1
+if test "x$ac_cv_header_string_h" = xyes; then
+  header_string_h=1
 else
-header_string_h=0
+  header_string_h=0
 fi
 
-if test x"$ac_cv_header_sys_wait_h" = x"yes"; then
-header_sys_wait_h=1
+if test "x$ac_cv_header_sys_wait_h" = xyes; then
+  header_sys_wait_h=1
 else
-header_sys_wait_h=0
+  header_sys_wait_h=0
 fi
 
-if test x"$ac_cv_header_sys_types_h" = x"yes"; then
-header_sys_types_h=1
+if test "x$ac_cv_header_sys_types_h" = xyes; then
+  header_sys_types_h=1
 else
-header_sys_types_h=0
+  header_sys_types_h=0
 fi
 
-if test x"$ac_cv_header_errno_h" = x"yes"; then
-header_errno_h=1
+if test "x$ac_cv_header_errno_h" = xyes; then
+  header_errno_h=1
 else
-header_errno_h=0
+  header_errno_h=0
 fi
 
-if test x"$ac_cv_header_pthread_h" = x"yes"; then
-header_pthread_h=1
+if test "x$ac_cv_header_pthread_h" = xyes; then
+  header_pthread_h=1
 else
-header_pthread_h=0
+  header_pthread_h=0
 fi
 
-if test x"$ac_cv_header_signal_h" = x"yes"; then
-header_signal_h=1
+if test "x$ac_cv_header_signal_h" = xyes; then
+  header_signal_h=1
 else
-header_signal_h=0
+  header_signal_h=0
 fi
 
 
@@ -4205,10 +4323,10 @@ _ACEOF
 
 fi
 
-if test x"$ac_cv_type_pid_t" = x"yes"; then
-have_pid_t=1
+if test "x$ac_cv_type_pid_t" = xyes; then
+  have_pid_t=1
 else
-have_pid_t=0
+  have_pid_t=0
 fi
 
 
@@ -4227,7 +4345,7 @@ else
 fi
 rm -f conftest*
 
-if test $malloc_dec -eq 0; then
+if test $malloc_dec -eq 0; then :
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 #include <malloc.h>
@@ -4470,6 +4588,74 @@ _ACEOF
 # version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
 # declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
 # This bug is HP SR number 8606223364.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking size of void*" >&5
+$as_echo_n "checking size of void*... " >&6; }
+if ${ac_cv_sizeof_voidp+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (void*))" "ac_cv_sizeof_voidp"        "$ac_includes_default"; then :
+
+else
+  if test "$ac_cv_type_voidp" = yes; then
+     { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error 77 "cannot compute sizeof (void*)
+See \`config.log' for more details" "$LINENO" 5; }
+   else
+     ac_cv_sizeof_voidp=0
+   fi
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sizeof_voidp" >&5
+$as_echo "$ac_cv_sizeof_voidp" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define SIZEOF_VOIDP $ac_cv_sizeof_voidp
+_ACEOF
+
+
+
+# The cast to long int works around a bug in the HP C Compiler
+# version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
+# declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
+# This bug is HP SR number 8606223364.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking size of __int128" >&5
+$as_echo_n "checking size of __int128... " >&6; }
+if ${ac_cv_sizeof___int128+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (__int128))" "ac_cv_sizeof___int128"        "$ac_includes_default"; then :
+
+else
+  if test "$ac_cv_type___int128" = yes; then
+     { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error 77 "cannot compute sizeof (__int128)
+See \`config.log' for more details" "$LINENO" 5; }
+   else
+     ac_cv_sizeof___int128=0
+   fi
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sizeof___int128" >&5
+$as_echo "$ac_cv_sizeof___int128" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define SIZEOF___INT128 $ac_cv_sizeof___int128
+_ACEOF
+
+
+
+# The cast to long int works around a bug in the HP C Compiler
+# version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
+# declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
+# This bug is HP SR number 8606223364.
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking size of __int128_t" >&5
 $as_echo_n "checking size of __int128_t... " >&6; }
 if ${ac_cv_sizeof___int128_t+:} false; then :
@@ -4504,103 +4690,16 @@ lok=0
 testprogs="dreadtest dreadtestS dreadtestS1 dreadtest4K"
 testprogs="$testprogs dreadtest1 dreadtestW dreadtestW1"
 
-if test $ac_cv_sizeof_long_long -eq 8; then
-   lok=1
-   testprogs="$testprogs dreadtestL1 dreadtestL"
+if test $ac_cv_sizeof_long_long -eq 8; then :
+  lok=1
+       testprogs="$testprogs dreadtestL1 dreadtestL"
 else
-   if test $ac_cv_sizeof_long -eq 8; then
-      lok=1
-   fi
+  if test $ac_cv_sizeof_long -eq 8; then :
+  lok=1
 fi
-
-
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for an ANSI C-conforming const" >&5
-$as_echo_n "checking for an ANSI C-conforming const... " >&6; }
-if ${ac_cv_c_const+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-
-#ifndef __cplusplus
-  /* Ultrix mips cc rejects this sort of thing.  */
-  typedef int charset[2];
-  const charset cs = { 0, 0 };
-  /* SunOS 4.1.1 cc rejects this.  */
-  char const *const *pcpcc;
-  char **ppc;
-  /* NEC SVR4.0.2 mips cc rejects this.  */
-  struct point {int x, y;};
-  static struct point const zero = {0,0};
-  /* AIX XL C 1.02.0.0 rejects this.
-     It does not let you subtract one const X* pointer from another in
-     an arm of an if-expression whose if-part is not a constant
-     expression */
-  const char *g = "string";
-  pcpcc = &g + (g ? g-g : 0);
-  /* HPUX 7.0 cc rejects these. */
-  ++pcpcc;
-  ppc = (char**) pcpcc;
-  pcpcc = (char const *const *) ppc;
-  { /* SCO 3.2v4 cc rejects this sort of thing.  */
-    char tx;
-    char *t = &tx;
-    char const *s = 0 ? (char *) 0 : (char const *) 0;
-
-    *t++ = 0;
-    if (s) return 0;
-  }
-  { /* Someone thinks the Sun supposedly-ANSI compiler will reject this.  */
-    int x[] = {25, 17};
-    const int *foo = &x[0];
-    ++foo;
-  }
-  { /* Sun SC1.0 ANSI compiler rejects this -- but not the above. */
-    typedef const int *iptr;
-    iptr p = 0;
-    ++p;
-  }
-  { /* AIX XL C 1.02.0.0 rejects this sort of thing, saying
-       "k.c", line 2.27: 1506-025 (S) Operand must be a modifiable lvalue. */
-    struct s { int j; const int *ap[3]; } bx;
-    struct s *b = &bx; b->j = 5;
-  }
-  { /* ULTRIX-32 V3.1 (Rev 9) vcc rejects this */
-    const int foo = 10;
-    if (!foo) return 0;
-  }
-  return !cs[0] && !zero.x;
-#endif
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  ac_cv_c_const=yes
-else
-  ac_cv_c_const=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_c_const" >&5
-$as_echo "$ac_cv_c_const" >&6; }
-if test $ac_cv_c_const = no; then
-
-$as_echo "#define const /**/" >>confdefs.h
 
 fi
 
-if test x"$ac_cv_c_const" = x"yes"; then
-have_const=1
-else
-have_const=0
-fi
 
 
 ac_fn_c_check_func "$LINENO" "isatty" "ac_cv_func_isatty"
@@ -4904,10 +5003,10 @@ $as_echo "#define HAVE_WORKING_FORK 1" >>confdefs.h
 
 fi
 
-if test x"$ac_cv_func_fork" = x"yes"; then
-have_fork=1
+if test "x$ac_cv_func_fork" = xyes; then
+  have_fork=1
 else
-have_fork=0
+  have_fork=0
 fi
 
 
@@ -4936,28 +5035,18 @@ fi
 
 
 
-
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking if popcnt instruction is available and requested" >&5
 $as_echo_n "checking if popcnt instruction is available and requested... " >&6; }
-# Check whether --enable-popcnt was given.
-if test "${enable_popcnt+set}" = set; then :
-  enableval=$enable_popcnt; popcntarg=given
-else
-  popcntarg=notgiven
-fi
-
-if test "x$popcntarg" = "xnotgiven" -o "x$enable_popcnt" = "xyes"; then :
-
-have_hwpopcnt=0
-test -e /proc/cpuinfo && grep -i popcnt /proc/cpuinfo >/dev/null && have_hwpopcnt=1
+if test "$allow_popcnt" -eq 1; then :
+  have_hwpopcnt=0
+test -f /proc/cpuinfo && grep -i popcnt /proc/cpuinfo >/dev/null && have_hwpopcnt=1
 test $have_hwpopcnt -eq 0 && sysctl machdep.cpu.features 2>/dev/null | grep -i popcnt >/dev/null && have_hwpopcnt=1
 test $have_hwpopcnt -eq 0 && isainfo -x -v 2>/dev/null | grep -i popc >/dev/null && have_hwpopcnt=1
-
 else
-
-have_hwpopcnt=0
+  have_hwpopcnt=0
 
 fi
+# Some problems with popcnt on powerpc are not resolved yet
 test $is_powerpc -eq 1 && have_hwpopcnt=0
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_hwpopcnt" >&5
 $as_echo "$have_hwpopcnt" >&6; }
@@ -4971,15 +5060,13 @@ have_mmpop32=0
 have_mmpop64=0
 
 if test $have_hwpopcnt -eq 1; then :
-
-if test "$CC" = "icc"; then :
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if _mm_popcnt_u32() is supported" >&5
+  if test "$CC" = "icc"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking if _mm_popcnt_u32() is supported" >&5
 $as_echo_n "checking if _mm_popcnt_u32() is supported... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+              cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 #include <nmmintrin.h>
-main(){unsigned int x; x = _mm_popcnt_u32(x);}
+                   int main(){unsigned int x; x = _mm_popcnt_u32(x);}
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   have_mmpop32=1
@@ -4988,14 +5075,14 @@ else
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_mmpop32" >&5
+              { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_mmpop32" >&5
 $as_echo "$have_mmpop32" >&6; }
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if _mm_popcnt_u64() is supported" >&5
+              { $as_echo "$as_me:${as_lineno-$LINENO}: checking if _mm_popcnt_u64() is supported" >&5
 $as_echo_n "checking if _mm_popcnt_u64() is supported... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+              cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 #include <nmmintrin.h>
-main(){unsigned int x; x = _mm_popcnt_u64(x);}
+                   int main(){unsigned int x; x = _mm_popcnt_u64(x);}
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   have_mmpop64=1
@@ -5004,17 +5091,15 @@ else
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_mmpop64" >&5
+              { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_mmpop64" >&5
 $as_echo "$have_mmpop64" >&6; }
-
 else
-
-CFLAGS="$CFLAGS -mpopcnt"
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if __builtin_popcount() is supported" >&5
+  CFLAGS="$CFLAGS -mpopcnt"
+              { $as_echo "$as_me:${as_lineno-$LINENO}: checking if __builtin_popcount() is supported" >&5
 $as_echo_n "checking if __builtin_popcount() is supported... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+              cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-main(){unsigned int x; x = __builtin_popcount(x);}
+int main(){unsigned int x; x = __builtin_popcount(x);}
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   have_popcnt=1
@@ -5023,13 +5108,13 @@ else
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_popcnt" >&5
+              { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_popcnt" >&5
 $as_echo "$have_popcnt" >&6; }
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if __builtin_popcountl() is supported" >&5
+              { $as_echo "$as_me:${as_lineno-$LINENO}: checking if __builtin_popcountl() is supported" >&5
 $as_echo_n "checking if __builtin_popcountl() is supported... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+              cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-main(){unsigned long x; x = __builtin_popcountl(x);}
+int main(){unsigned long x; x = __builtin_popcountl(x);}
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   have_popcntl=1
@@ -5038,13 +5123,13 @@ else
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_popcntl" >&5
+              { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_popcntl" >&5
 $as_echo "$have_popcntl" >&6; }
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if __builtin_popcountll() is supported" >&5
+              { $as_echo "$as_me:${as_lineno-$LINENO}: checking if __builtin_popcountll() is supported" >&5
 $as_echo_n "checking if __builtin_popcountll() is supported... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+              cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-main(){unsigned long long x; x = __builtin_popcountll(x);}
+int main(){unsigned long long x; x = __builtin_popcountll(x);}
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   have_popcntll=1
@@ -5053,9 +5138,9 @@ else
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_popcntll" >&5
+              { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_popcntll" >&5
 $as_echo "$have_popcntll" >&6; }
-if test $have_popcnt -eq 1 -o $have_popcntl -eq 1 -o $have_popcntll -eq 1; then :
+              if test $have_popcnt -eq 1 || test $have_popcntl -eq 1 || test $have_popcntll -eq 1; then :
   MORECFLAGS="$MORECFLAGS -mpopcnt"
 fi
 
@@ -5068,22 +5153,83 @@ CFLAGS="$SAVE_CFLAGS"
 
 
 
+# Unless --enable-generic is given to configure, we try to use the -march=native compiler
+#   switch.  However, it breaks some versions of gcc on MacOSX due to a compiler bug, so
+#   we will also add --mno-avx if that is necessary.
+
+if test "$allow_native" -eq 1; then :
+
+    SAVE_CFLAGS="$CFLAGS"
+    CFLAGS="$CFLAGS -march=native"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -march=native" >&5
+$as_echo_n "checking if $CC supports -march=native... " >&6; }
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <stdio.h>
+                                        int main() { double t; long int q; scanf("%ld",&q);
+                                        t = q; printf("t = %f\n",t); return 0; }
 
 
-# Check whether --enable-clz was given.
-if test "${enable_clz+set}" = set; then :
-  enableval=$enable_clz; clzarg=given
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  ac_cv_native_ok=yes
 else
-  clzarg=notgiven
+  ac_cv_native_ok=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_native_ok" >&5
+$as_echo "$ac_cv_native_ok" >&6; }
+    CFLAGS="$SAVE_CFLAGS"
+    if test "x$ac_cv_native_ok" = xyes; then :
+  MORECFLAGS="$MORECFLAGS -march=native"
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports -march=native -mno-avx flags" >&5
+$as_echo_n "checking if $CC supports -march=native -mno-avx flags... " >&6; }
+    SAVE_CFLAGS="$CFLAGS"
+    CFLAGS="-march=native -mno-avx"
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+\
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  ac_cv_try_cflags_ok=yes
+else
+  ac_cv_try_cflags_ok=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+    CFLAGS="$SAVE_CFLAGS"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_try_cflags_ok" >&5
+$as_echo "$ac_cv_try_cflags_ok" >&6; }
+    if test "x$ac_cv_try_cflags_ok" = xyes; then
+        MORECFLAGS="$MORECFLAGS -march=native -mno-avx"
+    else
+        :
+    fi
+
 fi
 
-if test "x$clzarg" = "xnotgiven" -o "x$enable_clz" = "xyes"; then :
+fi
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if __builtin_clz() is supported" >&5
+
+
+echo CC="$CC"
+echo CFLAGS="$CFLAGS"
+echo MORECFLAGS="$MORECFLAGS"
+
+if test "$allow_clz" -eq 1; then :
+   { $as_echo "$as_me:${as_lineno-$LINENO}: checking if __builtin_clz() is supported" >&5
 $as_echo_n "checking if __builtin_clz() is supported... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-main(){unsigned int x; x = __builtin_clz(x);}
+int main(){unsigned int x; x = __builtin_clz(x);}
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   have_clz=1
@@ -5092,13 +5238,13 @@ else
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_clz" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_clz" >&5
 $as_echo "$have_clz" >&6; }
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if __builtin_clzl() is supported" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking if __builtin_clzl() is supported" >&5
 $as_echo_n "checking if __builtin_clzl() is supported... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-main(){unsigned long x; x = __builtin_clzl(x);}
+int main(){unsigned long x; x = __builtin_clzl(x);}
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   have_clzl=1
@@ -5107,13 +5253,13 @@ else
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_clzl" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_clzl" >&5
 $as_echo "$have_clzl" >&6; }
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if __builtin_clzll() is supported" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking if __builtin_clzll() is supported" >&5
 $as_echo_n "checking if __builtin_clzll() is supported... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-main(){unsigned long long x; x = __builtin_clzll(x);}
+int main(){unsigned long long x; x = __builtin_clzll(x);}
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   have_clzll=1
@@ -5122,16 +5268,17 @@ else
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_clzll" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_clzll" >&5
 $as_echo "$have_clzll" >&6; }
-
 else
 
-have_clz=0
-have_clzl=0
-have_clzll=0
+        have_clz=0
+        have_clzl=0
+        have_clzll=0
 
 fi
+
+
 
 
 
@@ -5143,11 +5290,10 @@ else
   have_pthread=0
 fi
 
-if test $have_pthread -eq 1; then :
+if test $have_pthread -eq 0; then :
   threadlib=
 else
-
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pthread_create in -lpthread" >&5
+   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pthread_create in -lpthread" >&5
 $as_echo_n "checking for pthread_create in -lpthread... " >&6; }
 if ${ac_cv_lib_pthread_pthread_create+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -5189,7 +5335,7 @@ else
   have_pthread=0
 fi
 
-    if test $have_pthread -eq 1; then :
+        if test $have_pthread -eq 1; then :
   threadlib=-lpthread
 else
   threadlib=
@@ -5197,12 +5343,12 @@ fi
 
 fi
 
-if test $have_pipe -eq 1 -a $have_wait -eq 1 -a $have_fork -eq 1 ; then
-    shortg=1
-    shortg_or_null=shortg
+if test $have_pipe -eq 1 && test $have_wait -eq 1 && test $have_fork -eq 1; then :
+  shortg=1
+     shortg_or_null=shortg
 else
-    shortg=0
-    shortg_or_null=
+  shortg=0
+     shortg_or_null=
 fi
 
 
@@ -5223,29 +5369,21 @@ else
   have_flockfile=0
 fi
 
-if test $have_getc_unlocked -eq 1 -a $have_flockfile -eq 1 ; then
-    stdio_nolock=1
+if test $have_getc_unlocked -eq 1 && test $have_flockfile -eq 1; then :
+  stdio_nolock=1
 else
-    stdio_nolock=0
+  stdio_nolock=0
 fi
 
 
-# Check whether --enable-tls was given.
-if test "${enable_tls+set}" = set; then :
-  enableval=$enable_tls;
-fi
-
-if test "x$enable_tls" = "xyes"; then :
-
+if test "$allow_tls" -eq 1; then :
 
   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for thread local storage (TLS) class" >&5
 $as_echo_n "checking for thread local storage (TLS) class... " >&6; }
   if ${ac_cv_tls+:} false; then :
   $as_echo_n "(cached) " >&6
 else
-
-    ax_tls_keywords="__thread __declspec(thread) none"
-    for ax_tls_keyword in $ax_tls_keywords; do
+  for ax_tls_keyword in _Thread_local __thread '__declspec(thread)' none; do
        case $ax_tls_keyword in #(
   none) :
     ac_cv_tls=none ; break ;; #(
@@ -5281,76 +5419,33 @@ fi
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_tls" >&5
 $as_echo "$ac_cv_tls" >&6; }
 
-  if test "$ac_cv_tls" != "none"; then :
+  if test "x$ac_cv_tls" != xnone; then :
 
 cat >>confdefs.h <<_ACEOF
 #define TLS $ac_cv_tls
 _ACEOF
 
-      have_tls=1
-else
-  have_tls=0
-
-fi
-
-
+     have_tls=1
 else
   have_tls=0
 fi
 
-if test "$have_tls" -eq 0 ; then
-    ac_cv_tls=
-fi
-
-
-
-# Check whether --enable-wordsize was given.
-if test "${enable_wordsize+set}" = set; then :
-  enableval=$enable_wordsize;
-fi
-
-if test "x$enable_wordsize" = "x16"; then :
-  default_wordsize=16
 else
-  default_wordsize=0
+  have_tls=0
 fi
-if test "x$enable_wordsize" = "x32"; then :
-  default_wordsize=32
-fi
-if test "x$enable_wordsize" = "x64"; then :
-  default_wordsize=64
+if test "$have_tls" -eq 0; then :
+  ac_cv_tls=
 fi
 
 
-# Check whether --enable-ansicontrols was given.
-if test "${enable_ansicontrols+set}" = set; then :
-  enableval=$enable_ansicontrols;
-fi
 
-if test "x$enable_ansicontrols" = "xyes"; then :
-  have_ansicontrols=1
-else
-  have_ansicontrols=0
-fi
+have_ansicontrols=$allow_ansi
 
 
-# Check whether --enable-interrupt was given.
-if test "${enable_interrupt+set}" = set; then :
-  enableval=$enable_interrupt; intarg=given
-else
-  intarg=notgiven
-fi
-
-if test "x$intarg" = "xnotgiven" -o "x$enable_interrupt" = "xyes"; then :
-  allow_interrupt=1
-else
-  allow_interrupt=0
-fi
 
 
-case "$build" in
-   *cygwin*)
-       for ac_prog in gsort sort
+if test $is_cygwin -eq 1; then :
+   for ac_prog in gsort sort
 do
   # Extract the first word of "$ac_prog", so it can be a program name with args.
 set dummy $ac_prog; ac_word=$2
@@ -5395,9 +5490,9 @@ fi
   test -n "$sort_prog" && break
 done
 test -n "$sort_prog" || sort_prog="no_sort_found"
- ;;
-   *)
-       for ac_prog in gsort sort
+
+else
+   for ac_prog in gsort sort
 do
   # Extract the first word of "$ac_prog", so it can be a program name with args.
 set dummy $ac_prog; ac_word=$2
@@ -5439,15 +5534,15 @@ fi
   test -n "$sort_prog" && break
 done
 test -n "$sort_prog" || sort_prog="no_sort_found"
- ;;
-esac
+
+fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking if sort supports the -k switch" >&5
 $as_echo_n "checking if sort supports the -k switch... " >&6; }
-if { $sort_prog -k "2,3" </dev/null >/dev/null 2>&1 ; } ; then
-   sort_newparams_ok=1
+if { $sort_prog -k "2,3" </dev/null >/dev/null 2>&1 ; }; then :
+  sort_newparams_ok=1
 else
-   sort_newparams_ok=0
+  sort_newparams_ok=0
 fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $sort_newparams_ok" >&5
@@ -5455,9 +5550,6 @@ $as_echo "$sort_newparams_ok" >&6; }
 
 edit_msg="++++++ This file is automatically generated, don't edit it by hand! ++++++"
 
-
-echo CFLAGS=$CFLAGS
-echo MORECFLAGS=$MORECFLAGS
 
 ac_config_files="$ac_config_files makefile:makefile.in nauty.h:nauty-h.in naututil.h:naututil-h.in gtools.h:gtools-h.in"
 
@@ -6618,5 +6710,4 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: unrecognized options: $ac_unrecognized_opts" >&5
 $as_echo "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
-
 

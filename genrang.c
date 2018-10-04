@@ -1,4 +1,4 @@
-/* genrang.c  version 2.1; B D McKay, Feb 15, 2016 */
+/* genrang.c  version 2.3; B D McKay, July 13, 2017 */
 /* TODO:  Check allocs for no edges */
 
 #define USAGE \
@@ -158,7 +158,8 @@ ranedges(long e, boolean loopsok, graph *g, int m, int n)
     else             ned = e;
     sofar = 0;
 
-    for (li = m*ln; --li != 0;) g[li] = 0; g[0] = 0;
+    for (li = m*ln; --li != 0;) g[li] = 0;
+    g[0] = 0;
 
     while (sofar < ned)
     {
@@ -184,7 +185,7 @@ static void
 ranedges_bip(long e, graph *g, int m, int n1, int n2)
 /* Random bipartite graph with n1+n2 vertices and e edges */
 {
-    size_t ln,li,nc2,ned,sofar;
+    size_t li,nc2,ned,sofar;
     set *gi,*gj;
     int i,j,n;
 
@@ -195,7 +196,8 @@ ranedges_bip(long e, graph *g, int m, int n1, int n2)
     else             ned = e;
     sofar = 0;
 
-    for (li = m*(size_t)n; --li != 0;) g[li] = 0; g[0] = 0;
+    for (li = m*(size_t)n; --li != 0;) g[li] = 0;
+    g[0] = 0;
 
     while (sofar < ned)
     {
@@ -891,6 +893,63 @@ randomtree(sparsegraph *sg, int n)
 }
 
 /**************************************************************************/
+
+static void
+randombiptree(sparsegraph *sg, int n1, int n2)
+/* Make a random subtree of K(n1,n2) */
+{
+    int i,v0,v1,ne,k,n,cnt;
+#if MAXN
+    int ed[2*MAXN];
+#else
+    DYNALLSTAT(int,ed,ed_sz);
+    DYNALLOC1(int,ed,ed_sz,2*(n1+n2),"randombiptree");
+#endif
+
+    n = n1 + n2;
+    if ((n1 == 0 || n2 == 0) && n > 1)
+	gt_abort(">E impossible bipartite tree\n");
+
+    SG_ALLOC(*sg,n,2*(n-1),"randomtree");
+    sg->nv = n;
+    sg->nde = 2*(n-1);
+    sg->w = NULL;
+
+    for (i = 0; i < n; ++i) sg->d[i] = 0;
+
+    v0 = KRAN(n1);
+    ne = k = cnt = 0;
+    while (ne < n-1)
+    {
+	if (cnt % 2 == 0) v1 = n1 + KRAN(n2);
+	else  		  v1 = KRAN(n1);
+	++cnt;
+	if (sg->d[v1] == 0)
+	{
+	    ed[k++] = v0;
+	    ed[k++] = v1;
+	    ++ne;
+	    ++sg->d[v0];
+	    ++sg->d[v1];
+	}
+	v0 = v1;
+    }
+
+    sg->v[0] = 0;
+    for (i = 1; i < n; ++i) sg->v[i] = sg->v[i-1] + sg->d[i-1];
+
+    for (i = 0; i < n; ++i) sg->d[i] = 0;
+
+    for (k = 0; k < 2*(n-1); )
+    {
+        v0 = ed[k++];
+        v1 = ed[k++];
+	sg->e[sg->v[v0]+(sg->d[v0])++] = v1;
+	sg->e[sg->v[v1]+(sg->d[v1])++] = v0;
+    }
+}
+
+/**************************************************************************/
 /**************************************************************************/
 
 #define NOBIP if (bipartite) { fprintf(stderr, \
@@ -1102,12 +1161,21 @@ main(int argc, char *argv[])
         exit(1);
     }
 
-    if (rswitch && (((n&1) != 0 && (rvalue&1) != 0)
+    if (rswitch && !bipartite && (((n&1) != 0 && (rvalue&1) != 0)
         || rvalue > (n-1)*multmax+2*loopmax))
     {
         fprintf(stderr,     
              ">E There are no such graphs of order %d and degree %ld\n",
              n,rvalue);
+        exit(1);
+    }
+
+    if (bipartite && dswitch && (n1 == 0 || n2 == 0 || rvalue > n2
+                    || (n1*(size_t)rvalue) % n2 != 0))
+    {
+        fprintf(stderr,     
+             ">E There are no bipartite graphs of order %d+%d and degree %ld\n",
+             n1,n2,rvalue);
         exit(1);
     }
 
@@ -1160,8 +1228,10 @@ main(int argc, char *argv[])
 	}
 	else if (tswitch)
 	{
-	    NOBIP;
-	    randomtree(&sg,n);
+	    if (bipartite)
+	        randombiptree(&sg,n1,n2);
+	    else
+	        randomtree(&sg,n);
 	}
 	else if (Tswitch)
 	{

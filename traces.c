@@ -1,10 +1,10 @@
 /******************************************************************************
  *                                                                            *
- * This is the main file for traces() version 2.1, which is included into     *
- *   nauty() version 2.6.                                                     *
+ * This is the main file for traces() version 2.2, which is included into     *
+ *   nauty() version 2.7.                                                     *
  *                                                                            *
- *   nauty is Copyright (1984-2016) Brendan McKay.  All rights reserved.      *
- *   Traces is Copyright Adolfo Piperno, 2008-2016.  All rights reserved.     *
+ *   nauty is Copyright (1984-2018) Brendan McKay.  All rights reserved.      *
+ *   Traces is Copyright Adolfo Piperno, 2008-2018.  All rights reserved.     *
  *   See the file COPYRIGHT for the details of the software license.          *
  *                                                                            *
  *   CHANGE HISTORY                                                           *
@@ -21,6 +21,8 @@
  *       01-Sep-15 : add weighted edges (not active)                          *
  *       28-Jan-16 : version ready for nauty and Traces v.2.6 distribution    *
  *       12-Jul-16 : bug correction (reaching degree 2 vertices)              *
+ *       07-Jun-18 : bug correction (finalnumcells, thanks R.Kralovic)        *
+ *       07-Jun-18 : bug correction (index computation when findperm)         *
  *****************************************************************************/
 
 #include "traces.h"
@@ -253,7 +255,7 @@ static int  traces_refine_sametrace(Candidate*, int, Partition*,
                                     struct TracesVars*, struct TracesInfo*);
 static int  traces_refine_refine(sparsegraph*, Candidate*, int, Partition*,
                                  struct TracesVars*, struct TracesInfo*);
-static int  refine_tr_refine(Candidate*, int, Partition*,
+static void  refine_tr_refine(Candidate*, int, Partition*,
                              struct TracesVars*, struct TracesInfo*);
 static int given_gens(sparsegraph*, permnode*, int*, boolean);
 static void quickSort(int*, int);
@@ -297,11 +299,10 @@ static searchtrie* searchtrie_make(Candidate*, Candidate*, int, struct TracesVar
 static boolean lookup(searchtrie*);
 static int* findcurrorbits(schreier*, int);
 static int Preprocess(sparsegraph*, permnode**, Candidate*, int, Partition*, struct TracesVars*);
-static int Preprocess_refine(sparsegraph*, permnode**, Candidate*, int, Partition*, struct TracesVars*);
 static void MakeTree(int, int, sparsegraph*, int, struct TracesVars*, boolean);
 static void MakeCanTree(int, sparsegraph*, int, Candidate*, Partition*, struct TracesVars*);
-static int max(int, int);
-static int min(int, int);
+static int maxint(int, int);
+static int minint(int, int);
 static void orbjoin_sp_perm(int*, int*, int*, int, int*);
 static void orbjoin_sp_pair(int*, int*, int, int, int, int*);
 static boolean isautom_sg_pair(graph*, int*, boolean, int, int, struct TracesVars*);
@@ -558,7 +559,7 @@ PRINTCAND(Cand, Lev) \
 else { \
 PRINTCANDBIG(Cand, Lev) \
 } \
-PRINTCHAR("| ")	\
+PRINTCHAR("| ")    \
 fprintf(outfile, "{%x, %x} ", Cand->code, Cand->singcode); \
 }
 
@@ -574,7 +575,7 @@ PRINTCAND(Cand, Lev) \
 else { \
 PRINTCANDBIG(Cand, Lev) \
 } \
-PRINTCHAR("| ")	\
+PRINTCHAR("| ")    \
 fprintf(outfile, "{%x, %x} ", Cand->code, Cand->singcode); \
 }
 
@@ -610,7 +611,7 @@ PRINTCAND(CurrCand, tv->fromlevel) \
 else { \
 PRINTCANDBIG(CurrCand, tv->fromlevel) \
 } \
-fprintf(outfile, " do_it: %d, indnum: %d, stnode->index: %d ", CurrCand->do_it, CurrCand->indnum, CurrCand->stnode->index); \
+fprintf(outfile, " do_it: %d, indnum: %d, stnode->index: %d tcell @ %d: %d", CurrCand->do_it, CurrCand->indnum, CurrCand->stnode->index,tv->tcellevel,Spine[tv->tcellevel].tgtcell); \
 PRINT_RETURN \
 } }
 
@@ -681,6 +682,10 @@ MakeTree(arg, val, sg_orig, n, tv, FALSE); }
 #define PRINTF2_2(A, B, C) if (tv->options->verbosity > 3) printf(A, B, C)
 #define PRINTF2_3(A, B, C, D) if (tv->options->verbosity > 3) printf(A, B, C, D)
 #define PRINTF2_4(A, B, C, D, E) if (tv->options->verbosity > 3) printf(A, B, C, D, E)
+
+#define VERB_PRINT(V,Verb,R) if (tv->options->verbosity >= Verb) { \
+fprintf(outfile,"\033[0;32m%s\033[0m ",V); \
+if (R) fprintf(outfile,"\n"); }
 
 /* data decls. for CPUTIME */
 #ifdef  CPUDEFS
@@ -814,8 +819,8 @@ static TLS_ATTR ExpPathInfo EPCodes[MAXN];
 static TLS_ATTR FILE *outfile;
 
 /* Brendan's SCHREIER */
-static TLS_ATTR schreier  *gpB;				/* This will point to the Schreier structure */
-static TLS_ATTR permnode  *gensB;			/* This will point to the stored generators */
+static TLS_ATTR schreier  *gpB;                /* This will point to the Schreier structure */
+static TLS_ATTR permnode  *gensB;            /* This will point to the stored generators */
 
 static TLS_ATTR Candidate *GarbList, *SpOrd, *SpCyc, *SpSwp;
 static TLS_ATTR Partition *SpPart1, *SpPart2;
@@ -1134,7 +1139,6 @@ Traces(sparsegraph *g_arg, int *lab, int *ptn,
                     return;
                 }
             }
-            
             /* NEXT CANDIDATE */
             if (ti->thereisnextlevel) {
                 if (tv->nextlevel != tv->fromlevel) {
@@ -1200,7 +1204,7 @@ Traces(sparsegraph *g_arg, int *lab, int *ptn,
                 grouporderplus(g_arg, BestCand, Spine[tv->maxtreelevel].part, &gensB, &(tv->stats->grpsize1), &(tv->stats->grpsize2), n, tv, ti);
                 
                 if (tv->options->verbosity >= 2) {
-                    LINE(32, "—")
+                    LINE(32, "-")
                     NEXTLINE
                     fprintf(outfile, "Canonical:");
                     PRINTCAND(BestCand, tv->maxtreelevel)
@@ -1217,7 +1221,7 @@ Traces(sparsegraph *g_arg, int *lab, int *ptn,
                 if (tv->linelgth < 40) {
                     tv->linelgth = 40;
                 }
-                LINE(32, "—")
+                LINE(32, "-")
                 NEXTLINE
             }
             
@@ -1376,6 +1380,8 @@ int traces_refine(Candidate *Cand,
     const int variation = 0;
     int currentweight, weightstart, weightend, currentcell, currentsize;
     
+    VERB_PRINT("RFLT",3,FALSE)
+    
     HitClsInd = 0;
     if (tv->stackmark > (NAUTY_INFINITY-2)) {
         memset(StackMarkers, 0, n*sizeof(int));
@@ -1455,7 +1461,7 @@ int traces_refine(Candidate *Cand,
             
             /* Analysis of occurrences of neighbors of the current cell */
             /* The list of cells with neighbors in the current cell is  built */
-            if (cls[ind0] == 1) {			/* SINGLETON CURRENT CELL CASE */
+            if (cls[ind0] == 1) {            /* SINGLETON CURRENT CELL CASE */
                 
                 /* NEIGHCOUNT_SING_MULT */
                 HitClsInd = 0;
@@ -1562,8 +1568,8 @@ int traces_refine(Candidate *Cand,
                 if (ti->thegraphisparse) {
                     
                     /* NEIGHCOUNT_SPARSE_MULT */
+                    HitClsInd = 0;
                     if (cls[ind0] != n) {
-                        HitClsInd = 0;
                         for (i = ind0; i < ind2; i++) {
                             labi = lab[i];
                             nghb = TheGraph[labi].e;
@@ -1639,7 +1645,7 @@ int traces_refine(Candidate *Cand,
                         /* Sorting the cells to be split */
                         sort_Split_Array(SplCls, SplInd);
                         
-                        for (sc = 0; sc < SplInd; sc++) {	/* For each cell C to be split */
+                        for (sc = 0; sc < SplInd; sc++) {    /* For each cell C to be split */
                             ind0 = SplCls[sc];
                             ind1 = ind0 + cls[ind0];
                             SplCntInd = 0;
@@ -1705,7 +1711,7 @@ int traces_refine(Candidate *Cand,
                             for (i = ind0; i < iend; i++) {
                                 value = HitVtx[i];
                                 j = SplPos[NghCounts[value]]++; /* where HitVtx[i] goes */
-                                k = InvLab[value];				/* where HitVtx[i] is in lab */
+                                k = InvLab[value];                /* where HitVtx[i] is in lab */
                                 lab[k] = lab[j];
                                 lab[j] = value;
                                 InvLab[value] = j;
@@ -1750,6 +1756,7 @@ int traces_refine(Candidate *Cand,
                     else {
                         Sparse = TRUE;
                     }
+                    Sparse = TRUE;
                     if (Sparse) {
                         /* Counting occurrences of neighbors of the current cell */
                         /* The list of cells with neighbors in the current cell is also built */
@@ -1814,7 +1821,7 @@ int traces_refine(Candidate *Cand,
                             /* Sorting the cells to be split */
                             sort_Split_Array(SplCls, SplInd);
                             
-                            for (j = 0; j < SplInd; j++) {	/* For each cell C to be split */
+                            for (j = 0; j < SplInd; j++) {    /* For each cell C to be split */
                                 ind0 = SplCls[j];
                                 ind1 = ind0+cls[ind0];
                                 SplCntInd = 0;
@@ -1936,7 +1943,7 @@ int traces_refine(Candidate *Cand,
                         }
                         SplInd = 0;
                         ind4 = 0;
-                        while (ind4 < n) {	/* For each cell C with size(C) > 1 */
+                        while (ind4 < n) {    /* For each cell C with size(C) > 1 */
                             ind1 = ind4+cls[ind4];
                             if (cls[ind4] > 1) {
                                 
@@ -2179,7 +2186,7 @@ void traces_refine_notrace(Candidate *Cand,
         
         currentcell = CStack[k];
         currentsize = currentcell+cls[currentcell];
-        CStack[k] = CStack[CStackInd--];		/* Current Cell */
+        CStack[k] = CStack[CStackInd--];        /* Current Cell */
         longcode = MASHNONCOMM(longcode, currentcell);
         StackMarkers[currentcell] = 0;
         
@@ -2284,8 +2291,8 @@ void traces_refine_notrace(Candidate *Cand,
                 if (ti->thegraphisparse) {
                     
                     /* NEIGHCOUNT_SPARSE_MULT */
+                    HitClsInd = 0;
                     if (cls[ind0] != n) {
-                        HitClsInd = 0;
                         for (i = ind0; i < ind2; i++) {
                             labi = lab[i];
                             nghb = TheGraph[labi].e;
@@ -2355,7 +2362,7 @@ void traces_refine_notrace(Candidate *Cand,
                     /* Sorting the cells to be split */
                     sort_Split_Array(SplCls, SplInd);
                     
-                    for (sc = 0; sc < SplInd; sc++) {	/* For each cell C to be split */
+                    for (sc = 0; sc < SplInd; sc++) {    /* For each cell C to be split */
                         ind0 = SplCls[sc];
                         ind1 = ind0 + cls[ind0];
                         SplCntInd = 0;
@@ -2417,7 +2424,7 @@ void traces_refine_notrace(Candidate *Cand,
                         for (i = ind0; i < iend; i++) {
                             value = HitVtx[i];
                             j = SplPos[NghCounts[value]]++; /* where HitVtx[i] goes */
-                            k = InvLab[value];				/* where HitVtx[i] is in lab */
+                            k = InvLab[value];                /* where HitVtx[i] is in lab */
                             lab[k] = lab[j];
                             lab[j] = value;
                             InvLab[value] = j;
@@ -2453,6 +2460,7 @@ void traces_refine_notrace(Candidate *Cand,
                     else {
                         Sparse = TRUE;
                     }
+                    Sparse = TRUE;
                     if (Sparse) {
                         /* Counting occurrences of neighbors of the current cell */
                         /* The list of cells with neighbors in the current cell is also built */
@@ -2505,7 +2513,7 @@ void traces_refine_notrace(Candidate *Cand,
                         /* Sorting the cells to be split */
                         sort_Split_Array(SplCls, SplInd);
                         
-                        for (j = 0; j < SplInd; j++) {	/* For each cell C to be split */
+                        for (j = 0; j < SplInd; j++) {    /* For each cell C to be split */
                             ind0 = SplCls[j];
                             ind1 = ind0+cls[ind0];
                             SplCntInd = 0;
@@ -2612,7 +2620,7 @@ void traces_refine_notrace(Candidate *Cand,
                         }
                         
                         ind0 = 0;
-                        while (ind0 < n) {	/* For each cell C with size(C) > 1 */
+                        while (ind0 < n) {    /* For each cell C with size(C) > 1 */
                             ind1 = ind0+cls[ind0];
                             if (cls[ind0] > 1) {
                                 
@@ -2878,8 +2886,8 @@ void traces_refine_maketrie(Candidate *Cand,
                 if (ti->thegraphisparse) {
                     
                     /* NEIGHCOUNT_SPARSE_MULT */
+                    HitClsInd = 0;
                     if (cls[ind0] != n) {
-                        HitClsInd = 0;
                         for (i = ind0; i < ind2; i++) {
                             labi = lab[i];
                             nghb = TheGraph[labi].e;
@@ -2949,7 +2957,7 @@ void traces_refine_maketrie(Candidate *Cand,
                     /* Sorting the cells to be split */
                     sort_Split_Array(SplCls, SplInd);
                     
-                    for (sc = 0; sc < SplInd; sc++) {	/* For each cell C to be split */
+                    for (sc = 0; sc < SplInd; sc++) {    /* For each cell C to be split */
                         ind0 = SplCls[sc];
                         ind1 = ind0 + cls[ind0];
                         SplCntInd = 0;
@@ -3012,7 +3020,7 @@ void traces_refine_maketrie(Candidate *Cand,
                         for (i = ind0; i < iend; i++) {
                             value = HitVtx[i];
                             j = SplPos[NghCounts[value]]++; /* where HitVtx[i] goes */
-                            k = InvLab[value];				/* where HitVtx[i] is in lab */
+                            k = InvLab[value];                /* where HitVtx[i] is in lab */
                             lab[k] = lab[j];
                             lab[j] = value;
                             InvLab[value] = j;
@@ -3041,6 +3049,7 @@ void traces_refine_maketrie(Candidate *Cand,
                     else {
                         Sparse = TRUE;
                     }
+                    Sparse = TRUE;
                     if (Sparse) {
                         /* Counting occurrences of neighbors of the current cell */
                         /* The list of cells with neighbors in the current cell is also built */
@@ -3093,7 +3102,7 @@ void traces_refine_maketrie(Candidate *Cand,
                         /* Sorting the cells to be split */
                         sort_Split_Array(SplCls, SplInd);
                         
-                        for (j = 0; j < SplInd; j++) {	/* For each cell C to be split */
+                        for (j = 0; j < SplInd; j++) {    /* For each cell C to be split */
                             ind0 = SplCls[j];
                             ind1 = ind0+cls[ind0];
                             SplCntInd = 0;
@@ -3192,7 +3201,7 @@ void traces_refine_maketrie(Candidate *Cand,
                         }
                         
                         ind0 = 0;
-                        while (ind0 < n) {	/* For each cell C with size(C) > 1 */
+                        while (ind0 < n) {    /* For each cell C with size(C) > 1 */
                             ind1 = ind0+cls[ind0];
                             if (cls[ind0] > 1) {
                                 
@@ -3351,7 +3360,7 @@ int traces_refine_comptrie(Candidate *Cand,
         
         currentcell = CStack[k];
         currentsize = currentcell+cls[currentcell];
-        CStack[k] = CStack[CStackInd--];		/* Current Cell */
+        CStack[k] = CStack[CStackInd--];        /* Current Cell */
         longcode = MASHNONCOMM(longcode, currentcell);
         StackMarkers[currentcell] = 0;
         
@@ -3455,8 +3464,8 @@ int traces_refine_comptrie(Candidate *Cand,
                 if (ti->thegraphisparse) {
                     
                     /* NEIGHCOUNT_SPARSE_MULT */
+                    HitClsInd = 0;
                     if (cls[ind0] != n) {
-                        HitClsInd = 0;
                         for (i = ind0; i < ind2; i++) {
                             labi = lab[i];
                             nghb = TheGraph[labi].e;
@@ -3526,7 +3535,7 @@ int traces_refine_comptrie(Candidate *Cand,
                     /* Sorting the cells to be split */
                     sort_Split_Array(SplCls, SplInd);
                     
-                    for (sc = 0; sc < SplInd; sc++) {	/* For each cell C to be split */
+                    for (sc = 0; sc < SplInd; sc++) {    /* For each cell C to be split */
                         ind0 = SplCls[sc];
                         ind1 = ind0 + cls[ind0];
                         SplCntInd = 0;
@@ -3590,7 +3599,7 @@ int traces_refine_comptrie(Candidate *Cand,
                         for (i = ind0; i < iend; i++) {
                             value = HitVtx[i];
                             j = SplPos[NghCounts[value]]++; /* where HitVtx[i] goes */
-                            k = InvLab[value];				/* where HitVtx[i] is in lab */
+                            k = InvLab[value];                /* where HitVtx[i] is in lab */
                             lab[k] = lab[j];
                             lab[j] = value;
                             InvLab[value] = j;
@@ -3619,6 +3628,7 @@ int traces_refine_comptrie(Candidate *Cand,
                     else {
                         Sparse = TRUE;
                     }
+                    Sparse = TRUE;
                     if (Sparse) {
                         /* Counting occurrences of neighbors of the current cell */
                         /* The list of cells with neighbors in the current cell is also built */
@@ -3671,7 +3681,7 @@ int traces_refine_comptrie(Candidate *Cand,
                         /* Sorting the cells to be split */
                         sort_Split_Array(SplCls, SplInd);
                         
-                        for (j = 0; j < SplInd; j++) {	/* For each cell C to be split */
+                        for (j = 0; j < SplInd; j++) {    /* For each cell C to be split */
                             ind0 = SplCls[j];
                             ind1 = ind0+cls[ind0];
                             SplCntInd = 0;
@@ -3773,7 +3783,7 @@ int traces_refine_comptrie(Candidate *Cand,
                         }
                         
                         ind0 = 0;
-                        while (ind0 < n) {	/* For each cell C with size(C) > 1 */
+                        while (ind0 < n) {    /* For each cell C with size(C) > 1 */
                             ind1 = ind0+cls[ind0];
                             if (cls[ind0] > 1) {
                                 
@@ -3943,7 +3953,7 @@ int traces_refine_sametrace(Candidate *Cand,
         
         currentcell = CStack[k];
         currentsize = currentcell+cls[currentcell];
-        CStack[k] = CStack[CStackInd--];		/* Current Cell */
+        CStack[k] = CStack[CStackInd--];        /* Current Cell */
         StackMarkers[currentcell] = 0;
         
         labi = lab[currentcell];
@@ -4065,8 +4075,8 @@ int traces_refine_sametrace(Candidate *Cand,
                 if (ti->thegraphisparse) {
                     
                     /* NEIGHCOUNT_SPARSE_MULT */
+                    HitClsInd = 0;
                     if (cls[ind0] != n) {
-                        HitClsInd = 0;
                         for (i = ind0; i < ind2; i++) {
                             labi = lab[i];
                             nghb = TheGraph[labi].e;
@@ -4135,7 +4145,7 @@ int traces_refine_sametrace(Candidate *Cand,
                         /* Sorting the cells to be split */
                         sort_Split_Array(SplCls, SplInd);
                         
-                        for (sc = 0; sc < SplInd; sc++) {	/* For each cell C to be split */
+                        for (sc = 0; sc < SplInd; sc++) {    /* For each cell C to be split */
                             ind0 = SplCls[sc];
                             ind1 = ind0 + cls[ind0];
                             SplCntInd = 0;
@@ -4202,7 +4212,7 @@ int traces_refine_sametrace(Candidate *Cand,
                             for (i = ind0; i < iend; i++) {
                                 value = HitVtx[i];
                                 j = SplPos[NghCounts[value]]++; /* where HitVtx[i] goes */
-                                k = InvLab[value];				/* where HitVtx[i] is in lab */
+                                k = InvLab[value];                /* where HitVtx[i] is in lab */
                                 lab[k] = lab[j];
                                 lab[j] = value;
                                 InvLab[value] = j;
@@ -4245,6 +4255,7 @@ int traces_refine_sametrace(Candidate *Cand,
                     else {
                         Sparse = TRUE;
                     }
+                    Sparse = TRUE;
                     if (Sparse) {
                         /* Counting occurrences of neighbors of the current cell */
                         /* The list of cells with neighbors in the current cell is also built */
@@ -4301,7 +4312,7 @@ int traces_refine_sametrace(Candidate *Cand,
                             /* Sorting the cells to be split */
                             sort_Split_Array(SplCls, SplInd);
                             
-                            for (j = 0; j < SplInd; j++) {	/* For each cell C to be split */
+                            for (j = 0; j < SplInd; j++) {    /* For each cell C to be split */
                                 ind0 = SplCls[j];
                                 ind1 = ind0+cls[ind0];
                                 SplCntInd = 0;
@@ -4418,7 +4429,7 @@ int traces_refine_sametrace(Candidate *Cand,
                         }
                         SplInd = 0;
                         ind4 = 0;
-                        while (ind4 < n) {	/* For each cell C with size(C) > 1 */
+                        while (ind4 < n) {    /* For each cell C with size(C) > 1 */
                             ind1 = ind4+cls[ind4];
                             if (cls[ind4] > 1) {
                                 
@@ -4717,7 +4728,7 @@ void refine_tr(sparsegraph *sg, int *lab, int *ptn, int *numcells, int *code, Tr
 #endif
 }
 
-int refine_tr_refine(Candidate *Cand,
+void refine_tr_refine(Candidate *Cand,
                      int n,
                      Partition *Part,
                      struct TracesVars* tv,
@@ -4725,7 +4736,7 @@ int refine_tr_refine(Candidate *Cand,
     
     int i, j, k, jk, sc, ind0, ind1, ind2, ind3, ind4, labi;
     int value, iend, newcell;
-    int HitClsInd, SplInd, SplCntInd, CStackInd, TraceInd, TraceCCInd, TraceStepsInd, SingInd;
+    int HitClsInd, SplInd, SplCntInd, CStackInd, TraceInd, TraceCCInd, TraceStepsInd;
     int j1int, iend1int;
     unsigned int longcode;
     int newtrace = FALSE;
@@ -4799,7 +4810,7 @@ int refine_tr_refine(Candidate *Cand,
             
             /* Analysis of occurrences of neighbors of the current cell */
             /* The list of cells with neighbors in the current cell is  built */
-            if (cls[ind0] == 1) {			/* SINGLETON CURRENT CELL CASE */
+            if (cls[ind0] == 1) {            /* SINGLETON CURRENT CELL CASE */
                 
                 /* NEIGHCOUNT_SING_MULT */
                 HitClsInd = 0;
@@ -4884,8 +4895,8 @@ int refine_tr_refine(Candidate *Cand,
                 if (ti->thegraphisparse) {
                     
                     /* NEIGHCOUNT_SPARSE_MULT */
+                    HitClsInd = 0;
                     if (cls[ind0] != n) {
-                        HitClsInd = 0;
                         for (i = ind0; i < ind2; i++) {
                             labi = lab[i];
                             nghb = TheGraph[labi].e;
@@ -4953,7 +4964,7 @@ int refine_tr_refine(Candidate *Cand,
                         /* Sorting the cells to be split */
                         sort_Split_Array(SplCls, SplInd);
                         
-                        for (sc = 0; sc < SplInd; sc++) {	/* For each cell C to be split */
+                        for (sc = 0; sc < SplInd; sc++) {    /* For each cell C to be split */
                             ind0 = SplCls[sc];
                             ind1 = ind0 + cls[ind0];
                             SplCntInd = 0;
@@ -5013,7 +5024,7 @@ int refine_tr_refine(Candidate *Cand,
                             for (i = ind0; i < iend; i++) {
                                 value = HitVtx[i];
                                 j = SplPos[NghCounts[value]]++; /* where HitVtx[i] goes */
-                                k = InvLab[value];				/* where HitVtx[i] is in lab */
+                                k = InvLab[value];                /* where HitVtx[i] is in lab */
                                 lab[k] = lab[j];
                                 lab[j] = value;
                                 InvLab[value] = j;
@@ -5043,6 +5054,7 @@ int refine_tr_refine(Candidate *Cand,
                     else {
                         Sparse = TRUE;
                     }
+                    Sparse = TRUE;
                     if (Sparse) {
                         /* Counting occurrences of neighbors of the current cell */
                         /* The list of cells with neighbors in the current cell is also built */
@@ -5099,7 +5111,7 @@ int refine_tr_refine(Candidate *Cand,
                             /* Sorting the cells to be split */
                             sort_Split_Array(SplCls, SplInd);
                             
-                            for (j = 0; j < SplInd; j++) {	/* For each cell C to be split */
+                            for (j = 0; j < SplInd; j++) {    /* For each cell C to be split */
                                 ind0 = SplCls[j];
                                 ind1 = ind0+cls[ind0];
                                 SplCntInd = 0;
@@ -5200,7 +5212,7 @@ int refine_tr_refine(Candidate *Cand,
                         }
                         SplInd = 0;
                         ind4 = 0;
-                        while (ind4 < n) {	/* For each cell C with size(C) > 1 */
+                        while (ind4 < n) {    /* For each cell C with size(C) > 1 */
                             ind1 = ind4+cls[ind4];
                             if (cls[ind4] > 1) {
                                 
@@ -5313,7 +5325,7 @@ int refine_tr_refine(Candidate *Cand,
         }
     }
     Part->code = Cand->code = CLEANUP(longcode);
-    return TraceInd;
+    return;
 }
 
 void Allocate_Traces_Structures(int n) {
@@ -5503,7 +5515,6 @@ int CheckForAutomorphisms(Candidate *CurrCand, Candidate *NextCand,
         default:
             break;
     }
-    
     while (CheckLevel <= CheckLevelEnd) {
         CheckAutList = Spine[CheckLevel].liststart;
         while (CheckAutList) {
@@ -5614,6 +5625,7 @@ int CheckForAutomorphisms(Candidate *CurrCand, Candidate *NextCand,
                             }
                         }
                         else {
+                            orbjoin_sp_perm(tv->orbits, AUTPERM, OrbList, n, &tv->stats->numorbits);
                             if (tv->options->verbosity >= 2) {
                                 fprintf(outfile, "[A*(%d,%d)] ", CheckLevel, CheckAutList->name);
                             }
@@ -5750,8 +5762,14 @@ int CheckForAutomorphisms(Candidate *CurrCand, Candidate *NextCand,
                                 }
                                 if (temp == tv->maxtreelevel) {
                                     tmp1 = TempOrbits[NextCand->lab[Spine[temp].tgtpos]];
-                                    for (i=1; i<AutomCount[0]; i++) if (AutomCount[i] == tmp1) break;
-                                    if (i == AutomCount[0]) AutomCount[AutomCount[0]++] = TempOrbits[NextCand->lab[Spine[temp].tgtpos]];
+                                    
+                                    if (CheckAutList->lab[Spine[temp].tgtpos] == AutomCount[1]) {
+                                        for (i=1; i<AutomCount[0]; i++) if (AutomCount[i] == tmp1) break;
+                                        if (i == AutomCount[0]) {
+                                            AutomCount[AutomCount[0]++] = TempOrbits[NextCand->lab[Spine[temp].tgtpos]];
+                                        }
+                                    }
+                                    
                                 }
                                 break;
                             default:
@@ -5841,6 +5859,8 @@ int CheckForSingAutomorphisms(Candidate *CurrCand, Partition *NextPart, Candidat
                             else {
                                 orbjoin(tv->currorbit, AUTPERM, n);
                             }
+                            orbjoin_sp_perm(tv->orbits, AUTPERM, OrbList, n, &tv->stats->numorbits);
+                            
                             result = -CheckAutList->name;
                         }
                         
@@ -5958,10 +5978,12 @@ int CheckForSingAutomorphisms(Candidate *CurrCand, Partition *NextPart, Candidat
                                     TrieCheckFrom->index++;
                                     PRINT_INDEX(TrieCheckFrom,4,16)
                                 }
-                                if (temp == tv->maxtreelevel) {
+                                if ((temp == tv->maxtreelevel) && (CheckAutList->lab[Spine[temp].tgtpos] == AutomCount[1])) {
                                     tmp1 = TempOrbits[NextCand->lab[Spine[temp].tgtpos]];
                                     for (i=1; i<AutomCount[0]; i++) if (AutomCount[i] == tmp1) break;
-                                    if (i == AutomCount[0]) AutomCount[AutomCount[0]++] = TempOrbits[NextCand->lab[Spine[temp].tgtpos]];
+                                    if (i == AutomCount[0]) {
+                                        AutomCount[AutomCount[0]++] = TempOrbits[NextCand->lab[Spine[temp].tgtpos]];
+                                    }
                                 }
                                 break;
                             default:
@@ -6072,16 +6094,23 @@ int CheckForMatching(Candidate *CurrCand, Candidate *NextCand, Partition *Part, 
                         if (tv->options->verbosity >= 2) {
                             fprintf(outfile, "[M*]");
                         }
-                        if (TempOrbits) {
-                            if (tv->compstage == 0) {
-                                for (j=0; j<tv->permInd; j++) {
-                                    orbjoin_sp_pair(TempOrbits, TempOrbList, n,
-                                                    PrmPairs[j].arg, PrmPairs[j].val, &numtemporbits);
+                        if (CheckAutList->stnode->father == CurrCand->stnode) {
+                            if (TempOrbits) {
+                                if (tv->compstage == 0) {
+                                    for (j=0; j<tv->permInd; j++) {
+                                        orbjoin_sp_pair(TempOrbits, TempOrbList, n, PrmPairs[j].arg, PrmPairs[j].val, &numtemporbits);
+                                    }
                                 }
+                                else {
+                                    orbjoin(TempOrbits, AUTPERM, n);
+                                }
+                            } else {
+                                orbjoin(tv->currorbit, AUTPERM, n);
                             }
-                            else {
-                                orbjoin(TempOrbits, AUTPERM, n);
-                            }
+                        }
+                        
+                        for (j=0; j<tv->permInd; j++) {
+                            orbjoin_sp_pair(tv->orbits, OrbList, n, PrmPairs[j].arg, PrmPairs[j].val, &tv->stats->numorbits);
                         }
                     }
                     
@@ -6198,10 +6227,12 @@ int CheckForMatching(Candidate *CurrCand, Candidate *NextCand, Partition *Part, 
                                 TrieCheckFrom->index++;
                                 PRINT_INDEX(TrieCheckFrom,4,24)
                             }
-                            if (temp == tv->maxtreelevel) {
+                            if ((temp == tv->maxtreelevel) && (CheckAutList->lab[Spine[temp].tgtpos] == AutomCount[1])) {
                                 tmp1 = TempOrbits[NextCand->lab[Spine[temp].tgtpos]];
                                 for (i=1; i<AutomCount[0]; i++) if (AutomCount[i] == tmp1) break;
-                                if (i == AutomCount[0]) AutomCount[AutomCount[0]++] = TempOrbits[NextCand->lab[Spine[temp].tgtpos]];
+                                if (i == AutomCount[0]) {
+                                    AutomCount[AutomCount[0]++] = TempOrbits[NextCand->lab[Spine[temp].tgtpos]];
+                                }
                             }
                             break;
                         default:
@@ -6297,7 +6328,7 @@ int CompStage0(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
         SpineTL->tgtpos = SpineTL->tgtend - 1;
     }
     else {
-        tv->finalnumcells = min(CurrPart->cells,tv->finalnumcells);    /* 160712 */
+        tv->finalnumcells = CurrPart->cells;
         ti->thereisnextlevel = SelectNextLevel(n, tv, ti);
         return 0;
     }
@@ -6473,13 +6504,12 @@ int CompStage0(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
                         tv->answ = traces_refine(NextCand,
                                                  n,
                                                  NextPart, tv, ti, num_indv, TRUE);
-                        
                         switch (tv->answ) {
-                            case 0:				/* Interrupted refinement: do not add to the list */
+                            case 0:                /* Interrupted refinement: do not add to the list */
                                 tv->stats->interrupted++;
                                 SpineTL->levelcounter++;
                                 break;
-                            case 1 :			/* The same trace has been found once more : add to the list */
+                            case 1 :            /* The same trace has been found once more : add to the list */
                                 SpineTL->levelcounter++;
                                 
                                 NextCand->do_it = TRUE;
@@ -6539,9 +6569,10 @@ int CompStage0(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
                                         break;
                                     }
                                     
-                                    if (!tv->strategy && !tv->options->getcanon && (tv->tolevel_tl == tv->tolevel + 1) && ((NextPart->cells != tv->finalnumcells) || (NextPart->cells == n))) {    /* 160717 */
+                                    if (!tv->strategy && !tv->options->getcanon && (tv->tolevel_tl == tv->tolevel + 1) && ((NextPart->cells > tv->finalnumcells) || (NextPart->cells == n))) {    /* 160717 */
                                         tv->levelfromCS0 = tv->tolevel;
                                         tv->maxtreelevel = tv->tolevel_tl;
+                                        tv->finalnumcells = NextPart->cells;
                                         if (tv->tolevel == 1) {
                                             tv->newst_stage1 = searchtrie_make(CurrCand, NextCand, n, tv);
                                             EXITFROMSTAGE0EXPATH1
@@ -6600,8 +6631,11 @@ int CompStage0(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
                                 }
                                 PRINT_RETURN
                                 break;
-                            case 2 :	/* Delete the old list and start a new one: a better trace has been found */
+                            case 2 :    /* Delete the old list and start a new one: a better trace has been found */
                                 
+                                if (NextPart->cells > tv->finalnumcells) {
+                                    tv->finalnumcells = NextPart->cells;
+                                }
                                 tv->tolevel_tl = tv->tolevel;
                                 has_nexttcell = FALSE;
                                 if (NextPart->cells == n) {
@@ -6656,7 +6690,8 @@ int CompStage0(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
                                     if (tv->options->verbosity >= 2) PRINT_CANDIDATE(SpineTL->liststart, tv->tolevel);
                                     PRINT_RETURN;
                                     
-                                    if (!tv->strategy && !tv->options->getcanon && (tv->tolevel+1 == tv->firstpathlength) && ((NextPart->cells != tv->finalnumcells) || (NextPart->cells == n))) {
+                                    if (!tv->strategy && !tv->options->getcanon && (tv->tolevel+1 == tv->firstpathlength) && ((NextPart->cells > tv->finalnumcells) || (NextPart->cells == n))) {
+                                        tv->finalnumcells = NextPart->cells;
                                         if ((tv->tolevel == 1) && (CurrPart->cls[tv->tcell] > 5)) {
                                             EXITFROMSTAGE0EXPATH2;
                                         }
@@ -6729,7 +6764,9 @@ int CompStage0(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
                                         }
                                         if (NextPart->cells < n) {
                                             PRINTF2("CStage0 3: %d\n", tv->finalnumcells);
-                                            tv->finalnumcells = min(NextPart->cells,tv->finalnumcells);    /* 160712 */
+                                            tv->finalnumcells = minint(NextPart->cells,tv->finalnumcells);    /* 160712 */
+                                            tv->finalnumcells = NextPart->cells;
+                                            
                                             PRINTF2("CStage0 3<: %d\n", tv->finalnumcells);
                                         }
                                         
@@ -6742,8 +6779,9 @@ int CompStage0(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
                                         
                                         tv->firstpathlength = tv->tolevel_tl;
                                         PRINT_RETURN
-                                        if (!tv->strategy && !tv->options->getcanon && (NextPart->cells == tv->finalnumcells) && (tv->tolevel_tl == tv->tolevel + 1) && ((NextPart->cells != tv->finalnumcells) || (NextPart->cells == n))) {
+                                        if (!tv->strategy && !tv->options->getcanon && (NextPart->cells == tv->finalnumcells) && (tv->tolevel_tl == tv->tolevel + 1) && ((NextPart->cells > tv->finalnumcells) || (NextPart->cells == n))) {
                                             tv->maxtreelevel = tv->tolevel_tl;
+                                            tv->finalnumcells = NextPart->cells;
                                             if ((tv->tolevel == 1) && (CurrPart->cls[tv->tcell] > 5)) {
                                                 EXITFROMSTAGE0EXPATH2
                                             }
@@ -6841,14 +6879,7 @@ int CompStage1(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
         if (tv->options->verbosity >= 2) tv->schreier2 += CPUTIME;
     }
     else {
-        if (n / CurrPart->cls[tv->tcell] < 256) {
-            memcpy(tv->currorbit, IDENTITY_PERM, n*sizeof(int));
-        }
-        else {
-            for (k = tv->indivstart; k < tv->indivend; k++) {
-                tv->currorbit[CurrCand->lab[k]] = CurrCand->lab[k];
-            }
-        }
+        memcpy(tv->currorbit, IDENTITY_PERM, n*sizeof(int));
     }
     
     if (!CurrCand->sortedlab) {
@@ -7035,24 +7066,13 @@ int CompStage2(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
     
     if (CurrCand->do_it) {
         if (tv->tolevel == 0) {
-            tv->fromlevel = tv->tolevel;
-            SpineFL = Spine+tv->fromlevel;
             vertex = Spine[tv->maxtreelevel+1].liststart->lab[Spine[1].tgtpos];
             k = n;
             
-            if (TargetCell(CurrCand, CurrPart, n, tv, tv->tolevel)) {
-                ++tv->tolevel;
-                SpineTL = Spine+tv->tolevel;
-                SpineTL->tgtcell = tv->tcell;
-                SpineTL->tgtsize = CurrPart->cls[tv->tcell];
-                SpineTL->tgtend = tv->tcell+SpineTL->tgtsize;
-                SpineTL->tgtpos = SpineTL->tgtend - 1;
-            }
-            else {
-                PRINTF2("CStage2 1: %d\n", tv->finalnumcells);
-                tv->finalnumcells = min(CurrPart->cells,tv->finalnumcells);    /* 160712 */
-                return 0;
-            }
+            tv->fromlevel = tv->tolevel++;
+            SpineFL = Spine+tv->fromlevel;
+            SpineTL = Spine+tv->tolevel;
+            tv->tcell = Spine[tv->tolevel].tgtcell;
             
             memcpy(NextCand->lab, CurrCand->lab, n*sizeof(int));
             memcpy(NextCand->invlab, CurrCand->invlab, n*sizeof(int));
@@ -7195,23 +7215,11 @@ int CompStage2(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
             
             if (tv->cand_level ||
                 ((tv->orbits[temp] == temp) && ((tv->finalnumcells < n) || (OrbSize[tv->orbits[temp]] >= OrbSize[tv->orbits[vertex]])))) {
-                tv->fromlevel = tv->tolevel;
+                tv->fromlevel = tv->tolevel++;
                 SpineFL = Spine+tv->fromlevel;
+                SpineTL = Spine+tv->tolevel;
+                tv->tcell = Spine[tv->tolevel].tgtcell;
                 
-                if (TargetCell(CurrCand, CurrPart, n, tv, tv->tolevel)) {
-                    tv->tcellevel = ++tv->tolevel;
-                    SpineTL = Spine+tv->tolevel;
-                    SpineTL->tgtcell = tv->tcell;
-                    SpineTL->tgtsize = CurrPart->cls[tv->tcell];
-                    SpineTL->tgtend = tv->tcell+SpineTL->tgtsize;
-                    SpineTL->tgtpos = SpineTL->tgtend - 1;
-                }
-                else {
-                    PRINTF2("CStage2 2: %d\n", tv->finalnumcells);
-                    tv->finalnumcells = min(CurrPart->cells,tv->finalnumcells);    /* 160712 */
-                    PRINTF2("CStage2 2<: %d\n", tv->finalnumcells);
-                    return 0;
-                }
                 ti->minimalinorbits = TRUE;
                 
                 if (!ti->identitygroup) {
@@ -7546,6 +7554,9 @@ void ExperimentalStep(Partition *NextPart, Candidate *NextCand,
     
     SpineTL_tl = Spine+tv->tolevel_tl;
     NextPart->active = 1;
+    VERB_PRINT("EXSTP ",3,FALSE)
+    if (SpineTL_tl) {
+    }
     
     /* EXPERIMENTAL PATH INDIVIDUALIZATION AND REFINEMENT */
     if (tv->answ == 2) {
@@ -7807,7 +7818,7 @@ void grouporderplus(sparsegraph *sg_orig, Candidate *Cand, Partition *Part, perm
     TrieNode = Spine[tv->maxtreelevel].liststart->stnode;
     if (TrieNode->father) {
         if (tv->options->verbosity >= 2) {
-            LINE(32, "—")
+            LINE(32, "-")
             NEXTLINE
             fprintf(outfile, "group structure: ");
             while (TrieNode->father) {
@@ -8613,7 +8624,7 @@ void MakeCanTree(int v1, sparsegraph *sg_orig, int n, Candidate *Cand, Partition
         }
         
         TreeMarkers[vtx] = tv->treemark;
-        deg0 = max(TheGraph[vtx].d, 0);
+        deg0 = maxint(TheGraph[vtx].d, 0);
         deg1 = sg_orig->d[vtx];
         sge1 = TheGraph[vtx].e;
         
@@ -8660,7 +8671,7 @@ void MakeTree(int v1, int v2, sparsegraph *sg, int n, struct TracesVars* tv, boo
         TreeMarkers[vtx1] = tv->treemark;
         TreeMarkers[vtx2] = tv->treemark;
         
-        deg0 = max(TheGraph[vtx1].d, 0);
+        deg0 = maxint(TheGraph[vtx1].d, 0);
         deg1 = sg->d[vtx1];
         sge1 = TheGraph[vtx1].e;
         sge2 = TheGraph[vtx2].e;
@@ -8686,7 +8697,7 @@ void MakeTree(int v1, int v2, sparsegraph *sg, int n, struct TracesVars* tv, boo
     return;
 }
 
-int max(int u, int v) {
+int maxint(int u, int v) {
     if (u > v) {
         return u;
     }
@@ -8695,7 +8706,7 @@ int max(int u, int v) {
     }
 }
 
-int min(int u, int v) {
+int minint(int u, int v) {
     if (u < v) {
         return u;
     }
@@ -8959,7 +8970,7 @@ int Preprocess(sparsegraph *sg,
     
     int i, j, j0, k, curr_cell, ind, ind0, ind1, ind2;
     int *sge;
-    int HitClsInd, labi, nghb, value, SplInd, SplCntInd, sc, iend, CStackInd, SingInd, newcell, TraceInd;
+    int HitClsInd, labi, nghb, value, SplInd, SplCntInd, sc, iend, CStackInd, newcell, TraceInd;
     
 #define SETPAIRSAUTANDTREE_PREPROC(arg, val) \
 if (tv->build_autom) SETPAIRSAUT(arg, val) \
@@ -9072,7 +9083,7 @@ MakeTree(arg, val, sg, n, tv, FALSE);
             
             if (SplInd) {
                 
-                for (sc = 0; sc < SplInd; sc++) {	/* For each cell C to be split */
+                for (sc = 0; sc < SplInd; sc++) {    /* For each cell C to be split */
                     ind0 = SplCls[sc];
                     ind1 = ind0 + Part->cls[ind0];
                     SplCntInd = 0;
@@ -9143,7 +9154,7 @@ MakeTree(arg, val, sg, n, tv, FALSE);
                         }
                         
                         j = SplPos[NghCounts[value]]++;         /* where HitVtx[i] goes */
-                        k = Cand->invlab[value];				/* where HitVtx[i] is in lab */
+                        k = Cand->invlab[value];                /* where HitVtx[i] is in lab */
                         Cand->lab[k] = Cand->lab[j];
                         Cand->lab[j] = value;
                         Cand->invlab[value] = j;
@@ -9172,232 +9183,9 @@ MakeTree(arg, val, sg, n, tv, FALSE);
                         }
                         if (Part->cls[i] == 1) {
                             Cand->singcode = MASHCOMM(Cand->singcode, Cand->lab[i]);
-                            SingInd++;
                         }
                     }
                     
-                }
-            }
-        }
-        return 1;
-    }
-    else {
-        return 0;
-    }
-}
-
-int Preprocess_refine(sparsegraph *sg,
-                      permnode **ring,
-                      Candidate *Cand,
-                      int n,
-                      Partition *Part,
-                      struct TracesVars* tv) {
-    
-    int i, j, j0, k, curr_cell, ind, ind0, ind1, ind2;
-    int *sge;
-    int HitClsInd, labi, nghb, value, SplInd, SplCntInd, sc, iend, CStackInd, SingInd, newcell, TraceInd;
-    
-#define SETPAIRSAUTANDTREE_PREPROC_REFINE(arg, val) \
-MakeTree(arg, val, sg, n, tv, FALSE);
-    
-    CStackInd = 0;
-    for (i = 0; i < n; i += Part->cls[i]) {
-        if (TheGraph[Cand->lab[i]].d == 1) {
-            CStack[CStackInd++] = i;
-        }
-    }
-    
-    TraceInd = Part->cells;
-    
-    if (CStackInd > 0) {
-        ind = 0;
-        while (ind < CStackInd) {
-            
-            if (tv->mark > (NAUTY_INFINITY-2)) {
-                memset(Markers, 0, n*sizeof(int));
-                memset(MarkHitVtx, 0, n*sizeof(int));
-                tv->mark = 0;
-            }
-            tv->mark++;
-            
-            curr_cell = CStack[ind++];
-            ind2 = curr_cell+Part->cls[curr_cell];
-            HitClsInd = 0;
-            for (i = curr_cell; i < ind2; i++) {
-                labi = Cand->lab[i];
-                nghb = *(TheGraph[labi].e);
-                
-                if (TheGraph[nghb].d != 1) {
-                    TheGraph[labi].d = -1;
-                    TheGraph[labi].one = TRUE;
-                }
-                
-                if (MarkHitVtx[nghb] == tv->mark) {
-                    NghCounts[nghb]++;
-                }
-                else {
-                    value = Part->inv[Cand->invlab[nghb]];
-                    MarkHitVtx[nghb] = tv->mark;
-                    NghCounts[nghb] = 1;
-                    if (Markers[value] != tv->mark) {
-                        HitCls[HitClsInd++] = value;
-                        Markers[value] = tv->mark;
-                        HitVtx[value] = nghb;
-                        ElmHitCll[value] = 1;
-                    }
-                    else {
-                        HitVtx[value+ElmHitCll[value]++] = nghb;
-                    }
-                }
-            }
-            
-            tv->mark++;
-            
-            sort_Split_Array(HitCls,HitClsInd);
-            
-            SplInd = 0;
-            SplCls[0] = n;
-            for (j = 0; j < HitClsInd; j++) {
-                ind1 = HitCls[j];
-                if ((ElmHitCll[ind1] > 0) && (ElmHitCll[ind1] < Part->cls[ind1])) {
-                    SplCls[SplInd++] = ind1;
-                }
-                else {
-                    ind2 = ind1+Part->cls[ind1];
-                    value = NghCounts[Cand->lab[ind1++]];
-                    for (i = ind1; i < ind2; i++) {
-                        if (NghCounts[Cand->lab[i]] != value) {
-                            SplCls[SplInd++] = HitCls[j];
-                            break;
-                        }
-                    }
-                    if (i == ind2) {
-                        ind1 = HitCls[j];
-                        if (TheGraph[Cand->lab[ind1]].d != 1) {
-                            for (i = ind1; i < ind2; i++) {
-                                value = Cand->lab[i];
-                                Edge_Delete(value, NghCounts[value], Cand, tv);
-                                sge = TheGraph[value].e+TheGraph[value].d;
-                                if (NghCounts[value]>1) {
-                                    if (tv->permInd) ResetAutom(tv->permInd, n, tv);
-                                    for (j0=0; j0<NghCounts[value]-1; j0++) {
-                                        SETPAIRSAUTANDTREE_PREPROC_REFINE(sge[j0], sge[j0+1])
-                                    }
-                                    SETPAIRSAUTANDTREE_PREPROC_REFINE(sge[j0], sge[0])
-                                    if (NghCounts[value] > 2) {
-                                        if (tv->permInd) ResetAutom(tv->permInd, n, tv);
-                                        SETPAIRSAUTANDTREE_PREPROC_REFINE(sge[0], sge[1])
-                                        MakeTree(sge[1], sge[0], sg, n, tv, FALSE);
-                                    }
-                                }
-                            }
-                            if (TheGraph[Cand->lab[ind1]].d == 1) {
-                                CStack[CStackInd++] = ind1;
-                            }
-                        }
-                    }
-                }
-            }
-            
-            if (SplInd) {
-                
-                for (sc = 0; sc < SplInd; sc++) {	/* For each cell C to be split */
-                    ind0 = SplCls[sc];
-                    ind1 = ind0 + Part->cls[ind0];
-                    SplCntInd = 0;
-                    if (ElmHitCll[ind0] < Part->cls[ind0]) {
-                        SplCnt[SplCntInd++] = 0;
-                        SplPos[0] = Part->cls[ind0] - ElmHitCll[ind0];
-                    }
-                    
-                    /* According to the numbers of neighbors of C into the current cell */
-                    /* compute how many vertices in C will be placed into the same new cell */
-                    iend = ind0 + ElmHitCll[ind0];
-                    for (i = ind0; i < iend; i++) {
-                        value = NghCounts[HitVtx[i]];
-                        if (Markers[value] != tv->mark) {
-                            Markers[value] = tv->mark;
-                            SplCnt[SplCntInd++] = value;
-                            SplPos[value] = 1;
-                        }
-                        else {
-                            SplPos[value]++;
-                        }
-                    }
-                    tv->mark++;
-                    
-                    /* Sort the values deriving from the previous step */
-                    sort_Split_Array(SplCnt, SplCntInd);
-                    
-                    Part->cells += SplCntInd-1;
-                    
-                    /* Split the cell C and update the information for sizes of new cells */
-                    /* Put the new cells into the stack */
-                    i = ind0;
-                    for (k = 0; k < SplCntInd; k++) {
-                        value = SplPos[SplCnt[k]];
-                        Part->cls[i] = value;
-                        SplPos[SplCnt[k]] = i;
-                        i += value;
-                        if (i < ind1) {
-                            TheTrace[TraceInd++] = i;
-                        }
-                    }
-                    
-                    /* Permute elements of the cell C */
-                    iend = ind0 + ElmHitCll[ind0];
-                    
-                    for (i = ind0; i < iend; i++) {
-                        value = HitVtx[i];
-                        Edge_Delete(value, NghCounts[value], Cand, tv);
-                        sge = TheGraph[value].e+TheGraph[value].d;
-                        if (NghCounts[value] > 1) {
-                            
-                            if (tv->permInd) ResetAutom(tv->permInd, n, tv);
-                            for (j0=0; j0<NghCounts[value]-1; j0++) {
-                                SETPAIRSAUTANDTREE_PREPROC_REFINE(sge[j0], sge[j0+1])
-                            }
-                            SETPAIRSAUTANDTREE_PREPROC_REFINE(sge[j0], sge[0])
-                            if (NghCounts[value] > 2) {
-                                if (tv->permInd) ResetAutom(tv->permInd, n, tv);
-                                SETPAIRSAUTANDTREE_PREPROC_REFINE(sge[0], sge[1])
-                                MakeTree(sge[1], sge[0], sg, n, tv, FALSE);
-                            }
-                        }
-                        
-                        j = SplPos[NghCounts[value]]++;         /* where HitVtx[i] goes */
-                        k = Cand->invlab[value];				/* where HitVtx[i] is in lab */
-                        Cand->lab[k] = Cand->lab[j];
-                        Cand->lab[j] = value;
-                        Cand->invlab[value] = j;
-                        Cand->invlab[Cand->lab[k]] = k;
-                        NghCounts[value] = 0;
-                    }
-                    
-                    /* Reconstruct the cell C and update the inverse partition */
-                    newcell = ind1 - ElmHitCll[ind0];
-                    i = newcell;
-                    ind2 = newcell+Part->cls[newcell]-1;
-                    do {
-                        Part->inv[i] = newcell;
-                        if (i == ind2) {
-                            newcell = i+1;
-                            if (newcell < n) ind2 = newcell+Part->cls[newcell]-1;
-                        }
-                    }
-                    while (++i < ind1);
-                    
-                    for (i = ind0, k = 0; k < SplCntInd; i+=Part->cls[i], k++) {
-                        if ((k > 0) || (SplCnt[0] > 0)) {
-                            if (TheGraph[Cand->lab[i]].d == 1) {
-                                CStack[CStackInd++] = i;
-                            }
-                        }
-                        if (Part->cls[i] == 1) {
-                            Cand->singcode = MASHCOMM(Cand->singcode, Cand->lab[i]);
-                            SingInd++;
-                        }
-                    }
                 }
             }
         }
@@ -9695,6 +9483,7 @@ boolean SelectNextLevel(int n, struct TracesVars *tv, struct TracesInfo *ti) {
     int i, j, val;
     Candidate *FirstCand;
     boolean orbitcell;
+    VERB_PRINT("SelNxtLev",3,FALSE)
     
     switch (tv->compstage) {
         case 2:
@@ -9722,7 +9511,8 @@ boolean SelectNextLevel(int n, struct TracesVars *tv, struct TracesInfo *ti) {
                     PRINTF2("tv->nextlevel: %d\n", tv->nextlevel);
                     if ((Spine[tv->nextlevel].part->cells == tv->finalnumcells) || (tv->nextlevel > tv->maxtreelevel)) {
                         return FALSE;
-                    } else {
+                    }
+                    else {
                         /* Check the whole group */
                         if ((tv->group_level < tv->tolevel) && !ti->first_matching && ti->thegrouphaschanged) {
                             
@@ -9865,7 +9655,7 @@ int spinelementorbsize(int *orbits, int *lab, int size, int elem) {
 boolean TargetCell(Candidate *TargCand, Partition *Part, int n, struct TracesVars* tv, int Lv) {
     int TCell = -1, TCSize = 1;
     int i;
-    
+    VERB_PRINT("TCELL",3,FALSE)
     if (Part->cells == n) {
         tv->finalnumcells = n;
         return FALSE;
@@ -9902,6 +9692,7 @@ boolean TargetCell(Candidate *TargCand, Partition *Part, int n, struct TracesVar
 
 int TargetCellExpPath(Candidate *TargCand, Partition *Part, struct TracesVars* tv) {
     int Lv, n;
+    VERB_PRINT("TCEP",3,FALSE)
     
     n = tv->input_graph->nv;
     if (Part->cells == n) {
@@ -9939,6 +9730,7 @@ boolean TargetCellFirstPath(Candidate *TargCand, Partition *Part, struct TracesV
     int Lv, i, Lev, vtx, vtx_d;
     int loopstart, loopend;
     boolean divided;
+    VERB_PRINT("TCFP",3,FALSE)
     
     n = tv->input_graph->nv;
     
@@ -10002,7 +9794,10 @@ boolean TargetCellFirstPath(Candidate *TargCand, Partition *Part, struct TracesV
         
         if (TCell < 0) {
             if (Lv == 0) {
-                tv->finalnumcells = min(Part->cells,tv->finalnumcells);    /* 160712 */
+                if (tv->answ == 2) {
+                    tv->finalnumcells = minint(Part->cells,tv->finalnumcells);    /* 160712 */
+                    tv->finalnumcells = Part->cells;
+                }
                 return FALSE;
             } else {
                 Lv = Spine[Lv].tgtfrom;
@@ -10579,7 +10374,8 @@ boolean TargetCellFirstPathSmall(Candidate *TargCand, Partition *Part, struct Tr
         
         if (TCell < 0) {
             if (Lv == 0) {
-                tv->finalnumcells = min(Part->cells,tv->finalnumcells);    /* 160712 */
+                tv->finalnumcells = minint(Part->cells,tv->finalnumcells);    /* 160712 */
+                tv->finalnumcells = Part->cells;
                 return FALSE;
             } else {
                 Lv = Spine[Lv].tgtfrom;

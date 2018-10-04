@@ -7,6 +7,7 @@
    Nov 17, 2005 : Added fcanonise_inv_sg()
    May 11, 2010 : use sorttemplates.c
    Sep  5, 2013 : Unify format processing and remove 2^22 limit
+   Oct 14, 2017 : Include code for n=0
 
 **************************************************************************/
 
@@ -42,6 +43,8 @@ setlabptn(int *weight, int *lab, int *ptn, int n)
 {
     int i;
 
+    if (n == 0) return;
+
     for (i = 0; i < n; ++i) lab[i] = i;
 
     if (weight)
@@ -76,6 +79,8 @@ setlabptnfmt(char *fmt, int *lab, int *ptn, set *active, int m, int n)
 
     DYNALLOC1(int,wt,wt_sz,n,"setlabptnfmt");
 #endif
+
+    if (n == 0) return 0;
 
     EMPTYSET(active,m);
     ADDELEMENT(active,0);
@@ -118,10 +123,9 @@ static boolean
 hasloops(graph *g, int m, int n)
 /* Test for loops */
 {
-    int i,nl;
+    int i;
     set *gi;
 
-    nl = 0;
     for (i = 0, gi = g; i < n; ++i, gi += m)
         if (ISELEMENT(gi,i)) return TRUE;
 
@@ -170,6 +174,8 @@ fcanonise(graph *g, int m, int n, graph *h, char *fmt, boolean digraph)
     int numcells,code;
     statsblk stats;
     static DEFAULTOPTIONS_GRAPH(options);
+
+    if (n == 0) return;
 
 #if MAXN
     if (n > MAXN || m > MAXM)
@@ -249,6 +255,8 @@ fcanonise_inv(graph *g, int m, int n, graph *h, char *fmt,
     int numcells,code;
     statsblk stats;
     static DEFAULTOPTIONS_GRAPH(options);
+
+    if (n == 0) return;
 
 #if MAXN
     if (n > MAXN || m > MAXM)
@@ -334,6 +342,13 @@ fcanonise_inv_sg(sparsegraph *g, int m, int n, sparsegraph *h, char *fmt,
     statsblk stats;
     static DEFAULTOPTIONS_SPARSEGRAPH(options);
 
+    if (n == 0)
+    {
+	h->nv = 0;
+	h->nde = 0;
+        return;
+    }
+
 #if MAXN
     if (n > MAXN || m > MAXM)
     {
@@ -412,6 +427,12 @@ fgroup(graph *g, int m, int n, char *fmt, int *orbits, int *numorbits)
     boolean digraph;
     statsblk stats;
     static DEFAULTOPTIONS_GRAPH(options);
+
+    if (n == 0)
+    {
+	*numorbits = 0;
+	return;
+    }
 
 #if MAXN
     if (n > MAXN || m > MAXM)
@@ -506,6 +527,12 @@ fgroup_inv(graph *g, int m, int n, char *fmt, int *orbits, int *numorbits,
     int numcells,code;
     statsblk stats;
     static DEFAULTOPTIONS_GRAPH(options);
+
+    if (n == 0)
+    {
+	*numorbits = 0;
+	return;
+    }
 
 #if MAXN
     if (n > MAXN || m > MAXM)
@@ -638,6 +665,8 @@ istransitive(graph *g, int m, int n, graph *h)
     DYNALLSTAT(set,frontier,frontier_sz);
 #endif
 
+    if (n == 0) return 2;
+
 #if MAXN
     if (m > MAXM || n > MAXN)
     {
@@ -739,6 +768,8 @@ tg_canonise(graph *g, graph *h, int m, int n)
     DYNALLOC1(set,active,active_sz,m,"tg_canonise");
     DYNALLOC1(setword,workspace,workspace_sz,24*m,"tg_canonise");
 #endif
+
+    if (n == 0) return;
 
     options.getcanon = TRUE;
     options.defaultptn = FALSE;

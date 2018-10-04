@@ -3,7 +3,7 @@
 #define USAGE "converseg [-q] [infile [outfile]]"
 
 #define HELPTEXT \
-" Take the converse digraphs of a file of graphs.\n\
+" Take the converse digraphs of a file of directed graphs.\n\
 \n\
     The output file has a header if and only if the input file does.\n\
     Undirected graphs are passed through without change, while\n\

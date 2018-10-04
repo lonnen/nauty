@@ -159,7 +159,7 @@ opengraphfile(char *filename, int *codetype, int assumefixed, long position)
         if ((c = GETC(f)) == EOF || c != '>')
             bad_header = TRUE;
         if (!bad_header && ((c = GETC(f)) == EOF || 
-	         (c != 'g' && c != 's' && c != 'p')))
+	         (c != 'g' && c != 's' && c != 'p' && c != 'd' && c != 'e')))
             bad_header = TRUE;        
         if (!bad_header && c == 'g')
         {

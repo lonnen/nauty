@@ -11,6 +11,7 @@ main(int argc, char *argv[])
 	setword w,ww;
         int curfile;
         FILE *f;
+	set ss[4];
 #ifdef CPUDEFS
         CPUDEFS
 #endif
@@ -155,6 +156,20 @@ main(int argc, char *argv[])
 #else
         printf("OPENOUT is not defined\n");
 #endif
+
+	for (i = 0; i < 4*WORDSIZE; ++i)
+	{
+	    EMPTYSET(ss,4);
+	    ADDELEMENT(ss,i);
+	    if (!ISELEMENT(ss,i))
+	    {
+	        printf("ISELEMENT failed\n");
+	        ++bad;
+		break;
+	    }
+        }
+
+	printf("malloc(0)=%p\n",malloc(0));
 
 	if (!bad) printf("\nNo errors found\n");
 	else      printf("\nXXXXXXX %d errors found XXXXXXX\n",bad);

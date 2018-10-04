@@ -105,15 +105,17 @@ extern void SUMMARY(void);
 
 /**************************************************************************/
 
+#if 0
 static void
 writeautom(int *p, int n)
-/* Called by allgroup. */
+/* Called by allgroup as a test. */
 {
     int i;
 
     for (i = 0; i < n; ++i) printf(" %2d",p[i]);
     printf("\n");
 }
+#endif
 
 /**************************************************************************/
 

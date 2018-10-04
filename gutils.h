@@ -8,6 +8,8 @@ extern void degstats(graph*,int,int,
                      unsigned long*,int*,int*,int*,int*,boolean*);
 extern void degstats2(graph*,boolean,int,int,unsigned long*,int*l,
      int*,int*,int*,int*, int*, int*,int*,int*, boolean*);
+extern void degstats3(graph*,int,int,
+                     unsigned long*,int*,int*,int*,int*,int*);
 extern void diamstats(graph*,int,int,int*,int*);
 extern void find_dist(graph*,int,int,int,int*);
 extern void find_dist2(graph*,int,int,int,int,int*);
@@ -21,6 +23,8 @@ extern boolean isconnected1(graph*,int);
 extern boolean isconnected(graph*,int,int);
 extern boolean issubconnected(graph*,set*,int,int); 
 extern long maxcliques(graph*,int,int);
+extern int maxcliquesize(graph*,int,int);
+extern int maxindsetsize(graph*,int,int);
 
 extern int loopcount(graph*,int,int);
 extern long pathcount1(graph*,int,setword,setword);

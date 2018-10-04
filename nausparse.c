@@ -1,6 +1,6 @@
 /*****************************************************************************
 *                                                                            *
-*  Sparse-graph-specific auxiliary source file for version 2.6 of nauty.     *
+*  Sparse-graph-specific auxiliary source file for version 2.7 of nauty.     *
 *                                                                            *
 *   Copyright (2004-2016) Brendan McKay.  All rights reserved.               *
 *   Subject to waivers and disclaimers in nauty.h.                           *
@@ -524,7 +524,7 @@ updatecan_tr(sparsegraph *g, sparsegraph *canong,
 *          int *lab, int *ptn, set *active, optionblk *options,              *
 *          int *status, int m, int n)                                        *
 *  Initialise routine for dispatch vector.  This one just makes sure         *
-*  that *hin has enough space.                                               *
+*  that *hin has enough space and sets fields for n=0.                       *
 *                                                                            *
 *****************************************************************************/
 
@@ -540,6 +540,8 @@ init_sg(graph *gin, graph **gout, graph *hin, graph **hout, int *lab,
         sg = (sparsegraph*)gin;
         sh = (sparsegraph*)hin;
         SG_ALLOC(*sh,sg->nv,sg->nde,"init_sg");
+        sh->nv = sg->nv;
+        sh->nde = sg->nde;
     }
     *status = 0;
 }
@@ -558,7 +560,7 @@ void
 cleanup_sg(graph *gin, graph **gout, graph *hin, graph **hout, int *lab,
            int *ptn, optionblk *options, statsblk *stats, int m, int n)
 {
-    sparsegraph *sg,*sh;
+    sparsegraph *sh;
 
     if (options->getcanon
         && (stats->errstatus == 0 || stats->errstatus == NAUABORTED))
@@ -1655,7 +1657,7 @@ adjacencies_sg(graph *g, int *lab, int *ptn, int level, int numcells,
 *                                                                            *
 *  sparsenauty(g,lab,ptn,orbits,&options,&stats,h)                           *
 *  is a slightly simplified interface to nauty().  It allocates enough       *
-*  workspace for 20 automorphisms and checks that the sparsegraph dispatch    *
+*  workspace for 60 automorphisms and checks that the sparsegraph dispatch    *
 *  vector is in use.                                                         *
 *                                                                            *
 *****************************************************************************/

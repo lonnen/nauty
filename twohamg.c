@@ -135,7 +135,7 @@ makeprism_sg(sparsegraph *sg, sparsegraph *sh)
 static void
 dumpdata(int id, int nblue, int nred, int n)
 {
-    int i,j;
+    int i;
 
     printf("%d: nblue=%d nred=%d -------------------------\n",id,nblue,nred);
 
@@ -503,7 +503,6 @@ searchnode(int level, int n, int *e, int nblue, int nred)
     int i,status,nbest;
     addrval *valptr;
     int best,score,bestscore;
-    int fe,fc;
     long ran;
      
     ok = propagate(n,e,&nblue,&nred);
@@ -800,7 +799,7 @@ p4decomposition(sparsegraph sg, int vertex, boolean vertical)
    The paths missed can be found in p4list[].
 */
 {
-    int i,j,k,l,n,c;
+    int i,k,n;
     int ans,status;
     int imin,imax,nump4;
     int v1,v2,v3,v4,e1,e2,e3,j1,j2,j3;

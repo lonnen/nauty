@@ -61,7 +61,7 @@ static unsigned long splitcases;
  * If DEGPRUNE is defined it must have a value equal to the name of a 
  * procedure to be supplied by the user and linked to this program.
  * The prototype must be
- *     int DEGPRUNE(int *indeg, int outdeg*, int v, int n)
+ *     int DEGPRUNE(int *indeg, int *outdeg, int v, int n)
  * Here n is the number of vertices altogether, and v (0..n-1) is the
  * number of one vertex.  At this point in the program, some directed
  * edges have been inserted, and the indegrees and outdegrees have the

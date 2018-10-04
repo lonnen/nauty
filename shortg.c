@@ -1,4 +1,4 @@
-/* shortg.c  version 3.1; B D McKay, July 15 2016. */
+/* shortg.c  version 3.2; B D McKay, Sep 17 2018. */
 
 #define USAGE \
   "shortg [-qvkdu] [-i# -I#:# -K#] [-fxxx] [-S|-t] [-Tdir] [infile [outfile]]"
@@ -505,6 +505,7 @@ main(int argc, char *argv[])
             if (read_sgg_loops(infile,&sg,&loops,&digraph) == NULL) break;
             if (loops > 0) gt_abort(
                ">E shortg: Traces does not allow loops or directed edges\n");
+            dstr = readg_line;
             ++numread;
             n = sg.nv;
 #if MAXN
@@ -514,10 +515,18 @@ main(int argc, char *argv[])
             DYNALLOC1(int,ptn,ptn_sz,n,"traces@shortg");
             DYNALLOC1(int,orbits,orbits_sz,n,"traces@shortg");
             SG_ALLOC(sh,n,sg.nde,"labelg");
-            for (ii = 0; ii < n; ++ii) { lab[ii] = ii; ptn[ii] = 1; }
-            ptn[n-1] = 0;
-            Traces(&sg,lab,ptn,orbits,&traces_opts,&traces_stats,&sh);
-            sortlists_sg(&sh);
+	    if (n == 0)
+	    {
+		sh.nv = 0;
+		sh.nde = 0;
+	    }
+	    else
+	    {
+                for (ii = 0; ii < n; ++ii) { lab[ii] = ii; ptn[ii] = 1; }
+                ptn[n-1] = 0;
+                Traces(&sg,lab,ptn,orbits,&traces_opts,&traces_stats,&sh);
+                sortlists_sg(&sh);
+	    }
 	    if (outcode == DIGRAPH6 || digraph) cdstr = sgtod6(&sh);
             else if (outcode == SPARSE6)        cdstr = sgtos6(&sh);
             else                                cdstr = sgtog6(&sh);
