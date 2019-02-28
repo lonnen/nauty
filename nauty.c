@@ -174,7 +174,7 @@ DYNALLSTAT(set,active,active_sz);
    needs one set (tcell) to represent the target cell.  This is 
    implemented by using a linked list of tcnode anchored at the root
    of the search tree.  Each node points to its child (if any) and to
-   the dynamically allocated tcell.  Apart from the the first node of
+   the dynamically allocated tcell.  Apart from the first node of
    the list, each node always has a tcell good for m up to alloc_m.
    tcnodes and tcells are kept between calls to nauty, except that
    they are freed and reallocated if m gets bigger than alloc_m.  */
@@ -340,7 +340,7 @@ nauty(graph *g_arg, int *lab, int *ptn, set *active_arg,
         if (g == NULL) g = g_arg;
         if (canong == NULL) canong = canong_arg;
         OPTCALL(dispatch.cleanup)(g_arg,&g,canong_arg,&canong,
-                                           lab,ptn,options,stats,m,n);
+                                      lab,ptn,options,stats_arg,m,n);
         return;
     }
 
@@ -1173,7 +1173,7 @@ nauty_check(int wordsize, int m, int n, int version)
 
 /*****************************************************************************
 *                                                                            *
-*  extra_autom(p,n)  - add an extra automophism, hard to do correctly        *
+*  extra_autom(p,n)  - add an extra automorphism, hard to do correctly       *
 *                                                                            *
 *****************************************************************************/
 

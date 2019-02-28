@@ -1,7 +1,7 @@
 This is the license for the software package Nauty and
 Traces, package versions 2.6r3 and later.
 
-Four categories of software are included in the package:
+Five categories of software are included in the package:
 A. All files not listed as B-E below, copyright Brendan McKay (1984-)
 B. Files traces.h, traces.c and dretodot.c, copyright Adolfo Piperno (2008-)
 C. File watercluster2.c, copyright Gunnar Brinkmann (2009-)

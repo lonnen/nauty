@@ -25,7 +25,7 @@
   -Y#   : two vertices in the second class must have at least # common nbrs\n\
   -Z#   : two vertices in the second class must have at most # common nbrs\n\
   -A    : no vertex in the second class has a neighbourhood which is a\n\
-          subset of another vertex in the second class\n\
+          subset of another vertex's neighbourhood in the second class\n\
   -D#   : specify an upper bound for the maximum degree\n\
           Example: -D6.  You can also give separate maxima for the\n\
           two parts, for example: -D5:6\n\

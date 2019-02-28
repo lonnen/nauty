@@ -537,7 +537,8 @@ void usage(char name[])
   fprintf(stderr,"T means: Output directed graphs in T-code -- for details see header\n");
   fprintf(stderr,"B means: Output directed graphs in binary code -- for details see header\n");
   fprintf(stderr,"Z means: Output directed graphs in digraph6 code\n");
-  fprintf(stderr,"C means: Do really construct all the directed graphs in memory, but don't output them (default)\n");
+  fprintf(stderr,"C means: Do really construct all the directed graphs in memory,\n"
+                 "        but don't output them (default)\n");
   fprintf(stderr,"S means that for each edge only one direction must be chosen -- not both.\n");
   fprintf(stderr,"Default is that both are allowed\n");
   fprintf(stderr,"  -- so the edge a-b can become a->b AND b->a in the same output graph.\n");

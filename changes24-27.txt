@@ -305,5 +305,12 @@ Changes from nauty 2.6 to nauty 2.7
 
 * Fixed a possible bug in the combination "shortg -kt".
 
-* You can change the archive managerr (default "ar") by defining
+* You can change the archive manager (default "ar") by defining
   the environment variable AR at configure time.
+
+* Some portability issues in nautycliquer.c were fixed (thanks
+  to Isuru Fernando).
+
+* More information is provided to PRUNE/PREPRUNE plugins of geng.
+
+* -q suppresses the "c" lines in Bliss output of listg.

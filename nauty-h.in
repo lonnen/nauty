@@ -286,7 +286,7 @@ it is necessary to check they are correct.
 *   can be compiled to dynamically allocate arrays.  Predefine MAXN=0 to     *
 *   achieve this effect, which is default behaviour from version 2.0.        *
 *   In that case, graphs of size up to NAUTY_INFINITY-2 can be handled       *
-*   if the the memory is available.                                          *
+*   if the memory is available.                                              *
 *                                                                            *
 *   If only very small graphs need to be processed, use MAXN<=WORDSIZE       *
 *   since this causes substantial code optimizations.                        *

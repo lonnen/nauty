@@ -1112,7 +1112,7 @@ userautom3( int count, int *perm, int *orbits, int numorbits, int stabvertex, in
 /*****************************************************************************
  *                                                                            *
  *  init_refinex(clr, lb, p, active, n) initializes some parameters           *
- *  of the the procedure refinex                                              *
+ *  of the procedure refinex                                                  *
  *                                                                            *
  *****************************************************************************/
 

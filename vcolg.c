@@ -1,8 +1,7 @@
 /* vcolg.c version 2.0; B D McKay, May 11, 2017 */
 
 #define USAGE \
-"vcolg [-q] [-u|-T|-G|-A|-B] [-e#|-e#:#] \n" \
-"       [-m#] [-f#] [infile [outfile]]"
+"vcolg [-q] [-u|-T] [-e#|-e#:#] [-m#] [-f#] [infile [outfile]]"
 
 #define HELPTEXT \
 "  Read graphs or digraphs and colour their vertices in\n\
