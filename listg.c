@@ -326,7 +326,7 @@ putdotty(FILE *f, graph *g, unsigned long id, char *extras, int m, int n)
 /**************************************************************************/
 
 static void
-putbliss(FILE *f, unsigned long id, graph *g, int m, int n)
+putbliss(FILE *f, unsigned long id, boolean qswitch, graph *g, int m, int n)
 /* Write the graph in Bliss format, according to
  *      http://www.tcs.hut.fi/Software/bliss/fileformat.shtml */
 {
@@ -339,7 +339,8 @@ putbliss(FILE *f, unsigned long id, graph *g, int m, int n)
         if ((x = *pg) != 0) ne += POPCOUNT(x);
     ne /= 2;
 
-    fprintf(f,"c Graph %lu\n",id);
+    if (!qswitch) fprintf(f,"c Graph %lu\n",id);
+    else          fprintf(f,"\n");
     fprintf(f,"p edge %d %lu\n",n,ne);
 
     for (i = 0, pg = g; i < n; ++i, pg += m)
@@ -682,7 +683,7 @@ main(int argc, char *argv[])
         else if (sswitch)
             putve(outfile,pval1+nin-1,g,digraph,m,n);
         else if (bswitch)
-            putbliss(outfile,pval1+nin-1,g,m,n);
+            putbliss(outfile,pval1+nin-1,qswitch,g,m,n);
         else if (Gswitch)
             putGRAPE(outfile,g,m,n);
         else if (yswitch)

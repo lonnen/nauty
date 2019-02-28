@@ -1,6 +1,7 @@
 /* labelg.c version 2.0; B D McKay, Jun 2015 */
 
-#define USAGE "labelg [-q] [sg | C#W#] [-fxxx] [-S|-t] [-i# -I#:# -K#] [infile [outfile]]"
+#define USAGE "labelg [-q] [-sgz | -C#W#] [-fxxx] [-S|-t] \n\
+                          [-i# -I#:# -K#] [infile [outfile]]"
 
 #define HELPTEXT \
 " Canonically label a file of graphs or digraphs.\n\

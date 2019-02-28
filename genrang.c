@@ -27,7 +27,8 @@
           as vertex count, edge count, then list of edges\n\
     -l# : Maximum loop multiplicity (default 0)\n\
     -m# : Maximum multiplicity of non-loop edge (default and minimum 1)\n\
-    -t  : Make a random tree\n\
+    -t  : Make a random spanning tree of a complete graph\n\
+             or complete bipartite graph\n\
     -T  : Make a random tournament (implies -z)\n\
     -a  : Make invariant under a random permutation\n\
     -S# : Specify random generator seed (default nondeterministic)\n\

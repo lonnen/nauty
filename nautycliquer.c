@@ -2,6 +2,10 @@
    and reorder.c from cliquer-1.21 except the routines for
    reading and writing dimacs files.
 
+   Also some timing code is commented out because it is not used
+   by nauty and causes portability problem on non-Unix systems
+   (thanks to Isuru Fernando).
+
    Some procedures which call cliquer with nauty-format graph
    are added. Apart from removing DIMACS, the cliquer procedures
    have not been changed except to include nautycliquer.h in
@@ -51,8 +55,10 @@ clique_options *clique_default_options=&clique_default_options_struct;
 static int *clique_size;      /* c[i] == max. clique size in {0,1,...,i-1} */
 static set_t current_clique;  /* Current clique being searched. */
 static set_t best_clique;     /* Largest/heaviest clique found so far. */
+#if 0
 static struct tms cputimer;      /* Timer for opts->time_function() */
 static struct timeval realtimer; /* Timer for opts->time_function() */
+#endif
 static int clique_list_count=0;  /* No. of cliques in opts->clique_list[] */
 static int weight_multiplier=1;  /* Weights multiplied by this when passing
 				  * to time_function(). */
@@ -77,11 +83,13 @@ set_t old_best_clique = best_clique;                    \
 int old_clique_list_count = clique_list_count;          \
 int old_weight_multiplier = weight_multiplier;          \
 int **old_temp_list = temp_list;                        \
-int old_temp_count = temp_count;                        \
+int old_temp_count = temp_count;
+/*
 struct tms old_cputimer;                                \
 struct timeval old_realtimer;                           \
 memcpy(&old_cputimer,&cputimer,sizeof(struct tms));       \
-memcpy(&old_realtimer,&realtimer,sizeof(struct timeval));
+memcpy(&old_realtimer,&realtimer,sizeof(struct timeval))
+*/
 
 #define ENTRANCE_RESTORE() \
 clique_size = old_clique_size;                          \
@@ -89,15 +97,17 @@ current_clique = old_current_clique;                    \
 best_clique = old_best_clique;                          \
 clique_list_count = old_clique_list_count;              \
 weight_multiplier = old_weight_multiplier;              \
-temp_list = old_temp_list;                              \
+temp_list = old_temp_list;
+/*
 temp_count = old_temp_count;                            \
 memcpy(&cputimer,&old_cputimer,sizeof(struct tms));       \
 memcpy(&realtimer,&old_realtimer,sizeof(struct timeval));
+temp_count = old_temp_count;
+*/
 
 
 /* Number of clock ticks per second (as returned by sysconf(_SC_CLK_TCK)) */
 static int clocks_per_sec=0;
-
 
 
 
@@ -156,8 +166,10 @@ static boolean false_function(set_t clique,graph_t *g,clique_options *opts);
  */
 static int unweighted_clique_search_single(int *table, int min_size,
 					   graph_t *g, clique_options *opts) {
+#if 0
 	struct tms tms;
 	struct timeval timeval;
+#endif
 	int i,j;
 	int v,w;
 	int *newtable;
@@ -354,8 +366,10 @@ static int unweighted_clique_search_all(int *table, int start,
 					int min_size, int max_size,
 					boolean maximal, graph_t *g,
 					clique_options *opts) {
+#if 0
 	struct timeval timeval;
 	struct tms tms;
+#endif
 	int i,j;
 	int v;
 	int *newtable;
@@ -560,8 +574,10 @@ static int sub_unweighted_all(int *table, int size, int min_size, int max_size,
 static int weighted_clique_search_single(int *table, int min_weight,
 					 int max_weight, graph_t *g,
 					 clique_options *opts) {
+#if 0
 	struct timeval timeval;
 	struct tms tms;
+#endif
 	int i,j;
 	int v;
 	int *newtable;
@@ -710,8 +726,10 @@ static int weighted_clique_search_all(int *table, int start,
 				      int min_weight, int max_weight,
 				      boolean maximal, graph_t *g,
 				      clique_options *opts) {
+#if 0
 	struct timeval timeval;
 	struct tms tms;
+#endif
 	int i,j;
 	int v;
 	int *newtable;
@@ -1132,9 +1150,11 @@ set_t clique_unweighted_find_single(graph_t *g,int min_size,int max_size,
 		return NULL;
 	}
 
+#if 0
 	if (clocks_per_sec==0)
 		clocks_per_sec=sysconf(_SC_CLK_TCK);
 	ASSERT(clocks_per_sec>0);
+#endif
 
 	/* Dynamic allocation */
 	current_clique=set_new(g->n);
@@ -1258,9 +1278,11 @@ int clique_unweighted_find_all(graph_t *g, int min_size, int max_size,
 		return 0;
 	}
 
+#if 0
 	if (clocks_per_sec==0)
 		clocks_per_sec=sysconf(_SC_CLK_TCK);
 	ASSERT(clocks_per_sec>0);
+#endif
 
 	/* Dynamic allocation */
 	current_clique=set_new(g->n);
@@ -1410,9 +1432,11 @@ set_t clique_find_single(graph_t *g,int min_weight,int max_weight,
 		return NULL;
 	}
 
+#if 0
 	if (clocks_per_sec==0)
 		clocks_per_sec=sysconf(_SC_CLK_TCK);
 	ASSERT(clocks_per_sec>0);
+#endif
 
 	/* Check whether we can use unweighted routines. */
 	if (!graph_weighted(g)) {
@@ -1571,9 +1595,11 @@ int clique_find_all(graph_t *g, int min_weight, int max_weight,
 		return 0;
 	}
 
+#if 0
 	if (clocks_per_sec==0)
 		clocks_per_sec=sysconf(_SC_CLK_TCK);
 	ASSERT(clocks_per_sec>0);
+#endif
 
 	if (!graph_weighted(g)) {
 		min_weight=DIV_UP(min_weight,g->weights[0]);

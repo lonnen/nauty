@@ -1,8 +1,8 @@
 /* genspecialg.c  version 1.3; B D McKay, Mar 19, 2018 */
 
-#define USAGE "genspecialg \n\
-[-s|-g|-z|-d|-v] [-q] \
-[-p#|-c#|-e#|-k#|-b#,#[,#]|-Q#|-f#|-J#,#|-P#,#|C#,#...|G#,#...|T#,#...]* [outfile]"
+#define USAGE "genspecialg [-s|-g|-z|-d|-v] [-q]\n\
+     [-p#|-c#|-e#|-k#|-b#,#[,#]|-Q#|-f#|-J#,#\n\
+         |-P#,#|C#,#...|G#,#...|T#,#...]* [outfile]"
 
 #define HELPTEXT \
 " Generate special graphs.\n\

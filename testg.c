@@ -50,7 +50,7 @@
      -g#  girth (0=acyclic)            -Y#  total number of cycles\n\
      -h#  maximum independent set      -k#  maximum clique\n\
      -T#  number of triangles          -K#  number of maximal cliques\n\
-     -B#  smallest side of some bipartition (0 if none)\n\
+     -B#  smallest possible first side of a bipartition (0 if nonbipartite)\n\
      -H#  number of induced cycles\n\
      -E   Eulerian (all degrees are even, connectivity not required)\n\
      -a#  group size  -o# orbits  -F# fixed points  -t vertex-transitive\n\

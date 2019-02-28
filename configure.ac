@@ -22,7 +22,7 @@ AC_DEFUN([AC_TRY_CFLAGS],
 
 dnl CVT_YESNO([YES-NO VARIABLE],[0-1 VARIABLE])
 dnl Make a 0-1 output variable from a yes/no shell variable
-AC_DEFUN(CVT_YESNO,[if test "x$$1" = xyes; then
+AC_DEFUN([CVT_YESNO],[if test "x$$1" = xyes; then
   $2=1
 else
   $2=0

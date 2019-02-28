@@ -3,7 +3,7 @@
  *        add perfect graphs
  *        add complements for ordinary graphs */
 
-/* geng.c  version 3.0; B D McKay, March 2018. */
+/* geng.c  version 3.1; B D McKay, Jan 2019. */
 
 #define USAGE \
 "geng [-cCmtfbd#D#] [-uygsnh] [-lvq] \n\
@@ -176,6 +176,9 @@ PRUNE feature.
    For very fast tests, it might be worthwhile using PREPRUNE as
    well.  It has the same meaning but is applied earlier and more
    often.
+
+   Some parameters are available in global variables:
+   geng_mindeg, geng_maxdeg, geng_mine, geng_maxe;
   
 SUMMARY
 
@@ -383,6 +386,7 @@ efficient to use the res/mod feature than to split by numbers of edges.
                              Revised splitting level.
                              Updated sample execution times.
               Mar 10, 2018 : Fix overflow at impossibly large n, maxdeg.
+              Jan 14, 2019 : Define geng_mindeg, geng_maxdeg, geng_mine, geng_maxe.
 
 **************************************************************************/
 
@@ -500,6 +504,10 @@ extern int PREPRUNE(graph*,int,int);
 #endif
 #ifdef SUMMARY
 extern void SUMMARY(nauty_counter,double);
+#endif
+
+#if defined(PRUNE) || defined(PREPRUNE)
+int geng_mindeg, geng_maxdeg, geng_mine, geng_maxe;
 #endif
 
 /************************************************************************/
@@ -2177,6 +2185,13 @@ PLUGIN_SWITCHES
     if (mindeg < 0) mindeg = 0;
     if (mine < (maxn*mindeg+1) / 2) mine = (maxn*mindeg+1) / 2;
     if (maxdeg > 2*maxe - mindeg*(maxn-1)) maxdeg = 2*maxe - mindeg*(maxn-1);
+
+#if defined(PRUNE) || defined(PREPRUNE)
+    geng_mindeg = mindeg;
+    geng_maxdeg = maxdeg;
+    geng_mine = mine;
+    geng_maxe = maxe;
+#endif
 
     if (!badargs && (mine > maxe || maxe < 0 || maxdeg < 0))
     {
