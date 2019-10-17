@@ -73,7 +73,7 @@ static TLS_ATTR int work1[MAXN];
 static TLS_ATTR int work2[MAXN];
 static TLS_ATTR int work3[MAXN];
 static TLS_ATTR int work4[MAXN];
-static TLS_ATTR set snwork[40*MAXM];
+static TLS_ATTR set snwork[2*60*MAXM];
 #endif
 
 static TLS_ATTR short vmark1_val = 32000;
@@ -1655,7 +1655,7 @@ adjacencies_sg(graph *g, int *lab, int *ptn, int level, int numcells,
 *                                                                            *
 *  sparsenauty(g,lab,ptn,orbits,&options,&stats,h)                           *
 *  is a slightly simplified interface to nauty().  It allocates enough       *
-*  workspace for 20 automorphisms and checks that the sparsegraph dispatch    *
+*  workspace for 60 automorphisms and checks that the sparsegraph dispatch    *
 *  vector is in use.                                                         *
 *                                                                            *
 *****************************************************************************/

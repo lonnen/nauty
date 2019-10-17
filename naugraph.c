@@ -17,6 +17,7 @@
 *       23-May-10 : add densenauty()                                         *
 *       15-Jan-12 : add TLS_ATTR attributes                                  *
 *       23-Jan-13 : add some parens to make icc happy                        *
+*       15-Oct-19 : fix dnwork[] default size                                *
 *                                                                            *
 *****************************************************************************/
 
@@ -53,7 +54,7 @@ DYNALLSTAT(set,dnwork,dnwork_sz);
 static TLS_ATTR set workset[MAXM];   /* used for scratch work */
 static TLS_ATTR int workperm[MAXN];
 static TLS_ATTR int bucket[MAXN+2];
-static TLS_ATTR set dnwork[40*MAXM];
+static TLS_ATTR set dnwork[2*60*MAXM];
 #endif
 
 /*****************************************************************************
