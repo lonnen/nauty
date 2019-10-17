@@ -1,8 +1,8 @@
 /*****************************************************************************
 *                                                                            *
-*  Graph-specific auxiliary source file for version 2.8 of nauty.            *
+*  Graph-specific auxiliary source file for version 2.7 of nauty.            *
 *                                                                            *
-*   Copyright (1984-2016) Brendan McKay.  All rights reserved.               *
+*   Copyright (1984-2019) Brendan McKay.  All rights reserved.               *
 *   Subject to waivers and disclaimers in nauty.h.                           *
 *                                                                            *
 *   CHANGE HISTORY                                                           *
@@ -17,6 +17,7 @@
 *       23-May-10 : add densenauty()                                         *
 *       15-Jan-12 : add TLS_ATTR attributes                                  *
 *       23-Jan-13 : add some parens to make icc happy                        *
+*       15-Oct-19 : fix default size of dnwork[] to match densenauty()       *
 *                                                                            *
 *****************************************************************************/
 
@@ -53,7 +54,7 @@ DYNALLSTAT(set,dnwork,dnwork_sz);
 static TLS_ATTR set workset[MAXM];   /* used for scratch work */
 static TLS_ATTR int workperm[MAXN];
 static TLS_ATTR int bucket[MAXN+2];
-static TLS_ATTR set dnwork[40*MAXM];
+static TLS_ATTR set dnwork[2*60*MAXM];
 #endif
 
 /*****************************************************************************
@@ -651,6 +652,8 @@ densenauty(graph *g, int *lab, int *ptn, int *orbits,
     }
 
 #if !MAXN
+    /* Don't increase 2*60*m in the next line unless you also increase
+       the default declaration of dnwork[] earlier. */
     DYNALLOC1(set,dnwork,dnwork_sz,2*60*m,"densenauty malloc");
 #endif
 

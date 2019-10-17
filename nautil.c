@@ -154,11 +154,14 @@ void
 permset(set *set1, set *set2, int m, int *perm)
 {
     setword setw;
-    int pos,w,b;
+    int pos,b;
+#if MAXM!=1
+    int w;
+#endif
 
     EMPTYSET(set2,m);
 
-#if  MAXM==1
+#if MAXM==1
     setw = set1[0];
     while (setw  != 0)
     {

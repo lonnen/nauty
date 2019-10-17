@@ -1,6 +1,7 @@
 #!/bin/sh
 # Run all nauty checks
 
+# runonetest command input output
 runonetest() {
 cmd="$1"
 in="$2"
@@ -23,7 +24,7 @@ out1=`mktemp runtest.XXXXXX`
 out2=`mktemp runtest.XXXXXX`
 
 eval $cmd <"$in" 2>$out2 >$out1
-LC_COLLATE=C sort $out2 >>$out1
+LC_LANG=C sort $out2 >>$out1
 if ./naucompare "$out1" "$ok" ; then
    rm $out1 $out2
 else
@@ -35,6 +36,23 @@ fi
 
 fails=0
 
+if ! ./nautestS ; then
+   echo "Basic macros for WORDSIZE=16 failed"
+   exit 1
+fi
+
+if ! ./nautestW ; then
+   echo "Basic macros for WORDSIZE=32 failed"
+   exit 1
+fi
+
+if ! ./nautestL ; then
+   echo "Basic macros for WORDSIZE=64 failed"
+   exit 1
+fi
+
+runonetest ./dreadtest nautest1.dre nautest1a.ans
+runonetest ./dreadtest nautest1.dre nautest1a.ans
 runonetest ./dreadtest nautest1.dre nautest1a.ans
 runonetest "./dreadtest -o As" nautest1.dre nautest1b.ans
 runonetest "./dreadtest -o At" nautest1.dre nautest1c.ans

@@ -39,7 +39,7 @@ static long seed = 314159265;
 static int
 hamheur(sparsegraph *sg, boolean pathok, unsigned long limit, int *cyc)
 /* Try up to limit, fill cyc if YES and cyc!=NULL */
-/* For payjok = TRUE, return when a hamiltonian path is found */
+/* For pathok = TRUE, return when a hamiltonian path is found */
 {
     DYNALLSTAT(int,path,path_sz);
     DYNALLSTAT(int,work,work_sz);

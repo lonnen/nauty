@@ -235,7 +235,7 @@ extern void REFPROC(graph*,int*,int*,int,int*,int*,set*,int*,int,int);
 #ifndef  CANONPROC
 #define CANONPROC usercanon
 #else
-extern int CANONPROC(graph*,int*,graph*,int,int,int,int);
+extern int CANONPROC(graph*,int*,graph*,unsigned long,int,int,int);
 #endif
 
 #ifndef  INVARPROC
@@ -286,7 +286,7 @@ static void help(FILE*, int);
 static void userautom(int,int*,int*,int,int,int);
 static void usernode(graph*,int*,int*,int,int,int,int,int,int);
 static void userlevel(int*,int*,int,int*,statsblk*,int,int,int,int,int,int);
-static int usercanon(graph*,int*,graph*,int,int,int,int);
+static int usercanon(graph*,int*,graph*,unsigned long,int,int,int);
 
 static boolean options_writeautoms,options_writemarkers,
             options_digraph,options_getcanon,options_linelength;
@@ -2535,10 +2535,10 @@ userlevel(int *lab, int *ptn, int level, int *orbits, statsblk *stats,
 *****************************************************************************/
 
 static int
-usercanon(graph *g, int *lab, graph *canong, int count, int code,
+usercanon(graph *g, int *lab, graph *canong, unsigned long count, int code,
             int m, int n)
 {
     fprintf(outfile,
-	"**usercanonproc: count=%d code=%d\n",count,code);
+	"**usercanonproc: count=%lu code=%d\n",count,code);
     return 0;
 }

@@ -1,4 +1,4 @@
-/* multig.c version 1.7; B D McKay, May 17, 2014 */
+/* multig.c version 1.8; B D McKay, May 18, 2019 */
 
 #define USAGE \
 "multig [-q] [-u|-T|-G|-A|-B] [-e#|-e#:#] \n" \

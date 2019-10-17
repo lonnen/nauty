@@ -119,7 +119,7 @@ static TLS_ATTR void (*userautomproc)(int,int*,int*,int,int,int);
 static TLS_ATTR void (*userlevelproc)
           (int*,int*,int,int*,statsblk*,int,int,int,int,int,int);
 static TLS_ATTR int (*usercanonproc)
-          (graph*,int*,graph*,int,int,int,int);
+          (graph*,int*,graph*,unsigned long,int,int,int);
 static TLS_ATTR void (*invarproc)
           (graph*,int*,int*,int,int,int,int*,int,boolean,int,int);
 static TLS_ATTR FILE *outfile;
@@ -633,6 +633,12 @@ firstpathnode(int *lab, int *ptn, int level, int numcells)
 	}
         return level-1;
     }
+
+#ifdef NAUTY_IN_MAGMA
+    if (main_seen_interrupt) return NAUTY_KILLED;
+#else
+    if (nauty_kill_request) return NAUTY_KILLED;
+#endif
 
     if (noncheaplevel >= level
                          && !(*dispatch.cheapautom)(ptn,level,digraph,n))

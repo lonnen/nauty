@@ -162,7 +162,7 @@ AC_EXEEXT
 dnl Checks for header files.
 dnl AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS(signal.h stddef.h unistd.h sys/types.h sys/wait.h stdlib.h string.h errno.h pthread.h)
+AC_CHECK_HEADERS(signal.h stddef.h unistd.h sys/types.h sys/wait.h stdlib.h string.h errno.h limits.h stdint.h pthread.h)
 CVT_YESNO(ac_cv_header_stddef_h,header_stddef_h)
 CVT_YESNO(ac_cv_header_unistd_h,header_unistd_h)
 CVT_YESNO(ac_cv_header_stdlib_h,header_stdlib_h)
@@ -172,6 +172,8 @@ CVT_YESNO(ac_cv_header_sys_types_h,header_sys_types_h)
 CVT_YESNO(ac_cv_header_errno_h,header_errno_h)
 CVT_YESNO(ac_cv_header_pthread_h,header_pthread_h)
 CVT_YESNO(ac_cv_header_signal_h,header_signal_h)
+CVT_YESNO(ac_cv_header_limits_h,header_limits_h)
+CVT_YESNO(ac_cv_header_stdint_h,header_stdint_h)
 
 AC_TYPE_PID_T
 CVT_YESNO(ac_cv_type_pid_t,have_pid_t)
@@ -370,6 +372,18 @@ AC_SUBST(MORECFLAGS)
 echo CC="$CC"
 echo CFLAGS="$CFLAGS"
 echo MORECFLAGS="$MORECFLAGS"
+
+dnl --check if lzcnt instruction is available and requested
+AC_MSG_CHECKING(if lzcnt instruction is available and requested)
+AS_IF([test "$allow_clz" -eq 1],
+      [have_hwlzcnt=0
+test -f /proc/cpuinfo && grep -i abm /proc/cpuinfo >/dev/null && have_hwlzcnt=1 
+test $have_hwlzcnt -eq 0 && sysctl machdep.cpu.features 2>/dev/null | grep -i bmi1 >/dev/null && have_hwlzcnt=1
+test $have_hwlzcnt -eq 0 && isainfo -x -v 2>/dev/null | grep -i bmi1 >/dev/null && have_hwlzcnt=1 ],
+      [have_hwlzcnt=0
+])
+AC_MSG_RESULT($have_hwlzcnt)
+AC_SUBST(have_hwlzcnt)
 
 dnl Check for existence of gcc clz extensions
 AS_IF([test "$allow_clz" -eq 1],

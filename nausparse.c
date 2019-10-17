@@ -21,6 +21,7 @@
 *       11-Mar-16 : add cleanup_sg().  This can be used in the cleanup       *
 *                   field of the dispatch vector to sort the lists of the    *
 *                   canonical graph, but isn't there by default.             *
+*       15-Oct-19 : fix static declaration of snwork[]                       *
 *                                                                            *
 *****************************************************************************/
 
@@ -73,7 +74,7 @@ static TLS_ATTR int work1[MAXN];
 static TLS_ATTR int work2[MAXN];
 static TLS_ATTR int work3[MAXN];
 static TLS_ATTR int work4[MAXN];
-static TLS_ATTR set snwork[40*MAXM];
+static TLS_ATTR set snwork[2*60*MAXM];
 #endif
 
 static TLS_ATTR short vmark1_val = 32000;
@@ -1678,6 +1679,8 @@ sparsenauty(sparsegraph *g, int *lab, int *ptn, int *orbits,
     m = SETWORDSNEEDED(n);
 
 #if !MAXN
+  /*  Don't increase 2*60*m in the following without also increasing
+           the static decalaration of snwork[] above. */
     DYNALLOC1(set,snwork,snwork_sz,2*60*m,"densenauty malloc");
 #endif
 

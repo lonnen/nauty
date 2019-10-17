@@ -636,6 +636,7 @@ default_wordsize
 have_clzll
 have_clzl
 have_clz
+have_hwlzcnt
 MORECFLAGS
 have_mmpop64
 have_mmpop32
@@ -674,6 +675,8 @@ fdopen_dec
 ftell_dec
 malloc_dec
 have_pid_t
+header_stdint_h
+header_limits_h
 header_signal_h
 header_pthread_h
 header_errno_h
@@ -4244,7 +4247,7 @@ fi
 done
 
 
-for ac_header in signal.h stddef.h unistd.h sys/types.h sys/wait.h stdlib.h string.h errno.h pthread.h
+for ac_header in signal.h stddef.h unistd.h sys/types.h sys/wait.h stdlib.h string.h errno.h limits.h stdint.h pthread.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -4309,6 +4312,18 @@ if test "x$ac_cv_header_signal_h" = xyes; then
   header_signal_h=1
 else
   header_signal_h=0
+fi
+
+if test "x$ac_cv_header_limits_h" = xyes; then
+  header_limits_h=1
+else
+  header_limits_h=0
+fi
+
+if test "x$ac_cv_header_stdint_h" = xyes; then
+  header_stdint_h=1
+else
+  header_stdint_h=0
 fi
 
 
@@ -5223,6 +5238,21 @@ fi
 echo CC="$CC"
 echo CFLAGS="$CFLAGS"
 echo MORECFLAGS="$MORECFLAGS"
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if lzcnt instruction is available and requested" >&5
+$as_echo_n "checking if lzcnt instruction is available and requested... " >&6; }
+if test "$allow_clz" -eq 1; then :
+  have_hwlzcnt=0
+test -f /proc/cpuinfo && grep -i abm /proc/cpuinfo >/dev/null && have_hwlzcnt=1
+test $have_hwlzcnt -eq 0 && sysctl machdep.cpu.features 2>/dev/null | grep -i bmi1 >/dev/null && have_hwlzcnt=1
+test $have_hwlzcnt -eq 0 && isainfo -x -v 2>/dev/null | grep -i bmi1 >/dev/null && have_hwlzcnt=1
+else
+  have_hwlzcnt=0
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $have_hwlzcnt" >&5
+$as_echo "$have_hwlzcnt" >&6; }
+
 
 if test "$allow_clz" -eq 1; then :
    { $as_echo "$as_me:${as_lineno-$LINENO}: checking if __builtin_clz() is supported" >&5

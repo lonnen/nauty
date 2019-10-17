@@ -69,7 +69,7 @@ used, it is necessary to check they are correct.
 extern int errno;
 #endif
 
-#if HAVE_WAIT_H
+#if HAVE_WAIT_H && !defined(AVOID_SYS_WAIT_H)
 #include <sys/wait.h>
 #endif
 

@@ -1,6 +1,6 @@
-/* assembleg.c  version 1.0; B D McKay, Dec 2017. */
+/* assembleg.c  version 1.1; B D McKay, Sep 2018. */
 
-#define USAGE "assembleg -n# [-q] [infile [outfile]]"
+#define USAGE "assembleg -n#|-n#:# [-i#|i#:#] [-L] [-q] [infile [outfile]]"
 
 #define HELPTEXT \
 " Assemble input graphs as components of output graphs.\n\
@@ -9,18 +9,20 @@
     If the input has any directed graphs, all outputs are directed.\n\
     Otherwise, the output format is determined by the header\n\
        or first input.\n\
-    The input graphs had better all fit into memory at once.\n\
+    The input graphs had better all fit into memory at once,\n\
+       unless -L is given, in which case only the graphs of at\n\
+       most half the output size are stored at once.\n\
     The output graphs will be non-isomorphic if the input\n\
        graphs are connected and non-isomorphic.\n\
 \n\
     -n# -n#:#  Give range of output sizes (compulsory)\n\
     -i# -i#:#  Give range of input sizes to use\n\
+    -L  Assume all input graphs strictly larger than maxn/2\n\
+         vertices follow any smaller graphs in the input,\n\
+         where maxn is the largest size specified by -n.\n\
+         This can greatly reduce memory consumption.\n\
     -c  Also write graphs consisting of a single input\n\
     -q  Suppress auxiliary information.\n"
-
-/* This program is not very clever.  Ideally the inputs larger
-   than half the output size don't need to be stored.  The problem
-   is that the input can come with the sizes in random order. */
 
 /*************************************************************************/
 
@@ -120,12 +122,57 @@ readinputs(FILE *f, int imin, int imax)
     sortbysize(size,gin,ninputs);
 }
 
+static void
+readsomeinputs(FILE *f, int imin, int imax, int maxsize,
+                                                  graph **g, int *n)
+/* Read inputs and sort by size.  Stop when either EOF or a
+   graph bigger than maxsize is read. */
+{
+    size_t tablesize;
+    int m;
+    boolean digraph;
+
+    if ((gin = malloc(sizeof(graphptr)*10000)) == NULL ||
+        (size = malloc(sizeof(int)*10000)) == NULL)
+	    gt_abort(">E malloc failed in readsomeinputs()\n");
+    tablesize = 10000;
+
+    ninputs = 0;
+
+    while (TRUE)
+    {
+        if ((*g = readgg(f,NULL,0,&m,n,&digraph)) == NULL) break;
+        if (digraph) outcode = DIGRAPH6;
+	if (*n > maxsize) break;
+
+	if (*n < imin || *n > imax) continue;
+
+	if (ninputs == tablesize)
+	{
+            tablesize += 10000;
+	    if ((gin = realloc(gin,sizeof(graphptr)*tablesize)) == NULL ||
+                (size = realloc(size,sizeof(int)*tablesize)) == NULL)
+		    gt_abort(">E realloc failed in readsomeinputs()\n");
+	}
+
+	gin[ninputs] = *g;
+        size[ninputs] = *n;
+	++ninputs;
+    }
+
+    if (ninputs < 0 || ninputs > tablesize)
+	gt_abort(">E Some overflow problem in readinputs()\n");
+
+    sortbysize(size,gin,ninputs);
+}
+
 /**************************************************************************/
 
 static void
 assemble(graph *g, int nmin, int nmax, int sofar, int lastpos,
           boolean writeconn, FILE *outfile)
-/* Recursively add one more graph */
+/* Recursively add one more graph.
+   sofar = how many vertices so far. */
 {
     int pos,newsize;
 
@@ -158,21 +205,21 @@ main(int argc, char *argv[])
     char *infilename,*outfilename;
     FILE *infile,*outfile;
     boolean badargs,quiet;
-    boolean nswitch,cswitch,iswitch;
+    boolean nswitch,cswitch,iswitch,Lswitch;
     boolean digraph;
     int j,m,n,argnum;
     int codetype;
-    graph *g;
+    graph *gread,*gout;
     nauty_counter nin;
     char *arg,sw;
     double t;
-    long nmin,nmax,imin,imax;
+    long nmin,nmax,mmax,imin,imax;
 
     HELP; PUTVERSION;
 
     infilename = outfilename = NULL;
     badargs = FALSE;
-    iswitch = nswitch = cswitch = quiet = FALSE;
+    iswitch = nswitch = cswitch = quiet = Lswitch = FALSE;
 
     argnum = 0;
     badargs = FALSE;
@@ -187,6 +234,7 @@ main(int argc, char *argv[])
                 sw = *arg++;
                      SWBOOLEAN('q',quiet)
 		else SWBOOLEAN('c',cswitch)
+		else SWBOOLEAN('L',Lswitch)
 		else SWRANGE('n',":-",nswitch,nmin,nmax,"assembleg -n")
 		else SWRANGE('i',":-",iswitch,imin,imax,"assembleg -i")
                 else badargs = TRUE;
@@ -224,6 +272,7 @@ main(int argc, char *argv[])
 	    else fprintf(stderr,"i%ld:%ld",imin,imax);
 	}
 	if (cswitch) fprintf(stderr,"c");
+	if (Lswitch) fprintf(stderr,"L");
         if (argnum > 0) fprintf(stderr," %s",infilename);
         if (argnum > 1) fprintf(stderr," %s",outfilename);
         fprintf(stderr,"\n");
@@ -257,17 +306,56 @@ main(int argc, char *argv[])
     gtools_check(WORDSIZE,1,1,NAUTYVERSIONID);
 
     t = CPUTIME;
-    readinputs(infile,(int)imin,(int)imax);
 
-    m = SETWORDSNEEDED(nmax);
+    mmax = SETWORDSNEEDED(nmax);
 
-    if ((g = malloc(m*sizeof(graph)*nmax)) == NULL)
+    if ((gout = malloc(mmax*sizeof(graph)*nmax)) == NULL)
 	gt_abort(">E assembleg: malloc() failed in main()\n");
 
-    EMPTYSET(g,m*(size_t)nmax);
 
     nout = 0;
-    assemble(g,(int)nmin,(int)nmax,0,0,cswitch,outfile);
+
+    if (Lswitch)
+    {
+        readsomeinputs(infile,(int)imin,(int)imax,(int)nmax/2,&gread,&n);
+
+        EMPTYSET(gout,m*(size_t)nmax);
+        assemble(gout,(int)nmin,(int)nmax,0,0,cswitch,outfile);
+
+	while (gread)
+	{
+	    if (n >= imin && n <= imax)
+	    { 
+                EMPTYSET(gout,mmax*(size_t)nmax);
+                insertg(gout,0,gread,n,(int)nmax);
+    
+	        if (n >= nmin && n <= nmax && cswitch)
+	        {
+	            if (outcode == DIGRAPH6)
+                        writed6(outfile,gout,mmax,n);
+	            else if (outcode == GRAPH6)
+                        writeg6(outfile,gout,mmax,n);
+	            else
+                        writes6(outfile,gout,mmax,n);
+	            ++nout;
+	        }
+
+                assemble(gout,(int)nmin,(int)nmax,n,0,cswitch,outfile);
+	    }
+	    FREES(gread);
+
+            if ((gread = readgg(infile,NULL,0,&m,&n,&digraph)) == NULL) break;
+            if (digraph) outcode = DIGRAPH6;
+	    if (n <= nmax/2) gt_abort(">E assembleg -L : inputs in bad order\n");
+	}
+    }
+    else
+    {
+        readinputs(infile,(int)imin,(int)imax);
+
+        EMPTYSET(gout,m*(size_t)nmax);
+        assemble(gout,(int)nmin,(int)nmax,0,0,cswitch,outfile);
+    }
  
     t = CPUTIME - t;
 

@@ -1963,7 +1963,7 @@ genextend(graph *g, int n, int *deg, int ne, boolean rigid, int xlb, int xub)
         {
             if (!rigid && xorb[i] != i) continue;
             x = xset[i];
-            xc = xcard[i];
+            xc = (int)xcard[i];
             if (xc == dmax && (x & d) != 0) continue;
             if ((dlow & ~x) != 0) continue;
 
@@ -1989,7 +1989,7 @@ genextend(graph *g, int n, int *deg, int ne, boolean rigid, int xlb, int xub)
         {
             if (!rigid && xorb[i] != i) continue;
             x = xset[i];
-            xc = xcard[i];
+            xc = (int)xcard[i];
             if (xc == dmax && (x & d) != 0) continue;
             if ((dlow & ~x) != 0) continue;
             if (nx == splitlevel)

@@ -314,3 +314,58 @@ Changes from nauty 2.6 to nauty 2.7
 * More information is provided to PRUNE/PREPRUNE plugins of geng.
 
 * -q suppresses the "c" lines in Bliss output of listg.
+
+* The -B/--B switch of listg/countg is now isomomorphism-invariant.
+  It equals 0 for non-bipartite graph, and the smallest possible
+  side of a 2-colouring otherwise.  This change reflects rewriting
+  of function bipartiteside() in gutil1.c.  The values can differ
+  from those for nauty version <= 2.7rc1 when there are three or
+  more components.
+
+* Fixed the type of the 4th parameter of options.usercanonproc.
+
+* Check kill requests more often. If the global int variable
+  nauty_kill_request becomes nonzero, nauty and Traces will
+  exit at certain key points. In dreadnaut nauty_kill_request
+  is set if the user types control-C (if the operating system
+  provides this facility).
+
+* nauty.h loads <limits.h> and <stdint.h> if they exist.
+
+* Some features were added to assist installation on non-POSIX
+  systems or where 'configure' can't be easily run, such as
+  Microsoft Visual Studio. These changes are mostly in nauty.h.
+  1. The predefined names _MSC_VER, _WIN32 and _WIN64 are examined.
+  2. HAVE_HWLZCNT and HAVE_HWPOPCNT can be defined at compile time
+     (to 0 or 1) to indicate the presence of hardware lzcnt and popcnt 
+     instructions.
+  3. The FIRSTBITNZ, FIRSTBIT and POPCOUNT macros can be defined
+     at compile time (though it is unlikely you will be able to do
+     much better than the default versions). FIRSTBIT is defined
+     in terms of FIRSTBITNZ if it isn't defined separately.
+  4. Loading of unavailable header files can be disabled by
+     predefining macros: AVOID_SYS_TYPES_H, AVOID_UNISTD_H,
+     AVOID_STRINGS_H and AVOID_SYS_WAIT_H.
+  There is more to do here; there are lots of variations in
+  different software versions and documentation is inconsistent.
+  Thanks to Andy Mercier for discussions so far.
+
+* Bug fixed in directg that caused a crash for digraph6 output
+  over WORDSIZE vertices.
+
+* The external variables labelorg and nauty_kill_request were
+  moved into the "C" block of nauty.h for C++ compatibility.
+
+* Identical BUGS in naugraph.c and sparsegraph.c.
+  The static sizes of dnwork[] and snwork[] were too small.
+  This bug first crept into version 2.6 beta 10.  To meet this
+  bug, all of the following must be true:
+  (a) called densenauty() or sparsenauty() rather than calling
+      nauty() directly.
+  (b) Processed graphs with 20 or more vertices.
+  (c) compiled naugraph.c or sparsegraph.c with an explicit
+      value of MAXN, rather than the default MAXN=0.
+      (This includes using the libraries nauty1.a, nautyW1.a
+      or nautyL1.a. However nauty.a, nautyW.a and nautyL.a
+      were safe.)
+  Thanks to James Trimble and Chris Jefferson for uncovering this.

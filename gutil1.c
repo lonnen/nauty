@@ -645,31 +645,101 @@ isbipartite(graph *g, int m, int n)
 int
 bipartiteside(graph *g, int m, int n)
 /* If g is not bipartite, return 0.
-   Otherwise return the size of the smallest of the two parts of
-    some 2-coluring.  Note that this is not isomorphism-invariant
-    if g is disconnected. */
+   Otherwise return the size of the smallest of the two parts
+   of a 2-coluring for which this value is smallest. */
 {
-    boolean isbip;
-    int i,sz;
+    int i,head,tail,v,w,need;
+    set *gw;
+    setword xg;
+    int ans,col[2];
 #if MAXN
+    int queue[MAXN];
     int colour[MAXN];
 #else
+    DYNALLSTAT(int,queue,queue_sz);
     DYNALLSTAT(int,colour,colour_sz);
 #endif
 
 #if !MAXN
+    DYNALLOC1(int,queue,queue_sz,n,"twocolouring");
     DYNALLOC1(int,colour,colour_sz,n,"isbipartite");
 #endif
 
     if (n == 0) return 0;
-    isbip = twocolouring(g,colour,m,n);
-    if (!isbip) return 0;
+    for (i = 0; i < n; ++i) colour[i] = -1;
+    ans = 0;
 
-    sz = 0;
-    for (i = 0; i < n; ++i) sz += colour[i];
+    if (m == 1)
+    {
+        for (v = 0; v < n; ++v)
+	{
+            if (colour[v] < 0)
+            {
+                queue[0] = v;
+                colour[v] = 0;
+		col[0] = 1; col[1] = 0;
+    
+                head = 0;
+                tail = 1;
+                while (head < tail) 
+                {
+                    w = queue[head++];
+                    need = 1 - colour[w];
+                    xg = g[w];
+		    while (xg)
+                    {
+			TAKEBIT(i,xg);
+                        if (colour[i] < 0)
+                        {
+                            colour[i] = need;
+			    ++col[need];
+                            queue[tail++] = i;
+                        }
+                        else if (colour[i] != need)
+                            return 0;
+                    }
+                }
+		if (col[0] <= col[1]) ans += col[0];
+                else                  ans += col[1];
+            }
+ 	}
+    }
+    else
+    {
+        for (v = 0; v < n; ++v)
+	{
+            if (colour[v] < 0)
+            {
+                queue[0] = v;
+                colour[v] = 0;
+		col[0] = 1; col[1] = 0;
+    
+                head = 0;
+                tail = 1;
+                while (head < tail) 
+                {
+                    w = queue[head++];
+                    need = 1 - colour[w];
+                    gw = GRAPHROW(g,w,m);
+                    for (i = -1; (i = nextelement(gw,m,i)) >= 0;)
+                    {
+                        if (colour[i] < 0)
+                        {
+                            colour[i] = need;
+			    ++col[need];
+                            queue[tail++] = i;
+                        }
+                        else if (colour[i] != need)
+                            return 0;
+                    }
+                }
+		if (col[0] <= col[1]) ans += col[0];
+                else                  ans += col[1];
+            }
+	}
+     }
 
-    if (sz+sz <= n) return sz;
-    else            return n - sz;
+    return ans;
 }
 
 /**************************************************************************/

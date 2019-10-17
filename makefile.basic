@@ -334,7 +334,7 @@ genquarticg : ${GTOOLSH} genquarticg.c gtoolsL.o nautyL1.o nautilL1.o \
 		nautilL1.o naugraphL1.o schreierL.o naurng.o ${LDFLAGS}
 
 gentreeg : gentreeg.c gtools.o nauty.h gtools.h
-	${CC} -o gentreeg ${CFLAGS} gentreeg.c gtools.o
+	${CC} -o gentreeg ${CFLAGS} gentreeg.c gtools.o ${LDFLAGS}
 
 genrang : ${GTOOLSH} genrang.c gtools.o naututil.o ${NAUTYO}
 	${CC} -o genrang ${CFLAGS} genrang.c \
@@ -496,13 +496,20 @@ nautyex10 : nauty.h nautyex10.c nauty.a
 
 testprogs: ${TESTPROGS} ;
 
-checks: nauty gtools naucompare ${TESTPROGS}
+checks: nauty gtools nautestS nautestW nautestL naucompare ${TESTPROGS}
 	./runalltests
 
 check: checks ;
 
 naucompare : naucompare.c
 	${CC} -o naucompare ${CFLAGS} naucompare.c ${LDFLAGS}
+
+nautestS : nauty.h naututil.h nautest.c
+	${CC} -o nautestS ${CFLAGS} ${S} nautest.c ${LDFLAGS}
+nautestW : nauty.h naututil.h nautest.c
+	${CC} -o nautestW ${CFLAGS} ${W} nautest.c ${LDFLAGS}
+nautestL : nauty.h naututil.h nautest.c
+	${CC} -o nautestL ${CFLAGS} ${L} nautest.c ${LDFLAGS}
 
 dreadtest: dreadnaut.c nautinv.o ${NAUTYO} naututil.o traces.o gtools.o 
 	${CC} -o dreadtest ${SAFECFLAGS} -DDREADTEST dreadnaut.c \
