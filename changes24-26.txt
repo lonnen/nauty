@@ -225,3 +225,22 @@ Other changes:
   -DKEEP_SORT_LOCALE but beware that some collation orders are
   are not even deterministic (i.e. different characters might
   compare equal).
+
+Changes from version 2.7 propagated backwards:
+
+* digraph6 output now works over WORDSIZE vertices in directg.
+
+* Identical BUGS in naugraph.c and sparsegraph.c.
+  The static sizes of dnwork[] and snwork[] were too small.
+  This bug first crept into version 2.6 beta 10.  To meet this
+  bug, all of the following must be true:
+  (a) called densenauty() or sparsenauty() rather than calling
+      nauty() directly.
+  (b) Processed graphs with 20 or more vertices.
+  (c) compiled naugraph.c or sparsegraph.c with an explicit
+      value of MAXN, rather than the default MAXN=0.
+      (This includes using the libraries nauty1.a, nautyW1.a
+      or nautyL1.a. However nauty.a, nautyW.a and nautyL.a
+      were safe.)
+  Thanks to James Trimble and Chris Jefferson for uncovering this.
+

@@ -40,7 +40,8 @@ FILE *outfile;
 static int v0[MAXNE],v1[MAXNE];
 static int edgeno[MAXNV][MAXNV];
 
-#define MAXME ((2*MAXNE+WORDSIZE-1)/WORDSIZE)
+#define MAXME SETWORDSNEEDED(2*MAXNE)
+#define GRAPHSIZE (MAXNV*SETWORDSNEEDED(MAXNV))
 
 static set x[MAXME];
 static int ix[2*MAXNE],nix;
@@ -61,7 +62,7 @@ static unsigned long splitcases;
  * If DEGPRUNE is defined it must have a value equal to the name of a 
  * procedure to be supplied by the user and linked to this program.
  * The prototype must be
- *     int DEGPRUNE(int *indeg, int outdeg*, int v, int n)
+ *     int DEGPRUNE(int *indeg, int *outdeg, int v, int n)
  * Here n is the number of vertices altogether, and v (0..n-1) is the
  * number of one vertex.  At this point in the program, some directed
  * edges have been inserted, and the indegrees and outdegrees have the
@@ -199,9 +200,9 @@ testmax(int *p, int n, int *abort)
 static int
 trythisone(grouprec *group, int ne, int n)
 {
-    int i,k;
+    int i,k,m;
     boolean accept;
-    graph g[WORDSIZE];
+    graph g[GRAPHSIZE];
 
     first = TRUE;
 
@@ -239,14 +240,16 @@ trythisone(grouprec *group, int ne, int n)
 
         ++dg_nout;
 
+	m = SETWORDSNEEDED(n);
+
 	if (digraph6)
         {
-	    EMPTYSET(g,n);
+	    EMPTYSET(g,m*n);
 	    for (i = -1; (i = nextelement(x,me,i)) >= 0; )
             {
                 k = i >> 1;
-                if (i & 1) g[v1[k]] |= bit[v0[k]];
-                else       g[v0[k]] |= bit[v1[k]];
+                if (i & 1) ADDELEMENT(g+m*v1[k],v0[k]);
+                else       ADDELEMENT(g+m*v0[k],v1[k]);
             }
 	}
 
@@ -257,15 +260,15 @@ trythisone(grouprec *group, int ne, int n)
 	    for (i = -1; (i = nextelement(x,me,i)) >= 0; )
             {
                 k = i >> 1;
-                if (i & 1) g[v1[k]] |= bit[v0[k]];
-                else       g[v0[k]] |= bit[v1[k]];
+                if (i & 1) ADDELEMENT(g+m*v1[k],v0[k]);
+                else       ADDELEMENT(g+m*v0[k],v1[k]);
             }
 	}
 	PROCESS(outfile,g,n);
 #endif
 
 	if (digraph6)
-	    writed6(outfile,g,1,n);
+	    writed6(outfile,g,m,n);
         else if (outfile)
         {
             fprintf(outfile,"%d %d",n,ne);
