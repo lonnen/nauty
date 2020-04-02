@@ -18,14 +18,14 @@ used, it is necessary to check they are correct.
 #define HAVE_WAIT  1          /* wait() exists */
 #define HAVE_WAIT_H  1     /* <sys/wait.h> exists */
 #define HAVE_POPEN  1          /* popen() and pclose() exist */
-#define POPEN_DEC  1         /* popen() is declared in stdio.h */
-#define FTELL_DEC  1         /* ftell() is declared in stdio.h */
-#define FDOPEN_DEC  1        /* fdopen() is declared in stdio.h */
+#define POPEN_DEC  1         /* popen() is declared */
+#define FTELL_DEC  1         /* ftell() is declared */
+#define FDOPEN_DEC  1        /* fdopen() is declared */
 #define SORTPROG  "sort"         /* name of sort program */
 #define SORT_NEWKEY 1  /* if -k is supported */
 #define HAVE_PID_T 1    /* pid_t is defined */
-#define PUTENV_DEC 1   /* putenv() is declared in stdlib.h */
-#define SETENV_DEC 1   /* setenv() is declared in stdlib.h */
+#define PUTENV_DEC 1   /* putenv() is declared */
+#define SETENV_DEC 1   /* setenv() is declared */
 #define HAVE_PUTENV 1   /* putenv() exists */
 #define HAVE_SETENV 1   /* setenv() exists */
 #define HAVE_FORK 1   /* fork() exists */

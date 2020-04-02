@@ -282,7 +282,9 @@ it is necessary to check they are correct.
 *                      compile time                                          *
 *                   - FIRSTBITNZ, FIRSTBIT and POPCOUNT can be defined at    *
 *                      compile time                                          *
-*                                                                            *
+*       11-Oct-19 : - Move labelorg and nauty_kill_request into the          *
+*                      "C" block for C++ compatibiliy                        *
+*       23-Mar-20 : - Don't define INFINITY even if it is absent from math.h *
 * @edit_msg@
 *                                                                            *
 *****************************************************************************/
@@ -822,7 +824,7 @@ typedef unsigned long nauty_counter;
 #define FIRSTBITNZ(x) (int)_lzcnt16(x)
 #endif
 
-#else 
+#else /* not HAVE_HWLZCNT */
 
 #if WORDSIZE==64 && defined(_WIN64)
 static int msc_bsr_64(setword x) \
@@ -841,12 +843,14 @@ static int msc_bsr_16(setword x) \
    { unsigned long *p; \
      _BitScanReverse(&p,(unsigned long)x); return 15 - *p; }
 #define FIRSTBITNZ(x) (msc_bsr_16(x))
-#endif
-#endif
+#endif  /* WORDSIZE choice */
 
-#endif /* if HAVE_HWLZCNT */
+#endif  /* HAVE_HWLZCNT choice */
 
-#elif defined(SETWORD_LONGLONG) && HAVE_CLZLL
+#else  /* Not MAGMA or WIN */
+
+#if HAVE_HWLZCNT
+#if defined(SETWORD_LONGLONG) && HAVE_CLZLL
 #define FIRSTBITNZ(x) __builtin_clzll(x)
 #elif defined(SETWORD_LONG) && HAVE_CLZL
 #define FIRSTBITNZ(x) __builtin_clzl(x)
@@ -854,9 +858,14 @@ static int msc_bsr_16(setword x) \
 #define FIRSTBITNZ(x) __builtin_clz(x)
 #elif defined(SETWORD_SHORT) && HAVE_CLZ
 #define FIRSTBITNZ(x) (__builtin_clz((unsigned int)(x)) - 16)
+#endif /* size choice */
+#endif /* HAVE_HWLZCNT */
+
+#endif /* MAGMA-WIN-OTHER choice */
 
 #endif /* ifndef FIRSTBITNZ */
 
+/* Now fall back on macros for things not defined */
 #if defined(FIRSTBITNZ) && !defined(FIRSTBIT)
 #define FIRSTBIT(x) ((x) ? FIRSTBITNZ(x) : WORDSIZE)
 #else
@@ -916,8 +925,10 @@ static int msc_bsr_16(setword x) \
 #elif defined(SETWORD_SHORT) && HAVE_POPCNT
 #define POPCOUNT(x) __builtin_popcount((unsigned int)(x))
 #endif
+#endif
 
-#else
+/* Fall-back position */
+#ifndef POPCOUNT
 #define POPCOUNT POPCOUNTMAC
 #endif
 
@@ -941,11 +952,6 @@ static int msc_bsr_16(setword x) \
 typedef int shortish;
 typedef shortish permutation;
 typedef int nvector,np2vector; 
-
-/* For backward compatibility: */
-#if !HAS_MATH_INF && !defined(INFINITY)
-#define INFINITY NAUTY_INFINITY
-#endif
 
 #if MAXN > NAUTY_INFINITY-2
  #error MAXN must be at most NAUTY_INFINITY-2

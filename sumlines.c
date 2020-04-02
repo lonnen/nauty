@@ -41,7 +41,7 @@
    -d don't read sumlines.fmt or ~/sumlines.fmt or $SUMLINES.FMT \n\
    -w suppresses warning messages about no matching lines or no\n\
       matching final lines.\n\
-   -W in addition, suppresses woarning about missing cases.\n\
+   -W in addition, suppresses warning about missing cases.\n\
    -n don't write the number of matching lines for each format.\n\
    -v produces a list of all the formats.\n"
 

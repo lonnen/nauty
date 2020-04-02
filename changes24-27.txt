@@ -369,3 +369,12 @@ Changes from nauty 2.6 to nauty 2.7
       or nautyL1.a. However nauty.a, nautyW.a and nautyL.a
       were safe.)
   Thanks to James Trimble and Chris Jefferson for uncovering this.
+
+* A bug in nauty.h caused compilation failure on some hardware
+  without popcnt instructions. You didn't encounter this if you
+  didn't get compile-time error messages about POPCOUNT.  Thanks
+  to Anthony Matos for reporting this error.
+
+* Adjust configuration script to more reliably detect standard
+  function declarations and to improve the test for the POPCNT
+  instruction.

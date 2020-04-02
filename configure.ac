@@ -178,44 +178,26 @@ CVT_YESNO(ac_cv_header_stdint_h,header_stdint_h)
 AC_TYPE_PID_T
 CVT_YESNO(ac_cv_type_pid_t,have_pid_t)
 
-AC_MSG_CHECKING(if malloc is declared in stdlib.h or malloc.h)
-AC_EGREP_HEADER([(^|[^a-zA-Z_0-9])malloc[^a-zA-Z_0-9]],stdlib.h,
-  malloc_dec=1,malloc_dec=0)
+AC_CHECK_DECL([ftell],ftell_dec=1,ftell_dec=0)
+AC_SUBST(ftell_dec)
+
+AC_CHECK_DECL([popen],popen_dec=1,popen_dec=0)
+AC_SUBST(popen_dec)
+
+AC_CHECK_DECL([fdopen],fdopen_dec=1,fdopen_dec=0)
+AC_SUBST(fdopen_dec)
+
+AC_CHECK_DECL([putenv],putenv_dec=1,putenv_dec=0)
+AC_SUBST(putenv_dec)
+
+AC_CHECK_DECL([setenv],setenv_dec=1,setenv_dec=0)
+AC_SUBST(setenv_dec)
+
+AC_CHECK_DECL([malloc],malloc_dec=1,malloc_dec=0)
 AS_IF([test $malloc_dec -eq 0],
       [AC_EGREP_HEADER([(^|[^a-zA-Z_0-9])malloc[^a-zA-Z_0-9]],malloc.h,
        malloc_dec=2,malloc_dec=0)])
 AC_SUBST(malloc_dec)
-AC_MSG_RESULT($malloc_dec)
-
-AC_MSG_CHECKING(if ftell is declared in stdio.h)
-AC_EGREP_HEADER([(^|[^a-zA-Z_0-9])ftell[^a-zA-Z_0-9]],stdio.h,
-  ftell_dec=1,ftell_dec=0)
-AC_SUBST(ftell_dec)
-AC_MSG_RESULT($ftell_dec)
-
-AC_MSG_CHECKING(if fdopen is declared in stdio.h)
-AC_EGREP_HEADER([(^|[^a-zA-Z_0-9])fdopen[^a-zA-Z_0-9]],stdio.h,
-  fdopen_dec=1,fdopen_dec=0)
-AC_SUBST(fdopen_dec)
-AC_MSG_RESULT($fdopen_dec)
-
-AC_MSG_CHECKING(if popen is declared in stdio.h)
-AC_EGREP_HEADER([(^|[^a-zA-Z_0-9])popen[^a-zA-Z_0-9]],stdio.h,
-  popen_dec=1,popen_dec=0)
-AC_SUBST(popen_dec)
-AC_MSG_RESULT($popen_dec)
-
-AC_MSG_CHECKING(if putenv is declared in stdlib.h)
-AC_EGREP_HEADER([(^|[^a-zA-Z_0-9])putenv[^a-zA-Z_0-9]],stdlib.h,
-  putenv_dec=1,putenv_dec=0)
-AC_SUBST(putenv_dec)
-AC_MSG_RESULT($putenv_dec)
-
-AC_MSG_CHECKING(if setenv is declared in stdlib.h)
-AC_EGREP_HEADER([(^|[^a-zA-Z_0-9])setenv[^a-zA-Z_0-9]],stdlib.h,
-  setenv_dec=1,setenv_dec=0)
-AC_SUBST(setenv_dec)
-AC_MSG_RESULT($setenv_dec)
 
 AC_MSG_CHECKING(if INFINITY is declared in math.h)
 AC_EGREP_CPP(yes,
@@ -289,8 +271,11 @@ AC_SUBST(have_sigprocmask)
 
 dnl --check if popcnt instruction is available and desired
 AC_MSG_CHECKING(if popcnt instruction is available and requested)
+AC_RUN_IFELSE([AC_LANG_PROGRAM([],[[if (__builtin_cpu_supports("popcnt")) return 0; else return 1;]])],
+  popsup=1,popsup=0)
+
 AS_IF([test "$allow_popcnt" -eq 1],
-      [have_hwpopcnt=0
+      [have_hwpopcnt=$popsup
 test -f /proc/cpuinfo && grep -i popcnt /proc/cpuinfo >/dev/null && have_hwpopcnt=1 
 test $have_hwpopcnt -eq 0 && sysctl machdep.cpu.features 2>/dev/null | grep -i popcnt >/dev/null && have_hwpopcnt=1
 test $have_hwpopcnt -eq 0 && isainfo -x -v 2>/dev/null | grep -i popc >/dev/null && have_hwpopcnt=1 ],

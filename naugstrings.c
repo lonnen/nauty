@@ -1,12 +1,12 @@
 /* naugstrings.c : Write graph6 or sparse6 strings into array. */
-/* Version 1.1, Jun 2015. */
+/* Version 1.2, Dec 2019. */
 
 #include "naugstrings.h"
 
 /****************************************************************************/
 
 static void
-encodegraphsize(int n, char **pp)
+localencodegraphsize(int n, char **pp)
 /* Encode the size n in a string starting at **p, and reset **p
    to point to the character after the size */
 {
@@ -52,7 +52,7 @@ gtog6string(graph *g, char **pp, int m, int n)
     ii = G6LEN(n)+3;
 
     p = *pp;
-    encodegraphsize(n,&p);
+    localencodegraphsize(n,&p);
 
     k = 6;
     x = 0;
@@ -94,7 +94,7 @@ gtod6string(graph *g, char **pp, int m, int n)
     ii = D6LEN(n)+3;
 
     p = *pp;
-    encodegraphsize(n,&p);
+    localencodegraphsize(n,&p);
 
     k = 6;
     x = 0;
@@ -248,7 +248,7 @@ gtos6string(graph *g, char **pp, int m, int n)
 
     **pp = ':';
     p = *pp+1;
-    encodegraphsize(n,&p);
+    localencodegraphsize(n,&p);
 
     for (i = n-1, nb = 0; i != 0 ; i >>= 1, ++nb)
     {}
@@ -356,7 +356,7 @@ sgtos6string(sparsegraph *sg, char **pp)
 
     p = *pp;
     *p++ = ':';
-    encodegraphsize(n,&p);
+    localencodegraphsize(n,&p);
 
     topbit = 1 << (nb-1);
     k = 6;
@@ -460,7 +460,7 @@ sgtog6string(sparsegraph *sg, char **pp)
     ii = G6LEN(n)+3;
 
     p = *pp;
-    encodegraphsize(n,&p);
+    localencodegraphsize(n,&p);
 
     bodylen = G6BODYLEN(n);
     for (ii = 0; ii < bodylen; ++ii) p[ii] = 0;
@@ -501,7 +501,7 @@ sgtod6string(sparsegraph *sg, char **pp)
     ii = G6LEN(n)+3;
 
     p = *pp;
-    encodegraphsize(n,&p);
+    localencodegraphsize(n,&p);
 
     bodylen = D6BODYLEN(n);
     for (ii = 0; ii < bodylen; ++ii) p[ii] = 0;

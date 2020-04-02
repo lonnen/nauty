@@ -18,14 +18,14 @@ used, it is necessary to check they are correct.
 #define HAVE_WAIT  @have_wait@          /* wait() exists */
 #define HAVE_WAIT_H  @header_sys_wait_h@     /* <sys/wait.h> exists */
 #define HAVE_POPEN  @have_popen@          /* popen() and pclose() exist */
-#define POPEN_DEC  @popen_dec@         /* popen() is declared in stdio.h */
-#define FTELL_DEC  @ftell_dec@         /* ftell() is declared in stdio.h */
-#define FDOPEN_DEC  @fdopen_dec@        /* fdopen() is declared in stdio.h */
+#define POPEN_DEC  @popen_dec@         /* popen() is declared */
+#define FTELL_DEC  @ftell_dec@         /* ftell() is declared */
+#define FDOPEN_DEC  @fdopen_dec@        /* fdopen() is declared */
 #define SORTPROG  "@sort_prog@"         /* name of sort program */
 #define SORT_NEWKEY @sort_newparams_ok@  /* if -k is supported */
 #define HAVE_PID_T @have_pid_t@    /* pid_t is defined */
-#define PUTENV_DEC @putenv_dec@   /* putenv() is declared in stdlib.h */
-#define SETENV_DEC @setenv_dec@   /* setenv() is declared in stdlib.h */
+#define PUTENV_DEC @putenv_dec@   /* putenv() is declared */
+#define SETENV_DEC @setenv_dec@   /* setenv() is declared */
 #define HAVE_PUTENV @have_putenv@   /* putenv() exists */
 #define HAVE_SETENV @have_setenv@   /* setenv() exists */
 #define HAVE_FORK @have_fork@   /* fork() exists */

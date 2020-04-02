@@ -1,6 +1,6 @@
 /* ranlabg.c  version 1.2; B D McKay, Jun 20, 2015. */
 
-#define USAGE "ranlabg [-q] [-f#] [-S#] [infile [outfile]]"
+#define USAGE "ranlabg [-q] [-f#] [-m#] [-S#] [infile [outfile]]"
 
 #define HELPTEXT \
 " Randomly relabel graphs.\n\

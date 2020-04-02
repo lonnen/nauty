@@ -668,12 +668,12 @@ ac_cv_sizeof_long_long
 ac_cv_sizeof_long
 ac_cv_sizeof_int
 has_math_inf
+malloc_dec
 setenv_dec
 putenv_dec
-popen_dec
 fdopen_dec
+popen_dec
 ftell_dec
-malloc_dec
 have_pid_t
 header_stdint_h
 header_limits_h
@@ -1762,6 +1762,52 @@ $as_echo "$ac_res" >&6; }
   eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
 
 } # ac_fn_c_check_type
+
+# ac_fn_c_check_decl LINENO SYMBOL VAR INCLUDES
+# ---------------------------------------------
+# Tests whether SYMBOL is declared in INCLUDES, setting cache variable VAR
+# accordingly.
+ac_fn_c_check_decl ()
+{
+  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
+  as_decl_name=`echo $2|sed 's/ *(.*//'`
+  as_decl_use=`echo $2|sed -e 's/(/((/' -e 's/)/) 0&/' -e 's/,/) 0& (/g'`
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether $as_decl_name is declared" >&5
+$as_echo_n "checking whether $as_decl_name is declared... " >&6; }
+if eval \${$3+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$4
+int
+main ()
+{
+#ifndef $as_decl_name
+#ifdef __cplusplus
+  (void) $as_decl_use;
+#else
+  (void) $as_decl_name;
+#endif
+#endif
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  eval "$3=yes"
+else
+  eval "$3=no"
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+eval ac_res=\$$3
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
+
+} # ac_fn_c_check_decl
 
 # ac_fn_c_compute_int LINENO EXPR VAR INCLUDES
 # --------------------------------------------
@@ -4345,20 +4391,57 @@ else
 fi
 
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if malloc is declared in stdlib.h or malloc.h" >&5
-$as_echo_n "checking if malloc is declared in stdlib.h or malloc.h... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <stdlib.h>
+ac_fn_c_check_decl "$LINENO" "ftell" "ac_cv_have_decl_ftell" "$ac_includes_default"
+if test "x$ac_cv_have_decl_ftell" = xyes; then :
+  ftell_dec=1
+else
+  ftell_dec=0
+fi
 
-_ACEOF
-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  $EGREP "(^|[^a-zA-Z_0-9])malloc[^a-zA-Z_0-9]" >/dev/null 2>&1; then :
+
+
+ac_fn_c_check_decl "$LINENO" "popen" "ac_cv_have_decl_popen" "$ac_includes_default"
+if test "x$ac_cv_have_decl_popen" = xyes; then :
+  popen_dec=1
+else
+  popen_dec=0
+fi
+
+
+
+ac_fn_c_check_decl "$LINENO" "fdopen" "ac_cv_have_decl_fdopen" "$ac_includes_default"
+if test "x$ac_cv_have_decl_fdopen" = xyes; then :
+  fdopen_dec=1
+else
+  fdopen_dec=0
+fi
+
+
+
+ac_fn_c_check_decl "$LINENO" "putenv" "ac_cv_have_decl_putenv" "$ac_includes_default"
+if test "x$ac_cv_have_decl_putenv" = xyes; then :
+  putenv_dec=1
+else
+  putenv_dec=0
+fi
+
+
+
+ac_fn_c_check_decl "$LINENO" "setenv" "ac_cv_have_decl_setenv" "$ac_includes_default"
+if test "x$ac_cv_have_decl_setenv" = xyes; then :
+  setenv_dec=1
+else
+  setenv_dec=0
+fi
+
+
+
+ac_fn_c_check_decl "$LINENO" "malloc" "ac_cv_have_decl_malloc" "$ac_includes_default"
+if test "x$ac_cv_have_decl_malloc" = xyes; then :
   malloc_dec=1
 else
   malloc_dec=0
 fi
-rm -f conftest*
 
 if test $malloc_dec -eq 0; then :
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
@@ -4376,103 +4459,6 @@ rm -f conftest*
 
 fi
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $malloc_dec" >&5
-$as_echo "$malloc_dec" >&6; }
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if ftell is declared in stdio.h" >&5
-$as_echo_n "checking if ftell is declared in stdio.h... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <stdio.h>
-
-_ACEOF
-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  $EGREP "(^|[^a-zA-Z_0-9])ftell[^a-zA-Z_0-9]" >/dev/null 2>&1; then :
-  ftell_dec=1
-else
-  ftell_dec=0
-fi
-rm -f conftest*
-
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ftell_dec" >&5
-$as_echo "$ftell_dec" >&6; }
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if fdopen is declared in stdio.h" >&5
-$as_echo_n "checking if fdopen is declared in stdio.h... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <stdio.h>
-
-_ACEOF
-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  $EGREP "(^|[^a-zA-Z_0-9])fdopen[^a-zA-Z_0-9]" >/dev/null 2>&1; then :
-  fdopen_dec=1
-else
-  fdopen_dec=0
-fi
-rm -f conftest*
-
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $fdopen_dec" >&5
-$as_echo "$fdopen_dec" >&6; }
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if popen is declared in stdio.h" >&5
-$as_echo_n "checking if popen is declared in stdio.h... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <stdio.h>
-
-_ACEOF
-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  $EGREP "(^|[^a-zA-Z_0-9])popen[^a-zA-Z_0-9]" >/dev/null 2>&1; then :
-  popen_dec=1
-else
-  popen_dec=0
-fi
-rm -f conftest*
-
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $popen_dec" >&5
-$as_echo "$popen_dec" >&6; }
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if putenv is declared in stdlib.h" >&5
-$as_echo_n "checking if putenv is declared in stdlib.h... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <stdlib.h>
-
-_ACEOF
-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  $EGREP "(^|[^a-zA-Z_0-9])putenv[^a-zA-Z_0-9]" >/dev/null 2>&1; then :
-  putenv_dec=1
-else
-  putenv_dec=0
-fi
-rm -f conftest*
-
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $putenv_dec" >&5
-$as_echo "$putenv_dec" >&6; }
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if setenv is declared in stdlib.h" >&5
-$as_echo_n "checking if setenv is declared in stdlib.h... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <stdlib.h>
-
-_ACEOF
-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  $EGREP "(^|[^a-zA-Z_0-9])setenv[^a-zA-Z_0-9]" >/dev/null 2>&1; then :
-  setenv_dec=1
-else
-  setenv_dec=0
-fi
-rm -f conftest*
-
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $setenv_dec" >&5
-$as_echo "$setenv_dec" >&6; }
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking if INFINITY is declared in math.h" >&5
 $as_echo_n "checking if INFINITY is declared in math.h... " >&6; }
@@ -5052,8 +5038,35 @@ fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking if popcnt instruction is available and requested" >&5
 $as_echo_n "checking if popcnt instruction is available and requested... " >&6; }
+if test "$cross_compiling" = yes; then :
+  { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "cannot run test program while cross compiling
+See \`config.log' for more details" "$LINENO" 5; }
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+if (__builtin_cpu_supports("popcnt")) return 0; else return 1;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_run "$LINENO"; then :
+  popsup=1
+else
+  popsup=0
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
+
 if test "$allow_popcnt" -eq 1; then :
-  have_hwpopcnt=0
+  have_hwpopcnt=$popsup
 test -f /proc/cpuinfo && grep -i popcnt /proc/cpuinfo >/dev/null && have_hwpopcnt=1
 test $have_hwpopcnt -eq 0 && sysctl machdep.cpu.features 2>/dev/null | grep -i popcnt >/dev/null && have_hwpopcnt=1
 test $have_hwpopcnt -eq 0 && isainfo -x -v 2>/dev/null | grep -i popc >/dev/null && have_hwpopcnt=1

@@ -223,8 +223,8 @@ main(int argc, char *argv[])
 	    }
         }
 
-	if (!bad) printf("\nNo errors found\n");
-	else      printf("\nXXXXXXX %d errors found XXXXXXX\n",bad);
+	if (!bad) printf("No errors found\n\n");
+	else      printf("\nXXXXXXX %d errors found XXXXXXX\n\n",bad);
 
 	exit(bad != 0);
 } 

@@ -1306,14 +1306,14 @@ main(int argc, char *argv[])
         {
             fprintf(countfile," " COUNTER_FMT " graphs altogether",nout);
             if (nin != nout) fprintf(countfile," from " COUNTER_FMT " read",nin);
-            fprintf(countfile,"; cpu=%.3f sec\n",t);
+            fprintf(countfile,"; cpu=%.2f sec\n",t);
         }
     }
 
     if (!qswitch && dofilter) 
         fprintf(stderr,
             ">Z " COUNTER_FMT " graphs read from %s; "
-                      COUNTER_FMT " written to %s; %.3f sec\n",
+                      COUNTER_FMT " written to %s; %.2f sec\n",
             nin,infilename,nout,outfilename,t);
 
     exit(0);

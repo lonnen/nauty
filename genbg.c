@@ -1,4 +1,4 @@
-/* genbg.c : version 2.5; B D McKay, 14 Nov 2017. */
+/* genbg.c : version 2.6; B D McKay, 6 Oct 2019. */
 
 /* TODO: consider colour swaps */
 
@@ -59,8 +59,8 @@ PRUNE feature.
 
    By defining the C preprocessor variables PRUNE1 and/or PRUNE2 at
    compile time, you can filter the output of the program efficiently.
-   The value of the variable is a function name with parameter list
-   (graph *g, int *deg, int n1, int n2, int maxn2)
+   The value of the variable is an int function name with parameter
+   list (graph *g, int *deg, int n1, int n2, int maxn2)
 
    The function will be called for each intermediate graph generated
    by the program, including output graphs.  The parameters are:
@@ -103,11 +103,10 @@ OUTPROC feature.
    genbg can be made to call a procedure of your manufacture with
    each output graph instead of writing anything. Your procedure
    needs to have type void and the argument list (FILE *f, graph *g,
-   int n1, int n2). f is a stream open for writing (in fact, in the
-   current version it is always stdout), g is the graph in nauty
-   format, and n1,n2 are the numbers of vertices on each side. Your
-   procedure can be in a separate file so long as it is linked with
-   genbg. The global variables nooutput, nautyformat and canonise
+   int n1, int n2). f is a stream open for writing, g is the graph in
+   nauty format, and n1,n2 are the numbers of vertices on each side.
+   Your procedure can be in a separate file so long as it is linked
+   with genbg. The global variables nooutput, nautyformat and canonise
    (all type boolean) can be used to test for the presence of the
    flags -u, -n and -l, respectively.
 
@@ -119,7 +118,7 @@ SUMMARY
    If the C preprocessor variable SUMMARY is defined at compile time, the
    procedure SUMMARY(nauty_counter nout, double cpu) is called just before
    the program exits.  The purpose is to allow reporting of statistics
-   collected by PRUNE or OUTPROC.  The values nout and cpu are the output
+   collected by PRUNE1/2 or OUTPROC.  The values nout and cpu are the output
    count and cpu time reported on the >Z line.
    Output should be written to stderr.
 
@@ -147,6 +146,7 @@ INSTRUMENT feature.
    16 Feb 2014 : add a missing call to PRUNE2
    20 Jan 2016 : changed bigint to nauty_counter
    14 Nov 2017 : added -Y switch
+    6 Oct 2019 : declare PRUNE1 and PRUNE2
 
 **************************************************************************/
 
@@ -167,6 +167,13 @@ extern void OUTPROC(FILE*,graph*,int,int);
 
 #ifdef SUMMARY
 extern void SUMMARY(nauty_counter,double);
+#endif
+
+#ifdef PRUNE1
+extern int PRUNE1(graph*,int*,int,int,int);
+#endif
+#ifdef PRUNE2
+extern int PRUNE2(graph*,int*,int,int,int);
 #endif
 
 static FILE *outfile;           /* file for output graphs */
