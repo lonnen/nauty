@@ -1,4 +1,4 @@
-/* copyg.c version 2.3; B D McKay, Mar 2017 */
+/* copyg.c version 2.4; B D McKay, May 2020 */
 
 #ifdef FILTER
 #define HELPUSECMD
@@ -105,7 +105,7 @@ main(int argc, char *argv[])
     char *arg,sw;
     boolean sswitch,fswitch,pswitch,qswitch,gswitch;
     boolean hswitch,xswitch,iswitch,Iswitch,zswitch;
-    boolean badargs,digraph,vswitch,Qswitch;
+    boolean badargs,digraph,vswitch,Qswitch,kept;
     long Qlo,Qhi;
     long pval1,pval2,maxin,refresh,inclines;
     double t0,t1;
@@ -246,17 +246,17 @@ main(int argc, char *argv[])
         if ((g = readgg_inc(infile,NULL,0,&m,&n,gprev,mprev,nprev,&digraph))
                                                       == NULL) break;
         ++nin;
+	kept = TRUE;
 #ifdef FILTER
 	if ((!vswitch && !FILTER(g,digraph,Qlo,Qhi,m,n)) ||
 	                   (vswitch && FILTER(g,digraph,Qlo,Qhi,m,n))) 
-	{
-	    FREES(g);
-	    continue;
-	}
+	    kept = FALSE;
 	++nout;
 #endif
 
-        if (iswitch)  
+	if (!kept)
+	{ }
+	else if (iswitch)  
         {
 	    if (digraph) gt_abort(
                 ">Z incremental sparse6 is incompatible with digraphs\n");

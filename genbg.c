@@ -1446,6 +1446,7 @@ main(int argc, char *argv[])
     quiet = FALSE;
     footfree = FALSE;
     cutfree = FALSE;
+    antichain = FALSE;
 
     gote = FALSE;
     gotf = FALSE;
@@ -1551,6 +1552,9 @@ PLUGIN_SWITCHES
     {
         fprintf(stderr,
            ">E genbg: must have n1=1..%d, n1+n2=1..%d\n",MAXN1,MAXN);
+#if WORDSIZE==32
+	fprintf(stderr,"Try genbgL instead.\n");
+#endif
         badargs = TRUE;
     }
 
@@ -1587,12 +1591,6 @@ PLUGIN_SWITCHES
     if (maxe > maxn2*maxdeg2) maxe =  maxn2*maxdeg2;
     if (mine < n1*mindeg1) mine = n1*mindeg1;
     if (mine < maxn2*mindeg2) mine = maxn2*mindeg2;
-
-    if (!badargs && (mine > maxe || maxe < 0 || maxdeg1 < 0 || maxdeg2 < 0))
-    {
-        fprintf(stderr,">E genbg: impossible mine,maxe,maxdeg values\n");
-        badargs = TRUE;
-    }
 
     if (!gotZ) maxcommon = -1;
     if (!gotY) mincommon = -1;
@@ -1648,21 +1646,6 @@ PLUGIN_INIT
               ">E genbg: can't open %s for writing\n",outfilename);
         gt_abort(NULL);
     }
-
-/*
-    if (!quiet)
-    {
-        fprintf(stderr,">A %s n=%d+%d e=%d:%d d=%d:%d D=%d:%d ",
-                       argv[0],n1,maxn2,mine,maxe,
-                       mindeg1,mindeg2,maxdeg1,maxdeg2);
-        if (simple) fprintf(stderr,"z");
-        if (footfree) fprintf(stderr,"F");
-        if (connec) fprintf(stderr,"c");
-        if (maxcommon >= 0) fprintf(stderr,"Z%d",maxcommon);
-        if (mod > 1) fprintf(stderr," class=%d/%d",res,mod);
-        fprintf(stderr,"\n");
-    }
-*/
 
     if (!quiet)
     {
