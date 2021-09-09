@@ -8790,7 +8790,7 @@ embedg_VES_get_succ_on_ext_face (t_ver_edge *embed_graph, int n, int v,
     */
     if (embed_graph[*s].link[0] == (embed_graph[*s].link[1]))
     {
-        ASSERT(embed_graph[*s].link[0] = twin);
+        ASSERT(embed_graph[*s].link[0] == twin);
         *sin = vin;
     }
 

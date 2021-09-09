@@ -2633,7 +2633,7 @@ find_indset(graph *g, int m, int n, int min, int max, boolean maximal)
 /* If there is an independent set of size [min,max], perhaps required
    to be maximal, then return its size.  If there is none, return 0.
    It is required that min <= max.  Use min=max=0 to ask for
-   maximum maximum independent sets. */
+   maximum independent sets. */
 {
     graph_t *gg;
     set_t cliq;

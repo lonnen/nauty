@@ -79,7 +79,9 @@ opengraphfile(filename,codetype,assumefixed,position)
   assumefixed = nonzero if files other than stdin or pipes should be
                 assumed to be seekable and have equal record sizes.
                 Ignored if there is a sparse6 header or the first
-                graph has sparse6 format.
+                graph has sparse6 format.  The most common example
+                is that graph6 and digraph6 records have lengths
+		that depend only on the number of vertices.
   position = the number of the record to position to
                 (the first is number 1; 0 and -NOLIMIT also mean
                 to position at start).  planar_code files can only
@@ -91,7 +93,7 @@ opengraphfile(filename,codetype,assumefixed,position)
   The value returned is a file pointer or NULL.  
   If assumedfixed is not zero and position > 1, the global variable
   ogf_linelen is set to the length (including \n) of the length of the 
-  first record.  UPDATE
+  first record other than the header.
 
   The global variable is_pipe is set to whether the input file is a pipe.
 
@@ -990,7 +992,7 @@ readg(FILE *f, graph *g, int reqm, int *pm, int *pn)
 
     if (!gg) return NULL;
     if (digraph)
-        gt_abort(">E readg() doesn't all digraphs; use readgg()\n");
+        gt_abort(">E readg() doesn't know digraphs; use readgg()\n");
     return gg;
 }
 

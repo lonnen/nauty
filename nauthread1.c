@@ -4,6 +4,11 @@
    It must be linked with nauty as configured with 
    --enable-tls and will only run on systems which support
    thread-local storage.
+
+   The method for building programs with Posix threads varies.
+   You might need to use pthreads.h or something else in place
+   of pthread.h below, and you probably need a library such as
+   -lpthread or -lpthreads on your compilation command.
 */
 
 #include <pthread.h>

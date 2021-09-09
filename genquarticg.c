@@ -117,10 +117,9 @@ static int  nmax, m, code, numcells, mod, res, splitlevel, splitcount;
 static void    extend(int, graph *, edgestruct *, pairstruct *, int, int * , int *, setword *, int *, boolean );
 static int     init_refinex( int *, int *, int *, set *, int);
 static void     refinex( graph *, int *, int *, int , int *, int *, set *, boolean , int *, int , int );
-static UPROC    userautom1();
-static UPROC 	userautom2();
-static UPROC 	userautom3();
-
+static void userautom1(int,int*,int*,int,int,int);
+static void userautom2(int,int*,int*,int,int,int);
+static void userautom3(int,int*,int*,int,int,int);
 
 /************************************************************************/
 
@@ -585,8 +584,6 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
                         pCNT = &numdovi;					
 
                         options.userautomproc = userautom2;
-                        options.writeautoms = FALSE;
-                        options.writemarkers = FALSE;
                         options.getcanon = TRUE;
                         options.defaultptn = FALSE;   ///// 1.badan in FALSE SHAVAD, 2.COULR AVALI TARIF SHAD, 3.lab o ptn initialize shavand
 
@@ -793,11 +790,9 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
                     if( colours == accept )
                     {
                         options.userautomproc = userautom1;			
-                        options.writeautoms = FALSE;
-                        options.writemarkers = FALSE;
                         options.getcanon = FALSE;
                         options.defaultptn = FALSE;
-                        nauty(g, lab, ptn, NILSET, orbits, &options, &stats, workspace, 50, m, n+1, NILGRAPH); 	
+                        nauty(g, lab, ptn, NULL, orbits, &options, &stats, workspace, 50, m, n+1, NULL); 	
                         if( connec1 )
                         {
                             conf = TRUE;
@@ -818,8 +813,6 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
 
 
                         options.userautomproc = userautom3;
-                        options.writeautoms = FALSE;
-                        options.writemarkers = FALSE;
                         options.getcanon = TRUE;
                         options.defaultptn = FALSE;
                         nauty( g, lab, ptn, 0, orbits, &options, &stats, workspace, 50, m, n+1, gi);  	
@@ -1580,12 +1573,10 @@ int main(int argc, char *argv[])
             pepairorbit = epairorbit;
 
             options.userautomproc = userautom1;
-            options.writeautoms = FALSE;
-            options.writemarkers = FALSE;
             options.getcanon = FALSE;
             options.defaultptn = TRUE;
 
-            nauty(g, lab, ptn, NILSET, orbits, &options, &stats, workspace, 50, m, n, NILGRAPH);
+            nauty(g, lab, ptn, NULL, orbits, &options, &stats, workspace, 50, m, n, NULL);
             extend(n, g, edge, epair, numpair, epairorbit, multar, zar, col00w, isconnected(g, n));
         }
         if( n == nmax )

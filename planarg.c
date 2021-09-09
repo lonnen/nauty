@@ -1,4 +1,5 @@
 /* planarg : test for planarity and find embedding or obstruction */
+/* Version 2.0: B D McKay, 16 April 2020 */
 
 #define USAGE "planarg [-v] [-nVq] [-p|-u] [infile [outfile]]"
 
@@ -183,7 +184,7 @@ main(int argc, char *argv[])
     int nbr_c,nbr_e_obs;
     nauty_counter nin,nout,nplan;
     char *arg,sw;
-    double t0,tp,tnp,netotalp,netotalnp;
+    double t0,tm0,tp,tnp,netotalp,netotalnp;
     DYNALLSTAT(t_ver_sparse_rep,V,V_sz);
     DYNALLSTAT(t_adjl_sparse_rep,A,A_sz);
 
@@ -286,6 +287,8 @@ main(int argc, char *argv[])
     netotalp = netotalnp = 0.0;
     SG_INIT(sg);
 
+    tm0 = CPUTIME;
+
     tp = tnp = 0.0;
     while (TRUE)
     {
@@ -374,18 +377,18 @@ main(int argc, char *argv[])
             fprintf(stderr,
             ">Z  " COUNTER_FMT " graphs read from %s, "
                   COUNTER_FMT " written to %s; %3.2f sec.\n",
-                nin,infilename,nout,outfilename,tp+tnp);
+                nin,infilename,nout,outfilename,CPUTIME-tm0);
     }
     else
     {
         fprintf(stderr,
                 " " COUNTER_FMT " graphs input\n "
                     COUNTER_FMT " graphs planar\n",nin,nplan);
-        fprintf(stderr," cpu = %3.2f sec. ",tp+tnp);
+        fprintf(stderr," cpu = %3.2f sec. ",CPUTIME-tm0);
         if (netotalp)
-            fprintf(stderr," planar:%.3f",1e5*tp/netotalp);
+            fprintf(stderr," planar:%.3f",1e6*tp/netotalp);
         if (netotalnp)
-            fprintf(stderr," nonplanar:%.3f",1e5*tnp/netotalnp);
+            fprintf(stderr," nonplanar:%.3f",1e6*tnp/netotalnp);
         fprintf(stderr,"\n");
     }
 

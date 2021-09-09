@@ -33,7 +33,9 @@
    -d#   Draw the graph induced by vertices at topmost level\n\
          and by vertices at distance # from them; example:\n\
          ./dretodot -n2 -r1 -r12:17 -d2 MyGraph.dre Outfile.dot.\n\
-   -g    Highlight the induced subgraph into the whole graph.\n"
+   -g    Highlight the induced subgraph into the whole graph.\n\
+\n\
+   Only dreadnaut commands $,$$,g,n,f,\",! are recognised; no digraphs.\n"
 
 /*************************************************************************/
 
@@ -250,17 +252,18 @@ double ComputeFontsize(int vtx) {
 int
 main(int argc, char *argv[])
 {
-	int m, n, c, a, i, j, k, end, n_count;
+    int m, n, c, a, i, j, k, end, n_count;
     size_t j1, e_count;
-	int argnum, initorg, cell, numCol, modcode, vtx, refcode, MaxV, MaxE;
-	char *arg, sw;
-	boolean badargs, make_ranks, too_big;
-	boolean rswitch, dswitch, mswitch, nswitch, oswitch, iswitch, xswitch, Sswitch, gswitch, fswitch, vswitch, rswitch1, Eswitch, Vswitch;
-	char *infilename, *outfilename, *drefilename;
-	FILE *infile, *outfile, *drefile;
-	nauty_counter nin;
-	char s[10];
-	char model[10];
+    int argnum, initorg, cell, numCol, modcode, vtx, refcode, MaxV, MaxE;
+    char *arg, sw;
+    boolean badargs, make_ranks, too_big;
+    boolean rswitch, dswitch, mswitch, nswitch, oswitch, iswitch, xswitch;
+    boolean Sswitch, gswitch, fswitch, vswitch, rswitch1, Eswitch, Vswitch;
+    char *infilename, *outfilename, *drefilename;
+    FILE *infile, *outfile, *drefile;
+    nauty_counter nin;
+    char s[10];
+    char model[10];
     int numcells, flind, indivtx;
     long minil, maxil;
     double hsize, vsize, fsize;
@@ -268,21 +271,21 @@ main(int argc, char *argv[])
     list *liststart, *listend;
     int nodescale, distance, StInd, StIndDist, RnkInd, RnkIndDist;
     
-	HELP; PUTVERSION;
+    HELP; PUTVERSION;
     
     liststart = listend = NULL;
-	rswitch = dswitch = mswitch = nswitch = oswitch = iswitch = xswitch = Sswitch = gswitch = fswitch = vswitch = rswitch1 = Vswitch = Eswitch = FALSE;
-	infilename = outfilename = drefilename = NULL;
-	initorg = minil = maxil = flind = 0;
+    rswitch = dswitch = mswitch = nswitch = oswitch = iswitch = xswitch = Sswitch = gswitch = fswitch = vswitch = rswitch1 = Vswitch = Eswitch = FALSE;
+    infilename = outfilename = drefilename = NULL;
+    initorg = minil = maxil = flind = 0;
     hsize = 10.00;
     vsize = 6.18;
     modcode = 0;
-	n = -1;
+    n = -1;
     nodescale = 1;
     distance = 0;
     
-	argnum = 0;
-	badargs = make_ranks = FALSE;
+    argnum = 0;
+    badargs = make_ranks = FALSE;
     MaxV = 1000;
     MaxE = 5000;
     

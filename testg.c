@@ -44,7 +44,7 @@
      -d#  minimum (out-)degree         -D#  maximum (out-)degree\n\
      -m#  vertices of min (out-)degree -M#  vertices of max (out-)degree\n\
      -u#  minimum (in-)degree          -U#  maximum (in-)degree\n\
-     -s#  vertices of min (out-)degree -S#  vertices of max (out-)degree\n\
+     -s#  vertices of min (in-)degree  -S#  vertices of max (in-)degree\n\
      -r   regular                      -b   bipartite\n\
      -z#  radius                       -Z#  diameter\n\
      -g#  girth (0=acyclic)            -Y#  total number of cycles\n\

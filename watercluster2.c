@@ -186,14 +186,14 @@ int _marks[MAX_BOGEN], _markvalue=INT_MAX;
 
 long long int onlevel[MAX_BOGEN]={0};
 
-/* variabelen voor nauty: nvector sounds like a vector but is a typedef for int */
-nvector lab[MAX_BOGEN][MAXN]={{0}}, ptn[MAX_BOGEN][MAXN]={{0}}, orbits[MAX_BOGEN], colour[MAX_BOGEN][MAXN]={{0}};
+/* variabelen voor nauty: */
+int lab[MAX_BOGEN][MAXN]={{0}}, ptn[MAX_BOGEN][MAXN]={{0}}, orbits[MAX_BOGEN], colour[MAX_BOGEN][MAXN]={{0}};
 /* MAX_BOGEN is zeker te veel -- maar wat zou een goede bovengrens zijn ? */
 /* in the arrays lab[i][] and ptn[i][] the partition is stored after having labelled i orbits 
    completely. lab[0][] and ptn[0][] are the partitions as computed for the original graph. */
 int rememberorbits[MAXN][MAXN];
 
-nvector bufferlab[MAXN], bufferptn[MAXN];
+int bufferlab[MAXN], bufferptn[MAXN];
 graph canong[MAXN];
 /* make sure these are always evaluated at once, because they are reused whenever new
    edges are directed */
@@ -224,7 +224,7 @@ static DEFAULTOPTIONS(options_final);
 static statsblk stats;
 setword workspace[100*MAXN];
 
-permutation generators[MAXN][MAXN];
+int generators[MAXN][MAXN];
 int number_of_generators;
 int group_up_to_date=0;
 
@@ -359,7 +359,7 @@ if (addnumber==2) writeZcode_invers(workg,aantal_toppen);} }
       writed6(stdout,h,1,aantal_toppen);
     }
 
-void writelab(nvector ptn[], nvector lab[])
+void writelab(int ptn[], int lab[])
 {
   int i;
 
@@ -420,10 +420,10 @@ void writelist(int list[])
 
 /**********************************************************************************/
 
-void sammle_permutationen(int count, permutation perm[], nvector orbits[],
+void sammle_permutationen(int count, int perm[], int orbits[],
                           int numorbits, int stabvertex, int n)
 {
-  memcpy(generators+number_of_generators,perm,sizeof(permutation)*n);
+  memcpy(generators+number_of_generators,perm,sizeof(int)*n);
 
   number_of_generators++;
 }
@@ -973,7 +973,7 @@ void sort_decreasing(int list[], int number)
 
 /**********************************COMPUTE_IMAGE_OPERATION**************************/
 
-int compute_image_operation(unsigned char image[], unsigned char original[], permutation generator[])
+int compute_image_operation(unsigned char image[], unsigned char original[], int generator[])
 // returns 1 if image and original differ and 0 otherwise
 {
   int in_image[MAXN], out_image[MAXN], double_image[MAXN];
@@ -1546,7 +1546,7 @@ int canonical(unsigned char operation[], int vertexorbit[], int *newgroup, int o
   int finished[MAXN], finishedptn[MAXN], testoutdeg;
   int startlist[MAXN], *startrun; // list of possible starts in case of no candidates
   int numberends, ends[MAXN][MAXN], endin=0, *run;
-  nvector *colour;
+  int *colour;
   long long int buffer2, k2;
 
 
@@ -1729,11 +1729,11 @@ int canonical(unsigned char operation[], int vertexorbit[], int *newgroup, int o
     }
   else
     {
-      memcpy(bufferlab,lab[orbitid],aantal_toppen*sizeof(nvector));
-      memcpy(bufferptn,ptn[orbitid],aantal_toppen*sizeof(nvector));
+      memcpy(bufferlab,lab[orbitid],aantal_toppen*sizeof(int));
+      memcpy(bufferptn,ptn[orbitid],aantal_toppen*sizeof(int));
     }
   number_of_generators=0;
-  nauty(workg,bufferlab,bufferptn,NILSET,orbits,&options_directed_canon,&stats,workspace,100*MAXN,1,aantal_toppen,canong);
+  nauty(workg,bufferlab,bufferptn,NULL,orbits,&options_directed_canon,&stats,workspace,100*MAXN,1,aantal_toppen,canong);
   *newgroup=1;
 
   //nautyuse[number_candidates]++;
@@ -1814,7 +1814,7 @@ int canonical(unsigned char operation[], int vertexorbit[], int *newgroup, int o
 int all_diff_colours(graph testset, int orbitid)
 // returns 1 if all elements have some different vertex invariant and 0 otherwise
 {
-  nvector *colour;
+  int *colour;
   int i,buffer;
 
   RESETMARKS_COLOUR;
@@ -1946,7 +1946,7 @@ void chooseorbit(graph *touched, int best_orbit[], int orbitid)
 	
 	}
 
-      memcpy(rememberorbits[orbitid],orbits,sizeof(nvector)*aantal_toppen);
+      memcpy(rememberorbits[orbitid],orbits,sizeof(int)*aantal_toppen);
       
       // here the "best" orbit is chosen by a combination of number of vertices and edges to be directed per vertex
 	
@@ -1978,7 +1978,7 @@ void choose_triv_orbit(graph *touched, int best_orbit[], int orbitid, int fixed_
   for ( i++; i<aantal_toppen; i++) { ptn[orbitid][i-1]=ptn[oud][i]; lab[orbitid][i-1]=lab[oud][i]; }
   lab[orbitid][aantal_toppen-1]=fixed_vertex; ptn[orbitid][aantal_toppen-1]=0;
 
-  memcpy(rememberorbits[orbitid],rememberorbits[orbitid-1],sizeof(nvector)*aantal_toppen);
+  memcpy(rememberorbits[orbitid],rememberorbits[orbitid-1],sizeof(int)*aantal_toppen);
 
   bit_orbit[orbitid]= (graph)0;
   ADDELEMENT(bit_orbit+orbitid,fixed_vertex);
@@ -1994,7 +1994,7 @@ void prepare_next_step(int group_uptodate, int orbitid, int iterationdepth, grap
   int local_todolist[MAXN+1];
   graph not_ready;
   int colour[MAXN],numbercolour[MAXN], element[MAXN], diffcolours;
-  nvector *orbcolour; 
+  int *orbcolour; 
 
 
 // all vertices were in orbits
@@ -2051,10 +2051,10 @@ void prepare_next_step(int group_uptodate, int orbitid, int iterationdepth, grap
 	  number_of_generators=0;
 	  // since the orbit is complete, we don't NEED to distinguish between ready vertices or not
 	  // to mark double edges. Tests showed that it also doesn't help.
-	  memcpy(bufferlab,lab[orbitid],aantal_toppen*sizeof(nvector));
-	  memcpy(bufferptn,ptn[orbitid],aantal_toppen*sizeof(nvector));
+	  memcpy(bufferlab,lab[orbitid],aantal_toppen*sizeof(int));
+	  memcpy(bufferptn,ptn[orbitid],aantal_toppen*sizeof(int));
 	  number_of_generators=0;
-	  nauty(workg,bufferlab,bufferptn,NILSET,orbits,&options_directed,&stats,workspace,100*MAXN,1,aantal_toppen,NULL);
+	  nauty(workg,bufferlab,bufferptn,NULL,orbits,&options_directed,&stats,workspace,100*MAXN,1,aantal_toppen,NULL);
 	  //orbitchoose_nauty++;
 	}    
 
@@ -2160,10 +2160,10 @@ void directorbit(int todo_list[], int vertexorbit[], int group_uptodate, int orb
 		}
 	      else
 		{
-		  memcpy(bufferlab,lab[orbitid],aantal_toppen*sizeof(nvector));
-		  memcpy(bufferptn,ptn[orbitid],aantal_toppen*sizeof(nvector));
+		  memcpy(bufferlab,lab[orbitid],aantal_toppen*sizeof(int));
+		  memcpy(bufferptn,ptn[orbitid],aantal_toppen*sizeof(int));
 		}
-	      nauty(workg,bufferlab,bufferptn,NILSET,orbits,&options_directed,&stats,workspace,100*MAXN,1,aantal_toppen,NULL);
+	      nauty(workg,bufferlab,bufferptn,NULL,orbits,&options_directed,&stats,workspace,100*MAXN,1,aantal_toppen,NULL);
 	      //orbitcomp_nauty++;
 	    }
 	  
@@ -2268,7 +2268,7 @@ void direct_all_nontriv()
   graph touched;
 
   addnumber=1;
-  memcpy(rememberorbits[0],orbits,sizeof(nvector)*aantal_toppen);
+  memcpy(rememberorbits[0],orbits,sizeof(int)*aantal_toppen);
 
   all= (graph)0;
   for (i=0;i<aantal_toppen;i++) { num_in_orbit[i]=0; ADDELEMENT(&all,i); }
@@ -2871,9 +2871,9 @@ void trynextstep()
   if (!group_up_to_date)
     { /* we need only the group -- no canonical numbering */
          number_of_generators=0;
-	 memcpy(bufferlab,lab[nextstep_depth],aantal_toppen*sizeof(nvector));
-	 memcpy(bufferptn,ptn[nextstep_depth],aantal_toppen*sizeof(nvector));
-	 nauty(workg,bufferlab,bufferptn,NILSET,orbits,&options_directed,&stats,workspace,100*MAXN,1,aantal_toppen,NULL);
+	 memcpy(bufferlab,lab[nextstep_depth],aantal_toppen*sizeof(int));
+	 memcpy(bufferptn,ptn[nextstep_depth],aantal_toppen*sizeof(int));
+	 nauty(workg,bufferlab,bufferptn,NULL,orbits,&options_directed,&stats,workspace,100*MAXN,1,aantal_toppen,NULL);
 	 group_up_to_date=1;
   }
 
@@ -2901,7 +2901,7 @@ void trynextstep()
     }
   /* else */ 
 
-  memcpy(colour[nextstep_depth],orbits,aantal_toppen*sizeof(nvector));
+  memcpy(colour[nextstep_depth],orbits,aantal_toppen*sizeof(int));
   for (i=0;i<aantal_toppen;i++) numberinorbit[i]=0;
   for (i=0;i<aantal_toppen;i++) { dummy=orbits[i]; 
                                   inorbit[dummy][numberinorbit[dummy]]=i;
@@ -2978,9 +2978,9 @@ void trynextstep_par()
   if (!group_up_to_date)
     { /* we need only the group -- no canonical numbering */
          number_of_generators=0;
-	 memcpy(bufferlab,lab[nextstep_depth],aantal_toppen*sizeof(nvector));
-	 memcpy(bufferptn,ptn[nextstep_depth],aantal_toppen*sizeof(nvector));
-	 nauty(workg,bufferlab,bufferptn,NILSET,orbits,&options_directed,&stats,workspace,100*MAXN,1,aantal_toppen,NULL);
+	 memcpy(bufferlab,lab[nextstep_depth],aantal_toppen*sizeof(int));
+	 memcpy(bufferptn,ptn[nextstep_depth],aantal_toppen*sizeof(int));
+	 nauty(workg,bufferlab,bufferptn,NULL,orbits,&options_directed,&stats,workspace,100*MAXN,1,aantal_toppen,NULL);
 	 group_up_to_date=1;
   }
 
@@ -3008,7 +3008,7 @@ void trynextstep_par()
     }
   /* else */ 
 
-  memcpy(colour[nextstep_depth],orbits,aantal_toppen*sizeof(nvector));
+  memcpy(colour[nextstep_depth],orbits,aantal_toppen*sizeof(int));
   for (i=0;i<aantal_toppen;i++) numberinorbit[i]=0;
   for (i=0;i<aantal_toppen;i++) { dummy=orbits[i]; 
                                   inorbit[dummy][numberinorbit[dummy]]=i;
@@ -3082,9 +3082,9 @@ int i,start,end, problem, sum, maxsum;
   { 
     if (!group_up_to_date) 
       { number_of_generators=0;
-        memcpy(bufferlab,lab[nextstep_depth],aantal_toppen*sizeof(nvector));
-	memcpy(bufferptn,ptn[nextstep_depth],aantal_toppen*sizeof(nvector));
-	nauty(workg,bufferlab,bufferptn,NILSET,orbits,&options_directed_canon,&stats,\
+        memcpy(bufferlab,lab[nextstep_depth],aantal_toppen*sizeof(int));
+	memcpy(bufferptn,ptn[nextstep_depth],aantal_toppen*sizeof(int));
+	nauty(workg,bufferlab,bufferptn,NULL,orbits,&options_directed_canon,&stats,\
 	      workspace, 100*MAXN,1,aantal_toppen,canong);
 	group_up_to_date=1;
       }
@@ -3171,9 +3171,9 @@ int is_canonical_edge(BOOG list[],int last_positie)
   if (!gotacandidate) return 1; /* Only the edge itself */
 
   number_of_generators=0;
-  memcpy(bufferlab,lab[nextstep_depth],aantal_toppen*sizeof(nvector));
-  memcpy(bufferptn,ptn[nextstep_depth],aantal_toppen*sizeof(nvector));
-  nauty(workg,bufferlab,bufferptn,NILSET,orbits,&options_directed_canon,&stats,\
+  memcpy(bufferlab,lab[nextstep_depth],aantal_toppen*sizeof(int));
+  memcpy(bufferptn,ptn[nextstep_depth],aantal_toppen*sizeof(int));
+  nauty(workg,bufferlab,bufferptn,NULL,orbits,&options_directed_canon,&stats,\
 	workspace, 100*MAXN,1,aantal_toppen,canong);
   group_up_to_date=1;
   
@@ -3427,7 +3427,7 @@ int compute_par_extensions(BOOG orbit[], int orbitsize)
   return number_parops;
 }
 
-unsigned int par_image(unsigned int orig, permutation aut[], BOOG orbit[], int orbitsize, int inv[][MAXN])
+unsigned int par_image(unsigned int orig, int aut[], BOOG orbit[], int orbitsize, int inv[][MAXN])
 {
   int i, type, start, end, positie;
   unsigned int image;
@@ -3490,9 +3490,9 @@ void parallel_orbit_labelling(BOOG edge_orbit[], int orbitsize)
   
   if (!group_up_to_date) 
     { number_of_generators=0;
-      memcpy(bufferlab,lab[nextstep_depth],aantal_toppen*sizeof(nvector));
-      memcpy(bufferptn,ptn[nextstep_depth],aantal_toppen*sizeof(nvector));
-      nauty(workg,bufferlab,bufferptn,NILSET,orbits,&options_directed_canon,&stats, \
+      memcpy(bufferlab,lab[nextstep_depth],aantal_toppen*sizeof(int));
+      memcpy(bufferptn,ptn[nextstep_depth],aantal_toppen*sizeof(int));
+      nauty(workg,bufferlab,bufferptn,NULL,orbits,&options_directed_canon,&stats, \
 	    workspace, 100*MAXN,1,aantal_toppen,canong);
       group_up_to_date=1;
       }
@@ -3771,7 +3771,7 @@ void waterclusters (graph g[], int n)
                                  virtual_indeg[i]=virtual_outdeg[i]=0; }
 
   number_of_generators=0;
-  nauty(staticg,bufferlab,bufferptn,NILSET,orbits,&options,&stats,workspace,100*MAXN,1,n,NULL);
+  nauty(staticg,bufferlab,bufferptn,NULL,orbits,&options,&stats,workspace,100*MAXN,1,n,NULL);
   group_up_to_date=1;
 
   maxgraphdeg=0;
@@ -3855,7 +3855,7 @@ void waterclusters (graph g[], int n)
 
 
   /* first: write good beginning colours for nauty */
-  memcpy(colour[0],orbits,aantal_toppen*sizeof(nvector));
+  memcpy(colour[0],orbits,aantal_toppen*sizeof(int));
   for (i=0;i<aantal_toppen;i++) numberinorbit[i]=0;
   for (i=0;i<aantal_toppen;i++) { dummy=orbits[i]; 
                                   inorbit[dummy][numberinorbit[dummy]]=i;
@@ -3982,7 +3982,7 @@ void direct_edges(void) /* graph workg[] and int aantal_toppen, aantal_bogen are
 
 
   number_of_generators=0;
-  nauty(workg,bufferlab,bufferptn,NILSET,orbits,&options,&stats,workspace,100*MAXN,1,aantal_toppen,NULL);
+  nauty(workg,bufferlab,bufferptn,NULL,orbits,&options,&stats,workspace,100*MAXN,1,aantal_toppen,NULL);
 
   if (stats.numorbits==aantal_toppen) 
     { 

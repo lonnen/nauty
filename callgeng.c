@@ -3,7 +3,7 @@
  * an argument list for geng's main() function.  At compile time,
  * assign a name to the macros OUTPROC and GENG_MAIN.  A typical
  * Unix-style compilation command would be:
-     gcc -o callgeng -O3 -DMAXN=32 -DOUTPROC=myoutproc -DGENG_MAIN=geng_main \
+     gcc -o callgeng -O3 -DMAXN=WORDSIZE -DOUTPROC=myoutproc -DGENG_MAIN=geng_main \
        callgeng.c geng.c nauty.a
  */
 
@@ -19,6 +19,8 @@ OUTPROC(FILE *outfile, graph *g, int n)
     ++counter;
 }
 
+int
+GENG_MAIN(int argc, char *argv[]);
 
 int
 main(int argc, char *argv[])

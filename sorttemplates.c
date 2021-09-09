@@ -29,6 +29,8 @@
  *   SORT_TYPE1 = type of the first or only array (no default)
  *   	 This can be any numeric type for SORT_OF_SORT=1,2, but
  *   	 should be an integer type for SORT_OF_SORT=3.
+ *       For SORT_OF_SORT=4, SORT_TYPE1 should be assignable;
+ *         such as a simple type or a structure.
  *   SORT_TYPE2 = type of the second array if needed (no default)
  *       This can be any assignable type (including a structure) for
  *       SORT_OF_SORT=2, but must be a numeric type for SORT_OF_SORT=3.

@@ -142,24 +142,26 @@ CALLING FROM A PROGRAM
 
 Counts:
 
-                all                 strong          regular
-   n        tournaments           tournaments     tournaments
-  
-   1                     1                     1             1
-   2                     1                     0             1
-   3                     2                     1             1
-   4                     4                     1             1
-   5                    12                     6             1
-   6                    56                    35             5
-   7                   456                   353             3
-   8                  6880                  6008            85
-   9                191536                178133            15
-  10               9733056               9355949         13333
-  11             903753248             884464590          1223
-  12          154108311168          152310149735      19434757
-  13        48542114686912        48234782263293       1495297
-  14     28401423719122304     28304491788158056  276013571133
-  15  31021002160355166848  30964247546702883729   18400989629 
+                    all                       strong                regular
+  n             tournaments                 tournaments           tournaments
+ 
+  1                            1                            1                 1
+  2                            1                            0                 1
+  3                            2                            1                 1
+  4                            4                            1                 1
+  5                           12                            6                 1
+  6                           56                           35                 5
+  7                          456                          353                 3
+  8                         6880                         6008                85
+  9                       191536                       178133                15
+ 10                      9733056                      9355949             13333
+ 11                    903753248                    884464590              1223
+ 12                 154108311168                 152310149735          19434757
+ 13               48542114686912               48234782263293           1495297
+ 14            28401423719122304            28304491788158056      276013571133
+ 15         31021002160355166848         30964247546702883729       18400989629 
+ 16      63530415842308265100288      63468402142317299907481
+ 17  244912778438520759443245824  244785748571033855024746438  2406183070160597
 
 **************************************************************************
 
@@ -691,13 +693,13 @@ makecanon(graph *g, graph *gcan, int n)
 {
         int lab[MAXN],ptn[MAXN],orbits[MAXN];
         static DEFAULTOPTIONS_GRAPH(options);
-        setword workspace[50];
+        setword workspace[200];
 
         options.getcanon = TRUE;
         options.digraph = TRUE;
 
         nauty(g,lab,ptn,NULL,orbits,&options,&nauty_stats,
-              workspace,50,1,n,gcan);
+              workspace,200,1,n,gcan);
 }
 
 /**************************************************************************/
@@ -715,7 +717,7 @@ accept1(graph *g, int n, xword x, graph *gx, int *deg, boolean *rigid)
         set active[MAXM];
         statsblk stats;
         static DEFAULTOPTIONS_GRAPH(options);
-        setword workspace[50];
+        setword workspace[200];
 
 #ifdef INSTRUMENT
         ++a1calls;
@@ -787,7 +789,7 @@ accept1(graph *g, int n, xword x, graph *gx, int *deg, boolean *rigid)
 #ifdef INSTRUMENT
         ++a1nauty;
 #endif
-        nauty(gx,lab,ptn,active,orbits,&options,&stats,workspace,50,1,nx,h);
+        nauty(gx,lab,ptn,active,orbits,&options,&stats,workspace,200,1,nx,h);
 
         if (orbits[lab[n]] == orbits[n])
         {
@@ -846,7 +848,7 @@ accept2(graph *g, int n, xword x, graph *gx, int *deg, boolean nuniq)
         set active[MAXM];
         statsblk stats;
         static DEFAULTOPTIONS_GRAPH(options);
-        setword workspace[50];
+        setword workspace[200];
 	boolean cheapacc;
 
 #ifdef INSTRUMENT
@@ -1001,7 +1003,7 @@ accept2(graph *g, int n, xword x, graph *gx, int *deg, boolean nuniq)
 #ifdef INSTRUMENT
         ++a2nauty;
 #endif
-        nauty(gx,lab,ptn,active,orbits,&options,&stats,workspace,50,1,nx,gcan);
+        nauty(gx,lab,ptn,active,orbits,&options,&stats,workspace,200,1,nx,gcan);
 
         if (orbits[lab[n]] == orbits[n])
         {
@@ -1019,7 +1021,8 @@ accept2(graph *g, int n, xword x, graph *gx, int *deg, boolean nuniq)
 
 static void
 genextend(graph *g, int n, int *deg, boolean rigid)
-/* extend from n to n+1 -- version for general graphs */
+/* extend from n to n+1.  Note that, differently from
+   geng, the last vertex has minimum out-degree */
 {
         xword x,dlow,dhigh,dcrit;
         xword *xset,*xcard,*xorb;

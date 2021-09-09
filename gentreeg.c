@@ -25,6 +25,56 @@
 \n\
   See program text for much more information.\n"
 
+/**************************************************************
+Counts for n=1..45:
+
+ 1: 1
+ 2: 1
+ 3: 1
+ 4: 1
+ 5: 2
+ 6: 3
+ 7: 6
+ 8: 11
+ 9: 23
+10: 47
+11: 106
+12: 235
+13: 551
+14: 1301
+15: 3159
+16: 7741
+17: 19320
+18: 48629
+19: 123867
+20: 317955
+21: 823065
+22: 2144505
+23: 5623756
+24: 14828074
+25: 39299897
+26: 104636890
+27: 279793450
+28: 751065460
+29: 2023443032
+30: 5469566585
+31: 14830871802
+32: 40330829030
+33: 109972410221
+34: 300628862480
+35: 823779631721
+36: 2262366343746
+37: 6226306037178
+38: 17169677490714
+39: 47436313524262
+40: 131290543779126
+41: 363990257783343
+42: 1010748076717151
+43: 2810986483493475
+44: 7828986221515605
+45: 21835027912963086
+********************************/
+
 /* Comments on original program by original authors */
 /*==============================================================*/
 /* program: freetree.c                                          */
@@ -99,6 +149,13 @@ CALLING FROM A PROGRAM
    that argv[0] is the command name and not the first argument. The
    value of argc is the number of strings in argv[]; that is, one
    more than the number of arguments.
+
+EFFICIENCY
+
+   Note that the trees are generated much faster than they can be
+   written.  A substantial time saving can be achieved using one
+   of the above methods instead of writing the trees and then
+   reading them into another program.
 */
 
 static int

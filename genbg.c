@@ -609,7 +609,7 @@ makeleveldata(void)
 
 /**************************************************************************/
 
-static UPROC
+static void
 userautomproc(int count, int *p, int *orbits, int numorbits,
           int stabvertex, int n)
 /* Automorphism procedure called by nauty
@@ -1747,7 +1747,7 @@ PLUGIN_INIT
             splitcases,nprune,t2-t1);
 #else
 #ifdef SUMMARY
-    SUMMARY(&nout,t2-t1);
+    SUMMARY(nout,t2-t1);
 #endif
 
     if (!quiet)

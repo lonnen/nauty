@@ -74,7 +74,7 @@ static TLS_ATTR int work1[MAXN];
 static TLS_ATTR int work2[MAXN];
 static TLS_ATTR int work3[MAXN];
 static TLS_ATTR int work4[MAXN];
-static TLS_ATTR set snwork[2*60*MAXM];
+static TLS_ATTR set snwork[2*500*MAXM];
 #endif
 
 static TLS_ATTR short vmark1_val = 32000;
@@ -1658,7 +1658,7 @@ adjacencies_sg(graph *g, int *lab, int *ptn, int level, int numcells,
 *                                                                            *
 *  sparsenauty(g,lab,ptn,orbits,&options,&stats,h)                           *
 *  is a slightly simplified interface to nauty().  It allocates enough       *
-*  workspace for 60 automorphisms and checks that the sparsegraph dispatch    *
+*  workspace for 500 automorphisms and checks that the sparsegraph dispatch  *
 *  vector is in use.                                                         *
 *                                                                            *
 *****************************************************************************/
@@ -1679,13 +1679,13 @@ sparsenauty(sparsegraph *g, int *lab, int *ptn, int *orbits,
     m = SETWORDSNEEDED(n);
 
 #if !MAXN
-  /*  Don't increase 2*60*m in the following without also increasing
+  /*  Don't increase 2*500*m in the following without also increasing
            the static decalaration of snwork[] above. */
-    DYNALLOC1(set,snwork,snwork_sz,2*60*m,"densenauty malloc");
+    DYNALLOC1(set,snwork,snwork_sz,2*500*m,"densenauty malloc");
 #endif
 
     nauty((graph*)g,lab,ptn,NULL,orbits,options,stats,
-          snwork,2*60*m,m,n,(graph*)h);
+          snwork,2*500*m,m,n,(graph*)h);
 }
 
 /*****************************************************************************

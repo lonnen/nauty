@@ -157,7 +157,7 @@ indcyclecount(graph *g, int m, int n)
 
 long
 numtriangles1(graph *g, int n)
-/* The number of triangles in g */
+/* The number of triangles in g; undirected only */
 {
     int i,j;
     setword gi,w;
@@ -182,7 +182,7 @@ numtriangles1(graph *g, int n)
 
 long
 numtriangles(graph *g, int m, int n)
-/* The number of triangles in g */
+/* The number of triangles in g; undirected only */
 {
     int i,j,k,kw;
     setword *gi,*gj,w;

@@ -29,13 +29,33 @@ it is necessary to check they are correct.
 #define DEFAULT_WORDSIZE @default_wordsize@
 
 
-/* Note that the following is only for running nauty in multiple threads
-   and will slow it down a little otherwise. */
-#define HAVE_TLS @have_tls@   /* have storage attribute for thread-local */
-#define TLS_ATTR @ac_cv_tls@  /* if so, what it is.  if not, empty */
+/* Note that thread-local storage (TLS) is only useful for running nauty
+   in multiple threads and will slow it down a little otherwise. */
+#define TLS_SUPPORTED @tls_supported@   /* Compiler supports thread-local */
+
+/* If USE_TLS is defined, define TLS_ATTR to be the attribute name
+   for TLS and define HAVE_TLS=1.  Otherwise define TLS_ATTR to be empty
+   and HAVE_TLS=0.  USE_TLS can be defined on the command line or by
+   configuring with --enable-tls. */
+#ifndef USE_TLS
+@use_tls@
+#endif
+#ifdef USE_TLS
+#if !TLS_SUPPORTED
+ #error "TLS is requested but not available"
+#else
+#define TLS_ATTR @ac_cv_tls@
+#define HAVE_TLS 1
+#endif
+#else
+#define TLS_ATTR
+#define HAVE_TLS 0
+#endif
 
 #define USE_ANSICONTROLS @have_ansicontrols@ 
                           /* whether --enable-ansicontrols is used */
+#define FLEX_ARRAY_OK @flex_array_ok@
+ /* whether the compiler supports flexible array members in structures */
 
 #define _FILE_OFFSET_BITS @ac_cv_sys_file_offset_bits@
 #if _FILE_OFFSET_BITS == 64
@@ -285,6 +305,9 @@ it is necessary to check they are correct.
 *       11-Oct-19 : - Move labelorg and nauty_kill_request into the          *
 *                      "C" block for C++ compatibiliy                        *
 *       23-Mar-20 : - Don't define INFINITY even if it is absent from math.h *
+*       17-Nov-21 : - Use USE_TLS for thread-local storage                   *
+                    - Define FLEX_ARRAY_OK                                   *
+                  : Froze 2.7
 * @edit_msg@
 *                                                                            *
 *****************************************************************************/
@@ -1330,8 +1353,9 @@ extern void fmptn(int*,int*,int,set*,set*,int,int);
 extern void longprune(set*,set*,set*,set*,int);
 extern void nauty(graph*,int*,int*,set*,int*,optionblk*,
                   statsblk*,set*,int,int,int,graph*);
-extern void maketargetcell(graph*,int*,int*,int,set*,int*,int*,int,boolean,
-           int,int (*)(graph*,int*,int*,int,int,boolean,int,int,int),int,int);
+extern void maketargetcell(graph*,int*,int*,int,
+         set*,int*,int*,int,boolean,int,
+         int (*)(graph*,int*,int*,int,int,boolean,int,int,int),int,int);
 extern int nextelement(set*,int,int);
 extern int orbjoin(int*,int*,int);
 extern void permset(set*,set*,int,int*);

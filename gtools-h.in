@@ -29,8 +29,6 @@ used, it is necessary to check they are correct.
 #define HAVE_PUTENV @have_putenv@   /* putenv() exists */
 #define HAVE_SETENV @have_setenv@   /* setenv() exists */
 #define HAVE_FORK @have_fork@   /* fork() exists */
-#define HAVE_PTHREADS @have_pthread@   /* Posix threads exist */
-#define HAVE_PTHREAD_H  @header_pthread_h@      /* <pthread.h> exists */
 #define HAVE_SIGNAL_H  @header_signal_h@      /* <signal.h> exists */
 #define HAVE_FSEEKO @have_fseeko@  /* fseeko() and ftello() exist */
 #define HAVE_SIGACTION @have_sigaction@  /* sigaction() exists */

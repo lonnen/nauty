@@ -58,7 +58,13 @@ typedef struct TracesStats {
 	unsigned long peaknodes;
 } TracesStats;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern void Traces(sparsegraph*,int*,int*,int*,TracesOptions*,
 				   TracesStats*,sparsegraph*);									
 extern void refine_tr(sparsegraph*,int*,int*,int*,int*,TracesOptions*);		
 extern void traces_freedyn(void);
+#ifdef __cplusplus
+}
+#endif

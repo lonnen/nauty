@@ -1,5 +1,6 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT(nauty-h.in)
+AC_INIT
+AC_CONFIG_SRCDIR([nauty-h.in])
 
 # ======================================================================
 # First we define some functions
@@ -33,29 +34,25 @@ dnl Check for thread-local attribute
 AC_DEFUN([AX_TLS], [
   AC_MSG_CHECKING([for thread local storage (TLS) class])
   AC_CACHE_VAL([ac_cv_tls],
-   [for ax_tls_keyword in _Thread_local __thread '__declspec(thread)' none; do
+   [for ax_tls_keyword in thread_local _Thread_local __thread '__declspec(thread)' none; do
        AS_CASE([$ax_tls_keyword],
           [none], [ac_cv_tls=none ; break],
-          [AC_TRY_COMPILE(
-              [#include <stdlib.h>
-               static void
-               foo(void) {
-               static ] $ax_tls_keyword [ int bar;
-               exit(1);
-               }],
-               [],
-               [ac_cv_tls=$ax_tls_keyword ; break],
-               ac_cv_tls=none
-           )])
-    done
-  ])
+          [AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+              [#include <stdlib.h>],
+              [static  $ax_tls_keyword  int bar;]
+            )],
+            [ac_cv_tls=$ax_tls_keyword ; break],
+            [ac_cv_tls=none]
+          )]
+        )
+    done ]
+  )
   AC_MSG_RESULT([$ac_cv_tls])
 
-  AS_IF([test "x$ac_cv_tls" != xnone],
-        [AC_DEFINE_UNQUOTED([TLS],[$ac_cv_tls],
-        [If the compiler supports a TLS storage class define it to that here])
-     m4_ifnblank([$1],[$1])],
-    [m4_ifnblank([$2],[$2])])
+  AS_IF([test "$ac_cv_tls" != "none"],
+    [AC_DEFINE_UNQUOTED([TLS],[$ac_cv_tls],[If the compiler supports a TLS storage class, define it to that here])
+     m4_ifnblank([$1],[$1],[[:]])],
+    [m4_ifnblank([$2],[$2],[[:]])])
 ])
 
 # ======================================================================
@@ -82,8 +79,7 @@ AS_IF([test $enablearg = notgiven || test "x$enable_generic" = xno],[allow_nativ
 dnl --enable-tls specifies thread-local storage, if possible
 AC_ARG_ENABLE([tls],
    AS_HELP_STRING([--enable-tls], [Enable thread-local storage]),
-   [enablearg=given], [enablearg=notgiven])
-AS_IF([test $enablearg = notgiven || test "x$enable_tls" = xno],[allow_tls=0],[allow_tls=1])
+   [use_tls="#define USE_TLS"], [use_tls=])
 
 dnl --enable-ansi specifies ANSI controls are allowed in output
 AC_ARG_ENABLE([ansi],
@@ -160,9 +156,9 @@ dnl Checks relevant to Cygwin and other Windows things
 AC_EXEEXT
 
 dnl Checks for header files.
-dnl AC_HEADER_STDC
+
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS(signal.h stddef.h unistd.h sys/types.h sys/wait.h stdlib.h string.h errno.h limits.h stdint.h pthread.h)
+AC_CHECK_HEADERS(signal.h stddef.h unistd.h sys/types.h sys/wait.h stdlib.h string.h errno.h limits.h stdint.h)
 CVT_YESNO(ac_cv_header_stddef_h,header_stddef_h)
 CVT_YESNO(ac_cv_header_unistd_h,header_unistd_h)
 CVT_YESNO(ac_cv_header_stdlib_h,header_stdlib_h)
@@ -170,7 +166,6 @@ CVT_YESNO(ac_cv_header_string_h,header_string_h)
 CVT_YESNO(ac_cv_header_sys_wait_h,header_sys_wait_h)
 CVT_YESNO(ac_cv_header_sys_types_h,header_sys_types_h)
 CVT_YESNO(ac_cv_header_errno_h,header_errno_h)
-CVT_YESNO(ac_cv_header_pthread_h,header_pthread_h)
 CVT_YESNO(ac_cv_header_signal_h,header_signal_h)
 CVT_YESNO(ac_cv_header_limits_h,header_limits_h)
 CVT_YESNO(ac_cv_header_stdint_h,header_stdint_h)
@@ -198,6 +193,13 @@ AS_IF([test $malloc_dec -eq 0],
       [AC_EGREP_HEADER([(^|[^a-zA-Z_0-9])malloc[^a-zA-Z_0-9]],malloc.h,
        malloc_dec=2,malloc_dec=0)])
 AC_SUBST(malloc_dec)
+
+AC_MSG_CHECKING(if compiler accepts flexible array members)
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], \
+  [[void foo(void*);struct { int a; int b[]; } ab; foo(&ab); ]])],
+[flex_array_ok=1],[flex_array_ok=0])
+AC_SUBST(flex_array_ok)
+AC_MSG_RESULT($flex_array_ok)
 
 AC_MSG_CHECKING(if INFINITY is declared in math.h)
 AC_EGREP_CPP(yes,
@@ -331,6 +333,14 @@ AC_SUBST(have_mmpop64)
 # Unless --enable-generic is given to configure, we try to use the -march=native compiler
 #   switch.  However, it breaks some versions of gcc on MacOSX due to a compiler bug, so
 #   we will also add --mno-avx if that is necessary.
+# But don't add -march-native if the user provided an architecture via CFLAGS or CC
+
+case "$CFLAGS" in
+ *-march=* ) allow_native=0 ;;
+esac
+case "$CC" in
+ *-march=* ) allow_native=0 ;;
+esac
 
 AS_IF([test "$allow_native" -eq 1],
 [
@@ -362,9 +372,10 @@ dnl --check if lzcnt instruction is available and requested
 AC_MSG_CHECKING(if lzcnt instruction is available and requested)
 AS_IF([test "$allow_clz" -eq 1],
       [have_hwlzcnt=0
-test -f /proc/cpuinfo && grep -i abm /proc/cpuinfo >/dev/null && have_hwlzcnt=1 
-test $have_hwlzcnt -eq 0 && sysctl machdep.cpu.features 2>/dev/null | grep -i bmi1 >/dev/null && have_hwlzcnt=1
-test $have_hwlzcnt -eq 0 && isainfo -x -v 2>/dev/null | grep -i bmi1 >/dev/null && have_hwlzcnt=1 ],
+test -f /proc/cpuinfo && egrep -i "abm|bmi1" /proc/cpuinfo >/dev/null && have_hwlzcnt=1 
+test $have_hwlzcnt -eq 0 && sysctl machdep.cpu.features 2>/dev/null | egrep -i "bmi1|abm" >/dev/null && have_hwlzcnt=1
+test $have_hwlzcnt -eq 0 && sysctl machdep.cpu.extfeatures 2>/dev/null | egrep -i "lzcnt" >/dev/null && have_hwlzcnt=1
+test $have_hwlzcnt -eq 0 && isainfo -x -v 2>/dev/null | egrep -i "bmi1|abm" >/dev/null && have_hwlzcnt=1 ],
       [have_hwlzcnt=0
 ])
 AC_MSG_RESULT($have_hwlzcnt)
@@ -395,13 +406,6 @@ AC_SUBST(have_clzll)
 
 AC_SUBST(default_wordsize)
 
-AC_CHECK_FUNC(pthread_create,have_pthread=1,have_pthread=0)
-AS_IF([test $have_pthread -eq 0],
-      [threadlib=],
-      [ AC_CHECK_LIB(pthread,pthread_create,have_pthread=1,have_pthread=0)
-        AS_IF([test $have_pthread -eq 1],[threadlib=-lpthread],[threadlib=])
-])
-
 AS_IF([test $have_pipe -eq 1 && test $have_wait -eq 1 && test $have_fork -eq 1],
     [shortg=1
      shortg_or_null=shortg],
@@ -409,22 +413,18 @@ AS_IF([test $have_pipe -eq 1 && test $have_wait -eq 1 && test $have_fork -eq 1],
      shortg_or_null=])
 AC_SUBST(shortg_or_null)
 
-AC_SUBST(have_pthread)
-AC_SUBST(threadlib)
-
 AC_CHECK_FUNC(getc_unlocked,have_getc_unlocked=1,have_getc_unlocked=0)
 AC_CHECK_FUNC(flockfile,have_flockfile=1,have_flockfile=0)
 AS_IF([test $have_getc_unlocked -eq 1 && test $have_flockfile -eq 1],
       [stdio_nolock=1],[stdio_nolock=0])
 AC_SUBST(stdio_nolock)
 
-dnl Check for thread-local storage attribute
-AS_IF([test "$allow_tls" -eq 1],
-      [ AX_TLS([have_tls=1],[have_tls=0]) ],
-      [have_tls=0])
-AS_IF([test "$have_tls" -eq 0],[ac_cv_tls=])
+dnl Set thread-local variables
+AX_TLS([tls_supported=1],[tls_supported=0])
+AS_IF([test "$tls_supported" -eq 0],[ac_cv_tls=])
 AC_SUBST(ac_cv_tls)
-AC_SUBST(have_tls)
+AC_SUBST(tls_supported)
+AC_SUBST(use_tls)
 
 dnl ANSI terminal control sequences
 have_ansicontrols=$allow_ansi
@@ -448,5 +448,10 @@ AC_MSG_RESULT($sort_newparams_ok)
 edit_msg="++++++ This file is automatically generated, don't edit it by hand! ++++++"
 AC_SUBST(edit_msg)
 
-AC_OUTPUT(makefile:makefile.in nauty.h:nauty-h.in
-    naututil.h:naututil-h.in gtools.h:gtools-h.in)
+AC_PROG_MKDIR_P
+AC_PROG_INSTALL
+
+AC_CONFIG_FILES([makefile:makefile.in nauty.h:nauty-h.in
+    naututil.h:naututil-h.in gtools.h:gtools-h.in
+    nauty.pc:nauty.pc.in])
+AC_OUTPUT

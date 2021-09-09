@@ -1,4 +1,3 @@
-
 Changes from nauty 2.4 to nauty 2.5
 -----------------------------------
 
@@ -387,4 +386,52 @@ Changes from nauty 2.6 to nauty 2.7
 * A bug prevented a filtering version of copyg (needs special
   compilation, see copyg.c) from playing nice with incremental
   sparse6 input. You didn't meet this bug unless you saw an
-  error message like "readg_inc: missing prior".
+  error message like "readg_inc: missing prior".  Another
+  bug in the same facility caused the number of outputs to
+  be reported as the same as the number of inputs even if some
+  of them had been filtered out.  The outputs themselves were
+  correct.
+
+* -march=native is not added to the compile command if the
+  use has specified an architecture via CC or CFLAGS
+
+* traces.h has extern "C" { } for function declarations to
+  assist calling from C++.
+
+* nauty.h defines FLEX_ARRAY_OK to 1 if flexible array
+  members of structures are allowed, and 0 otherwise.
+  (Flexible array members are declared as the last field
+  in structures like x[] and the user is allowed to
+  extend them.)
+
+* Compiling with preprocessor variable USE_TLS defined will
+  have the same effect as configuring with --enable-tls.
+  (a) If either --enable-tls or USE_TLS is defined then:
+     USE_TLS is defined, HAVE_TLS is defined as 1, and
+     TLS_ATTR is defined to be the attribute for thread-local
+     memory (either thread_local, _Thread_local, __thread or
+      __declspec(thread)).
+     If the compiler doesn't support thread-local memory at
+     all, an error is issued.
+  (b) If --enable-tls is not used and USE_TLS is not defined,
+     then USE_TLS is not defined, HAVE_TLS is defined as 0,
+     and TLS_ATTR is defined as empty.
+
+* Changes to the makefile:
+(1) The line "AR?=ar" in the makefile violated the Posix standard, see
+  https://pubs.opengroup.org/onlinepubs/9699919799/utilities/make.html
+  It is now gone. This shouldn't be a problem since the variable AR
+  is used instead and its default value is "ar" unless a different
+  value is specified on the make command line.
+(2) There is an install target.  It puts executables into ${bindir},
+  include files into ${includedir}, static libraries into ${libdir},
+  and pkg-config configuration files into ${pkgconfigexecdir}.
+  Configure with --prefix=DIR to specify a parent directory for these.
+  There is still no target for dynamic libraries.
+(3) Several rearrangements that most users won't notice.
+
+* There is a new utility nbrhoodg that can extract neighbourhoods
+  of vertices
+
+* The amount of working space given to nauty was increased in a
+  few places.

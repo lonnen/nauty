@@ -67,9 +67,9 @@ CPUDEFS
 #define MAXE(n) ((n) > 1 ? 3*(n) - 5 : 0)
 #define MAXDE(n) (6*(n) - 10)
 
-#define NIL -1
-#define CUTV -2     /* obviously used in diff. circ. than NILSIGN */
-#define NILSIGN -2
+#define NIL (-1)
+#define CUTV (-2)     /* obviously used in diff. circ. than NILSIGN */
+#define NILSIGN (-2)
 #define CCLOCKW 1
 #define CLOCKW -1
 #define TE 1

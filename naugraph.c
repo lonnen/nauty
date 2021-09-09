@@ -54,7 +54,7 @@ DYNALLSTAT(set,dnwork,dnwork_sz);
 static TLS_ATTR set workset[MAXM];   /* used for scratch work */
 static TLS_ATTR int workperm[MAXN];
 static TLS_ATTR int bucket[MAXN+2];
-static TLS_ATTR set dnwork[2*60*MAXM];
+static TLS_ATTR set dnwork[2*500*MAXM];
 #endif
 
 /*****************************************************************************
@@ -636,7 +636,7 @@ targetcell(graph *g, int *lab, int *ptn, int level, int tc_level,
 *                                                                            *
 *  densenauty(g,lab,ptn,orbits,&options,&stats,m,n,h)                        *
 *  is a slightly simplified interface to nauty().  It allocates enough       *
-*  workspace for 60 automorphisms and checks that the densegraph dispatch     *
+*  workspace for 500 automorphisms and checks that the densegraph dispatch   *
 *  vector is in use.                                                         *
 *                                                                            *
 *****************************************************************************/
@@ -652,12 +652,12 @@ densenauty(graph *g, int *lab, int *ptn, int *orbits,
     }
 
 #if !MAXN
-    /* Don't increase 2*60*m in the next line unless you also increase
+    /* Don't increase 2*500*m in the next line unless you also increase
        the default declaration of dnwork[] earlier. */
-    DYNALLOC1(set,dnwork,dnwork_sz,2*60*m,"densenauty malloc");
+    DYNALLOC1(set,dnwork,dnwork_sz,2*500*m,"densenauty malloc");
 #endif
 
-    nauty(g,lab,ptn,NULL,orbits,options,stats,dnwork,2*60*m,m,n,h);
+    nauty(g,lab,ptn,NULL,orbits,options,stats,dnwork,2*500*m,m,n,h);
 }
 
 /*****************************************************************************
