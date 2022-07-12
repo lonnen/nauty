@@ -32,7 +32,8 @@
 \n\
     Any number of graphs can be generated at once.\n"
 
-/* Ideas: multipartite, knesser, full trees, antiregular, individual */
+/* Ideas: multipartite, knesser, full trees, antiregular, individual,
+  de Bruijn digraphs */ 
 
 #include "gtools.h"
 
@@ -919,8 +920,8 @@ main(int argc, char *argv[])
                 else SWSEQUENCEMIN('P',",",Pswitch,Pargs,2,2,nPargs,"genspecialg -P")
                 else SWSEQUENCEMIN('C',",",Cswitch,args,
                                         1,MAXARGS,nCargs,"genspecialg -C")
-                else SWSEQUENCE('G',",",Gswitch,args,30,nGargs,"genspecialg -G")
-                else SWSEQUENCE('T',",",Tswitch,args,MAXARGS,
+                else SWSEQUENCEMIN('G',",",Gswitch,args,2,30,nGargs,"genspecialg -G")
+                else SWSEQUENCEMIN('T',",",Tswitch,args,1,MAXARGS,
                                 nTargs,"genspecialg -T")
                 else badargs = TRUE;
             }
@@ -1051,8 +1052,8 @@ main(int argc, char *argv[])
 		}
                 else if (sw == 'T')
 		{
-		    SWSEQUENCEMIN('T',",",Tswitch,args,MAXARGS,
-                                1,nTargs,"genspecialg -T")
+		    SWSEQUENCEMIN('T',",",Tswitch,args,1,MAXARGS,
+                                nTargs,"genspecialg -T")
             	    maketheta(args,nTargs,zswitch,&sg);
 		    havegraph = TRUE;
 		}

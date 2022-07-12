@@ -530,7 +530,7 @@ return 1;
 void usage(char name[])
 {
 
-  fprintf(stderr,"usage: %s [ix] [oy] [m] [T] [C] [B] [Z] [S] .\n",name);
+  fprintf(stderr,"\nUsage: %s [ix] [oy] [m] [T] [C] [B] [Z] [S]\n",name);
   fprintf(stderr,"The option ix restricts the maximum indegree to x.\n");
   fprintf(stderr,"The option oy restricts the maximum outdegree to y.\n");
   fprintf(stderr,"The default maximum in- and out-degrees are unlimited. \n");
@@ -1309,7 +1309,7 @@ if (first_in_orbit)
 	       { 
 		 FORALLELEMENTS(bufferg,i)
 		   { if (READY(i) && !ISELEMENT(workg+i,top)) // no double edge, so double edges inside the orbit would not be accepted
-		       { do_double=0; i=WORDSIZE; }
+		       { do_double=0; i=WORDSIZE-1; }  // BDM changed "WORDSIZE" to "WORDSIZE-1"
 		   }
 	       }
 	   }
