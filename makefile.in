@@ -1,4 +1,4 @@
-# makefile for nauty 2.7
+# makefile for nauty 2.8
 # @configure_input@
 
 SHELL=@SHELL@
@@ -37,7 +37,7 @@ GTOOLSH=gtools.h nauty.h naututil.h nausparse.h naurng.h gutils.h \
   naugstrings.h planarity.h quarticirred28.h
 GTOOLS=copyg listg labelg dretog amtog geng complg showg NRswitchg \
   biplabg addedgeg deledgeg countg pickg genrang newedgeg catg genbg \
-  directg gentreeg genquarticg underlyingg assembleg gengL \
+  directg gentreeg genquarticg underlyingg assembleg gengL addptg \
   ranlabg multig planarg gentourng linegraphg watercluster2 dretodot \
   subdivideg vcolg delptg cubhamg twohamg hamheuristic converseg \
   nbrhoodg genspecialg edgetransg genbgL dreadnaut @shortg_or_null@
@@ -328,6 +328,9 @@ catg : ${GTOOLSH} catg.c gtools.o
 copyg : ${GTOOLSH} copyg.c gtools.o
 	${CC} -o copyg ${CFLAGS} copyg.c gtools.o ${LDFLAGS}
 
+addptg : ${GTOOLSH} addptg.c gtools.o gtnauty.o ${NAUTYO}
+	${CC} -o addptg ${CFLAGS} addptg.c ${NAUTYO} gtnauty.o gtools.o ${LDFLAGS}
+
 genspecialg : ${GTOOLSH} genspecialg.c ${NAUTYO} gtools.o
 	${CC} -o genspecialg ${CFLAGS} genspecialg.c ${NAUTYO} gtools.o ${LDFLAGS}
 
@@ -428,8 +431,8 @@ subdivideg : ${GTOOLSH} subdivideg.c gtools.o ${NAUTYO}
 		${NAUTYO} ${LDFLAGS}
 
 vcolg : ${GTOOLSH} vcolg.c gtools.o ${NAUTYO} naugroup.o gtnauty.o \
-		 nautinv.o naututil.o naugroup.h
-	${CC} -o vcolg ${CFLAGS} vcolg.c gtnauty.o naututil.o \
+		 nautinv.o naututil.o naugroup.h gutils.h
+	${CC} -o vcolg ${CFLAGS} vcolg.c gtnauty.o naututil.o gutil2.o \
 		nautinv.o gtools.o naugroup.o ${NAUTYO} ${LDFLAGS}
 
 edgetransg : ${GTOOLSH} edgetransg.c gtools.o ${NAUTYO} naugroup.o \

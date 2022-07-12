@@ -80,6 +80,14 @@
  #error Forget it, either pipe(), wait() or fork() are not available
 #endif
 
+/* Define EXTRA at compile time to add arguments to the sort command.
+   It has to start with a comma and have double quotes around sort
+   arguments.  For example, if your sort command has the -S (buffer
+   size) parameter, you could use -DEXTRA=',"-S10%"'  . */
+#ifndef EXTRA
+#define EXTRA
+#endif
+
 #if !HAVE_PID_T
 typedef int pid_t;
 #endif
@@ -89,21 +97,21 @@ FILE *fdopen(int, const char*);
 #endif
 
 #if SORT_NEWKEY == 0
-#define SORTCOMMAND  SORTPROG,SORTPROG,"-u","+0","-1"
-#define VSORTCOMMAND1  SORTPROG,SORTPROG
+#define SORTCOMMAND  SORTPROG,SORTPROG EXTRA,"-u","+0","-1"
+#define VSORTCOMMAND1  SORTPROG,SORTPROG EXTRA
 #define VSORTCOMMAND2  SORTPROG,SORTPROG,"+0","-1","+2"
 
-#define SORTCOMMANDT  SORTPROG,SORTPROG,"-T",tempdir,"-u","+0","-1"
-#define VSORTCOMMANDT1  SORTPROG,SORTPROG,"-T",tempdir
-#define VSORTCOMMANDT2  SORTPROG,SORTPROG,"-T",tempdir,"+0","-1","+2"
+#define SORTCOMMANDT  SORTPROG,SORTPROG EXTRA,"-T",tempdir,"-u","+0","-1"
+#define VSORTCOMMANDT1  SORTPROG,SORTPROG EXTRA,"-T",tempdir
+#define VSORTCOMMANDT2  SORTPROG,SORTPROG EXTRA,"-T",tempdir,"+0","-1","+2"
 #else
-#define SORTCOMMAND  SORTPROG,SORTPROG,"-u","-k","1,1"
-#define VSORTCOMMAND1  SORTPROG,SORTPROG
-#define VSORTCOMMAND2  SORTPROG,SORTPROG,"-k","1,1","-k","3"
+#define SORTCOMMAND  SORTPROG,SORTPROG EXTRA,"-u","-k","1,1"
+#define VSORTCOMMAND1  SORTPROG,SORTPROG EXTRA
+#define VSORTCOMMAND2  SORTPROG,SORTPROG EXTRA,"-k","1,1","-k","3"
 
-#define SORTCOMMANDT  SORTPROG,SORTPROG,"-T",tempdir,"-u","-k","1,1"
-#define VSORTCOMMANDT1  SORTPROG,SORTPROG,"-T",tempdir
-#define VSORTCOMMANDT2  SORTPROG,SORTPROG,"-T",tempdir,"-k","1,1","-k","3"
+#define SORTCOMMANDT  SORTPROG,SORTPROG EXTRA,"-T",tempdir,"-u","-k","1,1"
+#define VSORTCOMMANDT1  SORTPROG,SORTPROG EXTRA,"-T",tempdir
+#define VSORTCOMMANDT2  SORTPROG,SORTPROG EXTRA,"-T",tempdir,"-k","1,1","-k","3"
 #endif
 
 static struct invarrec
@@ -142,7 +150,7 @@ beginsort(FILE **sortin, FILE **sortout, char *tempdir,
           boolean vdswitch, boolean keep)
 /* begin sort process, open streams for i/o to it, and return its pid */
 {
-    int pid;
+    pid_t pid;
     int inpipe[2],outpipe[2];
 
     if (pipe(inpipe) < 0 || pipe(outpipe) < 0)

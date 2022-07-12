@@ -113,6 +113,14 @@ case "$host" in
      is_powerpc=0 ;;
 esac
 
+case "$host" in
+  aarch64*)
+     is_ARM64=1 ;;
+  *)
+     is_ARM64=0 ;;
+esac
+AC_SUBST(is_ARM64)
+
 case "$build" in
   *cygwin*)
      is_cygwin=1 ;;
@@ -280,7 +288,9 @@ AS_IF([test "$allow_popcnt" -eq 1],
       [have_hwpopcnt=$popsup
 test -f /proc/cpuinfo && grep -i popcnt /proc/cpuinfo >/dev/null && have_hwpopcnt=1 
 test $have_hwpopcnt -eq 0 && sysctl machdep.cpu.features 2>/dev/null | grep -i popcnt >/dev/null && have_hwpopcnt=1
-test $have_hwpopcnt -eq 0 && isainfo -x -v 2>/dev/null | grep -i popc >/dev/null && have_hwpopcnt=1 ],
+test $have_hwpopcnt -eq 0 && isainfo -x -v 2>/dev/null | grep -i popc >/dev/null && have_hwpopcnt=1
+test $have_hwpopcnt -eq 0 && test $is_ARM64 -eq 1 && have_hwpopcnt=1
+],
       [have_hwpopcnt=0
 ])
 # Some problems with popcnt on powerpc are not resolved yet
@@ -307,7 +317,7 @@ AS_IF([test $have_hwpopcnt -eq 1],
                    int main(){unsigned int x; x = _mm_popcnt_u64(x);}])],
                              [have_mmpop64=1], [have_mmpop64=0])
               AC_MSG_RESULT($have_mmpop64)],
-             [CFLAGS="$CFLAGS -mpopcnt"
+             [AS_IF([test "$is_ARM64" -eq 0], [CFLAGS="$CFLAGS -mpopcnt"])
               AC_MSG_CHECKING(if __builtin_popcount() is supported)
               AC_LINK_IFELSE([AC_LANG_SOURCE([int main(){unsigned int x; x = __builtin_popcount(x);}])],
                              [have_popcnt=1], [have_popcnt=0])
@@ -320,7 +330,8 @@ AS_IF([test $have_hwpopcnt -eq 1],
               AC_LINK_IFELSE([AC_LANG_SOURCE([int main(){unsigned long long x; x = __builtin_popcountll(x);}])],
                              [have_popcntll=1], [have_popcntll=0])
               AC_MSG_RESULT($have_popcntll)
-              AS_IF([test $have_popcnt -eq 1 || test $have_popcntl -eq 1 || test $have_popcntll -eq 1],
+              AS_IF([test $is_ARM64 -eq 1], [],
+                    [test $have_popcnt -eq 1 || test $have_popcntl -eq 1 || test $have_popcntll -eq 1],
                     [MORECFLAGS="$MORECFLAGS -mpopcnt"])
 ])])
 CFLAGS="$SAVE_CFLAGS"
@@ -340,6 +351,9 @@ case "$CFLAGS" in
 esac
 case "$CC" in
  *-march=* ) allow_native=0 ;;
+esac
+case "$build" in
+ *musl ) allow_native=0 ;;
 esac
 
 AS_IF([test "$allow_native" -eq 1],
@@ -375,9 +389,9 @@ AS_IF([test "$allow_clz" -eq 1],
 test -f /proc/cpuinfo && egrep -i "abm|bmi1" /proc/cpuinfo >/dev/null && have_hwlzcnt=1 
 test $have_hwlzcnt -eq 0 && sysctl machdep.cpu.features 2>/dev/null | egrep -i "bmi1|abm" >/dev/null && have_hwlzcnt=1
 test $have_hwlzcnt -eq 0 && sysctl machdep.cpu.extfeatures 2>/dev/null | egrep -i "lzcnt" >/dev/null && have_hwlzcnt=1
-test $have_hwlzcnt -eq 0 && isainfo -x -v 2>/dev/null | egrep -i "bmi1|abm" >/dev/null && have_hwlzcnt=1 ],
-      [have_hwlzcnt=0
-])
+test $have_hwlzcnt -eq 0 && isainfo -x -v 2>/dev/null | egrep -i "bmi1|abm" >/dev/null && have_hwlzcnt=1
+test $have_hwlzcnt -eq 0 && test $is_ARM64 -eq 1 && have_hwlzcnt=1 ],
+      [have_hwlzcnt=0])
 AC_MSG_RESULT($have_hwlzcnt)
 AC_SUBST(have_hwlzcnt)
 

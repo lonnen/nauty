@@ -1,59 +1,71 @@
 /* cubhamg.c : pick those inputs that are nonhamiltonian and
                 have max degree <= 3.
+   Version 2.0 of August 2021. */
 
- Usage:
-cubhamg [-#] [-v|-V] [-n#-#|-y#-#|-i|-I|-o|-x|-e|-E] [-b|-t] [infile [outfile]]
+#define USAGE \
+ "cubhamg [-#] [-v|-V]" \
+ " [-n#-#|-y#-#|-i|-I|-o|-O|-x|-e|-E] [-b|-t] [infile [outfile]]"
 
-        infile is the name of the input file in graph6/sparse6 format
-        outfile is the name of the output file in the same format
+#define HELPTEXT \
+" cubhamg : Find hamiltonian cycles in sub-cubic graphs\n" \
+"    infile is the name of the input file in graph6/sparse6 format\n" \
+"    outfile is the name of the output file in the same format\n" \
+"\n" \
+"    stdin and stdout are the defaults for infile and outfile\n" \
+"\n" \
+"    The output file will have a header\n" \
+"    if and only if the input file does.\n" \
+"\n" \
+"     Optional switches:\n" \
+"\n" \
+"    -#  A parameter useful for tuning (default 100)\n" \
+"    -v  Report nonhamiltonian graphs and noncubic graphs\n" \
+"    -V  .. in addition give a cycle for the hamiltonian ones\n" \
+"           (with -c, give count for each input)\n" \
+"    -n#-#  If the two numbers are v and i, then the i-th edge\n" \
+"        out of vertex v is required to be not in the cycle.\n" \
+"        It must be that i=1..3 and v=0..n-1.\n" \
+"    -y#-#  If the two numbers are v and i, then the i-th edge\n" \
+"        out of vertex v is required to be in the cycle.\n" \
+"        It must be that i=1..3 and v=0..n-1.\n" \
+"       You can use any number of -n/-y switches to force edges.\n" \
+"       Out of range first arguments are ignored.\n" \
+"       If -y and -n specify the same edge, -y wins.\n" \
+"    -i  Test + property: for each edge e, there is a hamiltonian\n" \
+"         cycle using e.\n" \
+"    -I  Test ++ property: for each pair of edges e,e', there is\n" \
+"         a hamiltonian cycle which uses both e and e'.\n" \
+"    -o  Test - property: for each edge e, there is a hamiltonian \n" \
+"         cycle avoiding e\n" \
+"    -O  Test -- property: for each pair of nonadjacent edges e,e's,\n" \
+"         there is a hamiltonian cycle avoiding both.  Note that\n" \
+"         this is trivial unless the girth is at least 5.\n" \
+"    -x  Test +- property: for each pair of edges e,e', there is\n" \
+"         a hamiltonian cycle which uses e but avoids e'.\n" \
+"    -e  Test 3/4 property: for each edge e, at least 3 of the 4\n" \
+"         paths of length 3 passing through e lie on hamiltonian cycles.\n" \
+"    -E  Test 3/4+ property: for each edge e failing the 3/4 property,\n" \
+"         all three ways of joining e to the rest of the graph are\n" \
+"         hamiltonian avoiding e.\n" \
+"    -T# Specify a timeout, being a limit on how many search tree\n" \
+"         nodes are made.  If the timeout occurs, the graph is \n" \
+"         written to the output as if it is nonhamiltonian.\n" \
+"    -R# Specify the number of repeat attempts for each stage.\n" \
+"    -F  Analyze covering paths from 2 or 4 vertices of degree 2.\n" \
+"\n" \
+"    -b  Require biconnectivity\n" \
+"    -t  Require triconnectivity  (note: quadratic algorithm)\n" \
+"\n" \
+"    -c  Count hamiltonian cycles, output count for each graph.\n" \
+"           -V, -n and -y can also be used. No graphs are output.\n" \
+"\n" \
+"    -y, -n, -#, -R and -T are ignored for -i, -I, -x, -o, -e, -E, -F\n"
 
-	stdin and stdout are the defaults for infile and outfile
+/* BD. McKay, Nov 1995, Aug 1996, Feb 2002, Jul 2008, Nov 2015, Jul 2017 */
 
-	The output file will have a header >>graph6<< or >>sparse6<<
-        if and only if the input file does.
+/**************************************************************************/
 
-        Optional switches:
-
-        -#  A parameter useful for tuning (default 100)
-	-v  Report nonhamiltonian graphs and noncubic graphs
-	-V  .. in addition give a cycle for the hamiltonian ones
-	-n#-#  If the two numbers are v and i, then the i-th edge
-	    out of vertex v is required to be not in the cycle.
-	    It must be that i=1..3 and v=0..n-1.
-	-y#-#  If the two numbers are v and i, then the i-th edge
-	    out of vertex v is required to be in the cycle.
-	    It must be that i=1..3 and v=0..n-1.
-            You can use any number of -n/-y switches to force
-            edges.  Out of range first arguments are ignored.
-            If -y and -n give same edge, -y wins.
-        -i  Test + property: for each edge e, there is a hamiltonian
-            cycle using e.
-	-I  Test ++ property: for each pair of edges e,e', there is
-            a hamiltonian cycle which uses both e and e'.
-        -o  Test - property: for each edge e, there is a hamiltonian 
-            cycle avoiding e.
-        -x  Test +- property: for each pair of edges e,e', there is
-            a hamiltonian cycle which uses e but avoids e'.
-        -e  Test 3/4 property: for each edge e, at least 3 of the 4
-            paths of length 3 passing through e lie on hamiltonian cycles.
-        -E  Test 3/4+ property: for each edge e failing the 3/4 property,
-            all three ways of joining e to the rest of the graph are
-            hamiltonian avoiding e.
-        -T# Specify a timeout, being a limit on how many search tree
-            nodes are made.  If the timeout occurs, the graph is 
-            written to the output as if it is nonhamiltonian.
-        -R# Specify the number of repeat attempts for each stage.
-        -F  Analyze covering paths from 2 or 4 vertices of degree 2.
-
-	-b  Require biconnectivity
-        -t  Require triconnectivity  (note: quadratic algorithm)
-
-        -y, -n, -#, -R and -T are ignored for -i, -I, -x, -o, -e, -E, -F
-
-	B. D. McKay, Nov 1995 + Aug 1996 + Feb 2002 + Jul 2008 + Nov 2015
-
-**************************************************************************/
-
+/* For serious work, compile with MAXN as low as possible */
 #ifndef MAXN
 #define MAXN 30002  /* 2 more than largest graph size! */
 #endif
@@ -89,6 +101,7 @@ static long nodecount,maxnodes,totalnodes;
 static long timeout;
 static long repeats;
 static int verbose;
+static nauty_counter numhamcycs;
 
 #define NO_LIMIT 0x7FFFFFFFL
 
@@ -366,6 +379,62 @@ propagate(cubgraph g, cubgraph eno, nodedata *ndptr, int *nin, int nv)
 }
 
 static int
+propagate_count(cubgraph g, cubgraph eno, nodedata *ndptr, int *nin, int nv)
+/* propagate classifications: 
+ *   ans = NO or DUNNO.
+ *  If a cycle is found add one to numhamcycs and return NO. */
+{
+        int v,w,i,status;
+        nodedata *np;
+        int *gp,*enop,*class,*din,*dout;
+
+        status = DUNNO;
+        np = ndptr;
+        class = np->class;
+        din = np->din;
+        dout = np->dout;
+
+        while (status == DUNNO && stackptr > stack)
+        {
+            POP(v);
+            gp = g[v];
+            enop = eno[v];
+            if (dout[v] == 0)
+            {
+                if (din[v] == 2)
+                {
+                    if (class[enop[0]] == DUNNO)      i = 0;
+                    else if (class[enop[1]] == DUNNO) i = 1;
+                    else                              i = 2;
+                    w = gp[i];
+                    status = classout(g,np,v,w,enop[i]);
+                    PUSH(w);
+                }
+                else if (din[v] == 3)
+                    status = NO;
+            }
+            else if (dout[v] == 1)
+            {
+                for (i = 0; i < 3; ++i)
+                if (class[enop[i]] == DUNNO)
+                {
+                    w = gp[i];
+                    if ((status = classin(g,eno,np,v,w,enop[i],nin,nv))
+                                                                 != DUNNO)
+                        break;
+                    else
+                        PUSH(w);
+                }
+            }
+            else
+                status = NO;
+        }
+
+        if (status != NO && *nin == nv) { ++numhamcycs; return NO; }
+        else			        return status;
+}
+
+static int
 classout(cubgraph g, nodedata *nodat, int v, int w, int en) 
 /* classify edge en = vw out */
 {
@@ -542,6 +611,105 @@ hamnode(cubgraph g, cubgraph eno, edgevec v1, edgevec v2,
 }
 
 static int
+hamnode_count(cubgraph g, cubgraph eno, edgevec v1, edgevec v2,
+	nodedata *nodat, int level, int nin, int nv)
+/* main node for recursion; version for counting hamcycs. */
+{
+        int i,p,q,status;
+        int v,w,en,*gv,*enov;
+	int *csptr;
+
+#if MAXES
+	if (level > maxlevel) maxlevel = level;
+#endif
+
+        if (++nodecount > maxnodes && maxnodes != NO_LIMIT) return HABORT;
+        status = propagate_count(g,eno,nodat,&nin,nv);
+
+        if (status != DUNNO) return status;
+
+        for (v = nv; --v >= 0;)
+            if (nodat->din[v] == 1) break;
+
+        if (v < 0) v = 0;
+
+        gv = g[v];
+        enov = eno[v];
+
+        for (i = 0; i < 3; ++i)
+        {
+            en = enov[i];
+            if (nodat->class[en] == DUNNO)
+            {
+                w = gv[i];
+                csptr = classstackptr;
+                status = classout(g,nodat,v,w,en);
+                if (status == YES) break;
+	 	if (status == NO)
+		{
+		    while (classstackptr > csptr)
+		    {
+			p = *--classstackptr;
+			if (p >= 0)
+			{
+			    if (nodat->class[p] == YES)
+			    {
+				--nodat->din[v1[p]];
+				--nodat->din[v2[p]];
+			    }
+			    else
+			    {
+				--nodat->dout[v1[p]];
+				--nodat->dout[v2[p]];
+			    }
+			    nodat->class[p] = DUNNO;
+			}
+			else
+			{
+			    q = *--classstackptr;
+			    nodat->farend[-p-1] = q;
+			}
+		    }
+                    continue;
+		}
+                RESETSTACK;
+                PUSH(v);
+                PUSH(w);
+                status = hamnode_count(g,eno,v1,v2,nodat,level+1,nin,nv);
+                if (status == YES) break;
+		while (classstackptr > csptr)
+		{
+		    p = *--classstackptr;
+		    if (p >= 0)
+		    {
+		        if (nodat->class[p] == YES)
+		        {
+		    	    --nodat->din[v1[p]];
+		    	    --nodat->din[v2[p]];
+		        }
+		        else
+		        {
+		    	    --nodat->dout[v1[p]];
+		    	    --nodat->dout[v2[p]];
+		        }
+		        nodat->class[p] = DUNNO;
+		    }
+		    else
+		    {
+			q = *--classstackptr;
+			nodat->farend[-p-1] = q;
+		    }
+		}
+                if (status == HABORT) return HABORT;
+            }
+        }
+
+        if (status == DUNNO)
+            fprintf(stderr,"hamnode returning DUNNO, this can't happen\n");
+        return status;
+}
+
+static int
 cubham(cubgraph g, cubgraph eno, edgevec initclass, edgevec v1, edgevec v2,
        vertvec cycle, edgevec outclass, int nv, int ne) 
 /* external interface */
@@ -638,6 +806,92 @@ cubham(cubgraph g, cubgraph eno, edgevec initclass, edgevec v1, edgevec v2,
                 outclass[i] = hcnodat.class[i];
 
         return status;
+}
+
+static nauty_counter
+cubham_count(cubgraph g, cubgraph eno, edgevec initclass, edgevec v1, edgevec v2,
+       vertvec cycle, edgevec outclass, int nv, int ne) 
+/* external interface, counting version; returns number of cycles */
+{
+        int i,j,status,nin,v,w;
+
+	numhamcycs = 0;
+
+        for (i = ne; --i >= 0;)
+            hcnodat.class[i] = DUNNO;
+	if (3*nv > 2*ne) hcnodat.class[ne] = NO;
+
+        for (i = nv; --i >= 0;)
+        {
+            hcnodat.din[i] = hcnodat.dout[i] = 0;
+            hcnodat.farend[i] = i;
+            onstack[i] = 0;
+        }
+        nin = 0;
+        stacklev = 0;
+        RESETSTACK;
+
+	for (i = nv; --i >= 0;)
+	{
+	    if (g[i][1] < 0) return NO;
+	    if (g[i][2] < 0)
+	    {
+		hcnodat.dout[i] = 1;
+		PUSH(i);
+	    }
+	}
+
+        status = DUNNO;
+	classstackptr = classstack;
+        if (initclass)
+            for (i = 0; i < ne; ++i)
+                if (initclass[i] != DUNNO)
+                {
+                    v = v1[i];
+                    w = v2[i];
+                    if (initclass[i] == NO)
+                    {
+                        if (hcnodat.class[i] == YES)
+                            status = NO;
+                        else if (hcnodat.class[i] == DUNNO)
+                        {
+                            if (hcnodat.dout[v] == 0)
+                            {
+                                status = classout(g,&hcnodat,v,w,i);
+                                PUSH(v);
+                                PUSH(w);
+                            }
+                            else
+                                status = NO;
+			}
+                    }
+                    else if (initclass[i] == YES)
+                    {
+                        if (hcnodat.class[i] == NO)
+                            status = NO;
+                        else if (hcnodat.class[i] == DUNNO)
+			{
+                            if (hcnodat.din[v] < 2)
+                            {
+                                status = classin(g,eno,&hcnodat,v,w,i,&nin,nv);
+                                PUSH(v);
+                                PUSH(w);
+                            }
+                            else
+                                status = NO;
+			}
+                    }
+
+                    if (status != DUNNO) break;
+                }
+
+        if (status == DUNNO)
+            status = hamnode_count(g,eno,v1,v2,&hcnodat,0,nin,nv);
+
+        if (status != NO)
+            gt_abort(">E hamnode_count() should return NO\n");
+        
+        return numhamcycs;
 }
 
 /********************************************************************/
@@ -746,6 +1000,42 @@ isham(cubgraph cub,
 #endif
 
         return ch;
+}
+
+/********************************************************************/
+
+static nauty_counter
+numham(cubgraph cub,
+      int n, int ne, int weight,
+      int *vv, int *vi, int nvv,
+      int *yy, int *yi, int nyy, int *cyc)
+/* Count hamiltonian cycles.
+   Forbid the vi[i]-th nbr of vv[i], for i=0..nvv-1 
+   Force the yi[i]-th nbr of yy[i], for i=0..nyy-1 
+     WARNING: vi[i]/yi[i] is numbered starting at 1  */
+{
+        int i,j,k;
+        int nmax,ch;
+        cubgraph cubcopy;
+        edgevec v1,v2,initclass,outclass;
+        int perm[MAXN],pinv[MAXN];
+	double tmp;
+
+        maxnodes = NO_LIMIT;
+        nodecount = 0;
+        cubinit(cub,eno,v1,v2,n,ne);
+
+        for (i = 0; i < ne; ++i)
+            initclass[i] = DUNNO;
+
+	for (i = 0; i < nvv; ++i)
+	    if (vv[i] < n) initclass[eno[vv[i]][vi[i]-1]] = NO;
+	for (i = 0; i < nyy; ++i)
+	    if (yy[i] < n) initclass[eno[yy[i]][yi[i]-1]] = YES;
+
+        totalnodes += nodecount;
+
+        return cubham_count(cub,eno,initclass,v1,v2,cyc,outclass,n,ne);
 }
 
 /**************************************************************************/
@@ -986,6 +1276,72 @@ hasinin(cubgraph cub,
 /**************************************************************************/
 
 static int
+hasoutout(cubgraph cub,
+        int n, int ne, int *x0, int *x1, int *y0, int *y1, int limit)
+/* test if cub has out-out (--) property */
+{
+        edgevec v1,v2,initclass,outclass;
+	set *d0,*di,*dii;
+	int i,ii,j,jj;
+	int me,nbad;
+        DYNALLSTAT(graph,done,done_sz);
+	
+	me = (ne + WORDSIZE - 1) / WORDSIZE;
+
+        DYNALLOC2(graph,done,done_sz,ne,me,"hasinin");
+
+	d0 = (set*)done;
+	EMPTYSET(d0,me);
+	for (j = 0; j < ne; ++j) ADDELEMENT(d0,j);
+
+	for (i = 1, di = d0 + me; i < ne; ++i, di += me)
+	{
+	    for (j = 0; j < me; ++j) di[j] = d0[j];
+	    DELELEMENT(di,i);
+	}
+	DELELEMENT(d0,0);
+
+	cubinit(cub,eno,v1,v2,n,ne);
+	for (i = 0; i < ne; ++i)
+	    initclass[i] = DUNNO;
+
+	maxnodes = NO_LIMIT;
+	nbad = 0;
+
+	for (i = 0, di = (set*)done; i < ne; ++i, di += me)
+	    for (j = i; (j = nextelement(di,me,j)) >= 0;)
+	    {
+		if (v1[i] == v1[j] || v1[i] == v2[j]
+                                 || v2[i] == v1[j] || v2[i] == v2[j])
+		    continue;
+		initclass[i] = NO;
+		initclass[j] = NO;
+		++numtries[0];
+		if (cubham(cub,eno,initclass,v1,v2,NULL,outclass,n,ne) == NO)
+		{
+                    x0[nbad] = v1[i]; x1[nbad] = v2[i];
+                    y0[nbad] = v1[j]; y1[nbad] = v2[j];
+                    ++nbad;
+                    if (nbad >= limit) return nbad;
+		}
+		else
+	 	{
+                    for (ii = i, dii = di; ii < ne; ++ii, dii += me)
+                    if (outclass[ii] == NO)
+                        for (jj = ii; jj < ne; ++jj)
+                            if (outclass[jj] == NO)
+                                DELELEMENT(dii,jj);
+		}
+
+		initclass[i] = DUNNO;
+		initclass[j] = DUNNO;
+	    }
+	return nbad;
+}
+
+/**************************************************************************/
+
+static int
 hasin(cubgraph cub, int n, int ne, int *x0, int *x1, int limit)
 /* test if cub has "in" property */
 {
@@ -1052,19 +1408,16 @@ eplus(cubgraph acub, int n, int ne, int x, int y, int *pwhy)
 	if      (cub[x][0] == y) 
 	{
 	    xy = 0;
-	    a = cub[x][1];
 	    b = cub[x][2];
 	}
 	else if (cub[x][1] == y)
         {
             xy = 1;
-            a = cub[x][0];
             b = cub[x][2];
         }
 	else
         {
             xy = 2;
-            a = cub[x][0];
             b = cub[x][1];
         }
 
@@ -1598,10 +1951,10 @@ main(int argc, char *argv[])
 {
         char *infilename,*outfilename;
         FILE *infile,*outfile,*msgfile;
-        boolean badargs,biconn,triconn,fragment;
-	boolean in,out,inin,inout,e34,e34plus,testing;
+        boolean badargs,biconn,triconn,fragment,countcycs;
+	boolean in,out,inin,outout,inout,e34,e34plus,testing;
         nauty_counter numread,noncub,nonham,nonconn,numto;
-        int ch,weight,m,n,ne,i,namesgot,nl;
+        int ch,weight,n,ne,i,namesgot,nl;
 	int nbad,limit,x0[BADLIM],x1[BADLIM],y0[BADLIM],y1[BADLIM];
 	sparsegraph sg;
 	int vv[MAXA],vi[MAXA],nvv,cyc[MAXN];
@@ -1609,12 +1962,15 @@ main(int argc, char *argv[])
 	double t0,t1;
 	cubgraph cub;
         char *arg;
+	nauty_counter count,mincount,maxcount,totalcount;
 	int codetype;
+
+	HELP; PUTVERSION;
 
         infilename = outfilename = NULL;
         badargs = FALSE;
-	e34plus = e34 = in = out = inin = inout = FALSE;
-	fragment = biconn = triconn = testing = FALSE;
+	e34plus = e34 = in = out = inin = outout = inout = FALSE;
+	fragment = biconn = triconn = testing = countcycs = FALSE;
 	verbose = 0;
 	weight = 100;
 	nvv = nyy = 0;
@@ -1639,6 +1995,8 @@ main(int argc, char *argv[])
                     inin = TRUE;
                 else if (arg[1] == 'o')
                     out = TRUE;
+                else if (arg[1] == 'O')
+                    outout = TRUE;
 		else if (arg[1] == 'x')
 		    inout = TRUE;
 		else if (arg[1] == 'e')
@@ -1653,6 +2011,8 @@ main(int argc, char *argv[])
                     testing = TRUE;
                 else if (arg[1] == 'F')
                     fragment = TRUE;
+                else if (arg[1] == 'c')
+                    countcycs = TRUE;
 		else if (arg[1] == 'n')
 		{
 		    if (nvv == MAXA)
@@ -1729,8 +2089,8 @@ main(int argc, char *argv[])
 
 	if (badargs)
 	{
-	    fprintf(stderr,
-         ">E Usage: cubhamg [-#] [-v | -V] [-n#-#] [-y#-#] [infile [outfile]]\n");
+	    fprintf(stderr,">E Usage: %s\n",USAGE);
+            GETHELP;
 	    exit(1);
 	}
 
@@ -1765,9 +2125,9 @@ main(int argc, char *argv[])
         }
 
 	if (triconn) biconn = FALSE;
-	if (e34) in = out = inin = inout = FALSE;
-	if (inout) in = out = inin = FALSE;
-	if (inin) in = out = FALSE;
+	if (e34) in = out = outout = inin = inout = FALSE;
+	if (inout) in = out = outout = inin = FALSE;
+	if (inin) in = out = outout = FALSE;
 	if (out) in = FALSE;
 	if (testing) out = TRUE;
 
@@ -1780,7 +2140,7 @@ main(int argc, char *argv[])
 //if (codetype&SPARSE6) outproc = writes6;
 //else                  outproc = writeg6;
 
-	numread = noncub = nonham = nonconn = 0;
+	numread = noncub = nonham = nonconn = totalcount = 0;
 	numto = 0;
 	INITRANBYTIME;
 	t0 = CPUTIME;
@@ -1819,6 +2179,17 @@ main(int argc, char *argv[])
 		++nonconn;
 	    else if (triconn && !triconnected_cub(cub,n))
 		++nonconn;
+            else if (countcycs)
+            {
+                count = numham(cub,n,ne,weight,vv,vi,nvv,yy,yi,nyy,cyc);
+		if (verbose >= 2)
+                    fprintf(msgfile,"Input " COUNTER_FMT " has " COUNTER_FMT
+                        " cycles.\n",numread,count);
+		totalcount += count;
+		if (numread == 1) mincount = maxcount = count;
+		else if (count < mincount) mincount = count;
+		else if (count > maxcount) maxcount = count;
+	    }
             else if (e34)
             {
                 if ((nbad = hase34(cub,n,ne,x0,x1,y0,e34plus,limit)) > 0)
@@ -1866,6 +2237,23 @@ main(int argc, char *argv[])
 		    {  
                         fprintf(msgfile,"Input " COUNTER_FMT
                                         " fails property ++:",numread); 
+                        for (i = 0; i < nbad; ++i) 
+                            fprintf(msgfile," %d-%d/%d-%d",
+                                    x0[i],x1[i],y0[i],y1[i]);
+                        fprintf(msgfile,"\n"); 
+                    }
+                    ++nonham;
+                    writelast(outfile);
+                }
+            }
+            else if (outout)
+            {
+                if ((nbad = hasoutout(cub,n,ne,x0,x1,y0,y1,limit)) > 0)
+                {
+                    if (verbose)
+		    {  
+                        fprintf(msgfile,"Input " COUNTER_FMT
+                                        " fails property --:",numread); 
                         for (i = 0; i < nbad; ++i) 
                             fprintf(msgfile," %d-%d/%d-%d",
                                     x0[i],x1[i],y0[i],y1[i]);
@@ -1962,12 +2350,20 @@ main(int argc, char *argv[])
 			    nonconn,biconn ? "bi" : "tri");
 	if (numto > 0)
 	    fprintf(msgfile,">C " COUNTER_FMT " graphs timed out\n",numto);
-	fprintf(msgfile,
+	if (countcycs && numread > 0)
+	    fprintf(msgfile,">C mincycles=" COUNTER_FMT "; maxcycles="
+			COUNTER_FMT "; total cycles=" COUNTER_FMT "; %3.2f sec\n",
+			mincount,maxcount,totalcount,t1-t0);
+	else
+	    fprintf(msgfile,
  	    ">Z " COUNTER_FMT " %s graphs written to %s; %3.2f sec\n",
               nonham+numto, e34 ? (e34plus ? "non-e34+" : "non-e34") :
 	            inout ? "non-inout" : 
                         out ? "non-out" :
-		            in ? "non-in" : "nonhamiltonian",
+		            in ? "non-in" :
+                               outout ? "non-outout" :
+                                  inin ? "non-inin" :
+                                     "nonhamiltonian",
                 outfilename,t1-t0);
 	if (verbose)
 	{

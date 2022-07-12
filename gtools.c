@@ -2803,7 +2803,7 @@ writerange(FILE *f, int c, long lo, long hi)    /* Write a range. */
     if (lo != -NOLIMIT) fprintf(f,"%ld",lo);
     if (lo != hi)
     {
-        fprintf(stderr,":");
+        fprintf(f,":");
         if (hi != NOLIMIT) fprintf(f,"%ld",hi);
     }
 }

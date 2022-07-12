@@ -5,6 +5,43 @@
 
 /**************************************************************************/
 
+long
+digoncount(graph *g, int m, int n)
+/* Number of digons (cycles of length 2). Useful for digraphs. */
+{
+    int i,j;
+    set *gi;
+    setword w;
+    long ans;
+
+    ans = 0;
+
+    if (m == 1)
+    {
+	for (i = 0; i < n; ++i)
+	{
+	    w = g[i] & BITMASK(i);
+	    while (w)
+	    {
+		TAKEBIT(j,w);
+		if ((g[j] & bit[i])) ++ans;
+	    }
+	}
+    }
+    else
+    {
+	for (i = 0, gi = g; i < n; ++i, gi += m)
+	{
+	    for (j = i; (j = nextelement(gi,m,j)) > 0; )
+	        if (ISELEMENT(g+j*m,i)) ++ans;
+	}
+    }
+
+    return ans;
+}
+
+/**************************************************************************/
+
 int
 loopcount(graph *g, int m, int n)
 /* Number of loops */
@@ -152,6 +189,43 @@ indcyclecount(graph *g, int m, int n)
       ">E induced cycle counting is only implemented for n <= WORDSIZE\n");
     return 0;
 }
+   
+/**************************************************************************/
+
+long
+numind3sets1(graph *g, int n)
+/* The number of triangles in g; undirected only */
+{
+    int i,j;
+    setword gi,w;
+    long total;
+
+    total = 0;
+    for (i = 2; i < n; ++i)
+    {
+	gi = ALLMASK(i) & ~g[i];
+	while (gi)
+	{
+	    TAKEBIT(j,gi);
+	    w = gi & ~g[j];
+	    total += POPCOUNT(w);
+	}
+    }
+
+    return total;
+}
+
+/**************************************************************************/
+
+long
+numind3sets(graph *g, int m, int n)
+/* The number of independent 3-sets in g; undirected only */
+{
+    if (m == 1) return numind3sets1(g,n);
+
+    gt_abort(">E numind3sets is only implemented for n <= WORDSIZE\n");
+    return 0;
+}
 
 /**************************************************************************/
 
@@ -171,7 +245,7 @@ numtriangles1(graph *g, int n)
 	{
 	    TAKEBIT(j,gi);
 	    w = g[j] & gi;
-	    if (w) total += POPCOUNT(w);
+	    total += POPCOUNT(w);
 	}
     }
 
@@ -201,12 +275,42 @@ numtriangles(graph *g, int m, int n)
 	    for (k = kw+1; k < m; ++k)
 	    {
 		w = gi[k] & gj[k];
-		if (w) total += POPCOUNT(w);
+		total += POPCOUNT(w);
 	    }
 	}
 
     return total;
 }    
+
+/**************************************************************************/
+
+long
+numdirtriangles1(graph *g, int n)
+{
+    long total;
+    int i,j,k;
+    setword biti,bm,wi,wj;
+
+    total = 0;
+    for (i = 0; i < n; ++i)
+    {
+	biti = bit[i];
+	bm = BITMASK(i);
+	wi = g[i] & bm;
+	while (wi)
+	{
+	    TAKEBIT(j,wi);
+	    wj = g[j] & bm;
+	    while (wj)
+	    {
+		TAKEBIT(k,wj);
+		if ((g[k] & biti)) ++total;
+	    }
+	}
+    }
+
+    return total;
+}
 
 /**************************************************************************/
 
@@ -217,6 +321,8 @@ numdirtriangles(graph *g, int m, int n)
     long total;
     int i,j,k;
     set *gi,*gj;
+
+    if (m == 1) return numdirtriangles1(g,n);
 
     total = 0;
     for (i = 0, gi = g; i < n-2; ++i, gi += m)

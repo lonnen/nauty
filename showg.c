@@ -1105,14 +1105,14 @@ main(int argc, char *argv[])
     if (argc > 1 && (strcmp(argv[1],"-help") == 0
                    || (strcmp(argv[1],"--help") == 0)))
     {
-        printf("Usage: %s\n\n%s",USAGE,HELPTEXT);
+        printf("\nUsage: %s\n\n%s",USAGE,HELPTEXT);
         exit(0);
     }
 
     if (sizeof(setword) < 4)
     {
         fprintf(stderr,">E showg: setword too small\n");
-        fprintf(stderr,"   Please report this to bdm@cs.anu.edu.au\n");
+        fprintf(stderr,"   Please report this to brendan.mckay@anu.edu.au\n");
         exit(1);
     }
 

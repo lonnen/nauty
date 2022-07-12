@@ -13,6 +13,8 @@ extern void degstats3(graph*,int,int,
 extern void diamstats(graph*,int,int,int*,int*);
 extern void find_dist(graph*,int,int,int,int*);
 extern void find_dist2(graph*,int,int,int,int,int*);
+extern int numcomponents(graph*,int,int);
+extern int numcomponents1(graph*,int);
 extern int girth(graph*,int,int);
 extern boolean isbiconnected1(graph*,int);
 extern boolean isbiconnected(graph*,int,int);
@@ -26,6 +28,7 @@ extern long maxcliques(graph*,int,int);
 extern int maxcliquesize(graph*,int,int);
 extern int maxindsetsize(graph*,int,int);
 
+extern long digoncount(graph*,int,int);
 extern int loopcount(graph*,int,int);
 extern long pathcount1(graph*,int,setword,setword);
 extern long cyclecount1(graph*,int);
@@ -38,7 +41,11 @@ extern void contract1(graph*,graph*,int,int,int);
 extern int cstarcontent(graph*,int,int);
 extern long numtriangles1(graph*,int);
 extern long numtriangles(graph*,int,int);
+extern long numtriangles1(graph*,int);
+extern long numind3sets(graph*,int,int);
+extern long numind3sets1(graph*,int);
 extern long numdirtriangles(graph*,int,int);
+extern long numdirtriangles1(graph*,int);
 extern void delete1(graph*,graph*,int,int);
 extern int conncontent(graph*,int,int);
 extern boolean stronglyconnected(graph*,int,int);

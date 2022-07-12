@@ -1,4 +1,4 @@
-/* copyg.c version 2.4; B D McKay, May 2020 */
+/* copyg.c version 2.5; B D McKay, June 2020 */
 
 #ifdef FILTER
 #define HELPUSECMD
@@ -251,7 +251,8 @@ main(int argc, char *argv[])
 	if ((!vswitch && !FILTER(g,digraph,Qlo,Qhi,m,n)) ||
 	                   (vswitch && FILTER(g,digraph,Qlo,Qhi,m,n))) 
 	    kept = FALSE;
-	++nout;
+        else
+	    ++nout;
 #endif
 
 	if (!kept)

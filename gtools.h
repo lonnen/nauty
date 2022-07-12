@@ -29,8 +29,6 @@ used, it is necessary to check they are correct.
 #define HAVE_PUTENV 1   /* putenv() exists */
 #define HAVE_SETENV 1   /* setenv() exists */
 #define HAVE_FORK 1   /* fork() exists */
-#define HAVE_PTHREADS 0   /* Posix threads exist */
-#define HAVE_PTHREAD_H  1      /* <pthread.h> exists */
 #define HAVE_SIGNAL_H  1      /* <signal.h> exists */
 #define HAVE_FSEEKO 1  /* fseeko() and ftello() exist */
 #define HAVE_SIGACTION 1  /* sigaction() exists */
@@ -285,6 +283,8 @@ extern void fcanonise_inv_sg
            (sparsegraph*,int,int,sparsegraph*,char*,void(*)(graph*,int*,int*,
              int,int,int,int*,int,boolean,int,int),int,int,int,boolean);
 extern void setlabptn(int*,int*,int*,int);
+extern int breakcellwt(int*,int*,int*,int,int);
+
 extern void fgroup(graph*,int,int,char*,int*,int*);
 extern void fgroup_inv
 	     (graph*,int,int,char*,int*,int*,void(*)(graph*,int*,int*,int,

@@ -1,7 +1,7 @@
-/* directg.c version 2.0; B D McKay, June 19, 2015 */
+/* directg.c version 2.1; B D McKay, 11 Oct 2019 */
 
 #define USAGE \
-  "directg [-q] [-u|-T|-G] [-V] [-o] [-f#] [-e#|-e#:#] [-s#/#] [infile [outfile]]"
+  "directg [-q] [-u|-T|-G] [-V] [-o|-a] [-f#] [-e#|-e#:#] [-s#/#] [infile [outfile]]"
 
 #define HELPTEXT \
 " Read undirected graphs and orient their edges in all possible ways.\n\
@@ -11,6 +11,7 @@
 \n\
    -e# | -e#:#  specify a value or range of the total number of arcs\n\
     -o     orient each edge in only one direction, never both\n\
+    -a     only make acyclic orientations (implies -o)\n\
    -f#  Use only the subgroup that fixes the first # vertices setwise\n\
 \n\
     -T  use a simple text output format (nv ne edges) instead of digraph6\n\
@@ -36,12 +37,12 @@ nauty_counter dg_nin,dg_ngen,dg_nout,dg_skipped;
 FILE *outfile;
 
 #define MAXNV 128 
+#define MAXMV SETWORDSNEEDED(MAXNV)
 #define MAXNE 1024
 static int v0[MAXNE],v1[MAXNE];
 static int edgeno[MAXNV][MAXNV];
 
 #define MAXME SETWORDSNEEDED(2*MAXNE)
-#define GRAPHSIZE (MAXNV*SETWORDSNEEDED(MAXNV))
 
 static set x[MAXME];
 static int ix[2*MAXNE],nix;
@@ -198,11 +199,11 @@ testmax(int *p, int n, int *abort)
 /**************************************************************************/
 
 static int
-trythisone(grouprec *group, int ne, int n)
+trythisone(grouprec *group, int ne, int m, int n)
 {
-    int i,k,m;
+    int i,k;
     boolean accept;
-    graph g[GRAPHSIZE];
+    graph g[MAXNV*MAXMV];
 
     first = TRUE;
 
@@ -239,8 +240,6 @@ trythisone(grouprec *group, int ne, int n)
         if (Vswitch && !ntisol && !ntgroup) return MAXNE+1;
 
         ++dg_nout;
-
-	m = SETWORDSNEEDED(n);
 
 	if (digraph6)
         {
@@ -290,9 +289,208 @@ trythisone(grouprec *group, int ne, int n)
 
 /**************************************************************************/
 
+static void
+updatetc(graph *oldtc, graph *newtc, int v, int w, int m, int n)
+/* Update reflexive transitive closure oldtc with the new
+ * edge v->w, making newtc.  Loops are essential for this to work. */
+{
+    int i,j;
+    set *gi,*gw;
+
+    for (i = 0; i < m*n; ++i) newtc[i] = oldtc[i];
+
+    gw = newtc + m*w;
+    for (i = 0, gi = newtc; i < n; ++i, gi += m)
+    {
+	if (ISELEMENT(gi,v))
+	{ 
+	    for (j = 0; j < m; ++j) gi[j] |= gw[j];
+	}
+    }
+}
+
+/**************************************************************************/
+
+static void
+updatetc1(graph *oldtc, graph *newtc, int v, int w, int n)
+/* Update reflexive transitive closure oldtc with the new
+ * edge v->w, making newtc.  Loops are essential for this to work.
+   Version for m=1. */
+{
+    int i,j;
+    setword gw;
+
+    for (i = 0; i < n; ++i) newtc[i] = oldtc[i];
+
+    gw = newtc[w];
+    for (i = 0; i < n; ++i)
+	if ((newtc[i] & bit[v])) newtc[i] |= gw;
+}
+
+/**************************************************************************/
+
+static int
+scan_acyclic(int level, int ne, int minarcs, int maxarcs, int sofar,
+   graph *oldtc, grouprec *group, int m, int n)
+/* Main recursive scan for acyclic orientations;
+ * returns the level to return to. */
+{
+    int k,retlev;
+    graph newtc[MAXNV*MAXMV];
+    int w0,w1;
+
+    w0 = v0[level];
+    w1 = v1[level];
+
+    if (level == splitlevel)
+    {
+#ifdef SPLITTEST
+        ++splitcases;
+        return level-1;
+#endif
+        if (splitcount-- != 0) return level-1;
+        splitcount = splitmod - 1;
+    }
+
+    if (level == ne)
+    {
+        retlev = trythisone(group,sofar,m,n);
+        return retlev;
+    }
+
+    if (!ISELEMENT(oldtc+m*w1,w0))
+    {
+        k = 2*level;        /* edge w0->w1 */
+        ADDELEMENT(x,k);
+        ix[sofar] = k;
+#ifdef DEGPRUNE
+        ++outdeg[w0]; ++indeg[w1];
+        if (lastlev[w0] == level && DEGPRUNE(indeg,outdeg,w0,n)
+         || lastlev[w1] == level && DEGPRUNE(indeg,outdeg,w1,n))
+            retlev = level;
+        else
+#endif
+	{
+	    updatetc(oldtc,newtc,w0,w1,m,n);
+            retlev = scan_acyclic(level+1,ne,minarcs,maxarcs,sofar+1,newtc,group,m,n);
+        }
+        DELELEMENT(x,k);
+#ifdef DEGPRUNE
+        --outdeg[w0]; --indeg[w1];
+#endif
+        if (retlev < level) return retlev;
+    }
+
+    if (!ISELEMENT(oldtc+m*w0,w1))
+    {
+        k = 2*level + 1;      /* edge w1->w0 */
+        ADDELEMENT(x,k);
+        ix[sofar] = k;
+#ifdef DEGPRUNE
+        ++outdeg[w1]; ++indeg[w0];
+        if (lastlev[w0] == level && DEGPRUNE(indeg,outdeg,w0,n)
+         || lastlev[w1] == level && DEGPRUNE(indeg,outdeg,w1,n))
+            retlev = level;
+        else
+#endif
+	{
+	    updatetc(oldtc,newtc,w1,w0,m,n);
+            retlev = scan_acyclic(level+1,ne,minarcs,maxarcs,sofar+1,newtc,group,m,n);
+	}
+        DELELEMENT(x,k);
+#ifdef DEGPRUNE
+        --outdeg[w1]; --indeg[w0];
+#endif
+        if (retlev < level) return retlev;
+    }
+
+    return level-1;
+}
+
+
+static int
+scan_acyclic1(int level, int ne, int minarcs, int maxarcs, int sofar,
+   graph *oldtc, grouprec *group, int n)
+/* Main recursive scan for acyclic orientations;
+ * returns the level to return to. Version for m=1. */
+{
+    int k,retlev;
+    graph newtc[MAXNV*MAXMV];
+    int w0,w1;
+
+    w0 = v0[level];
+    w1 = v1[level];
+
+    if (level == splitlevel)
+    {
+#ifdef SPLITTEST
+        ++splitcases;
+        return level-1;
+#endif
+        if (splitcount-- != 0) return level-1;
+        splitcount = splitmod - 1;
+    }
+
+    if (level == ne)
+    {
+        retlev = trythisone(group,sofar,1,n);
+        return retlev;
+    }
+
+    if (!(oldtc[w1] & bit[w0]))
+    {
+        k = 2*level;        /* edge w0->w1 */
+        ADDELEMENT(x,k);
+        ix[sofar] = k;
+#ifdef DEGPRUNE
+        ++outdeg[w0]; ++indeg[w1];
+        if (lastlev[w0] == level && DEGPRUNE(indeg,outdeg,w0,n)
+         || lastlev[w1] == level && DEGPRUNE(indeg,outdeg,w1,n))
+            retlev = level;
+        else
+#endif
+	{
+	    updatetc1(oldtc,newtc,w0,w1,n);
+            retlev = scan_acyclic1(level+1,ne,minarcs,maxarcs,sofar+1,newtc,group,n);
+        }
+        DELELEMENT(x,k);
+#ifdef DEGPRUNE
+        --outdeg[w0]; --indeg[w1];
+#endif
+        if (retlev < level) return retlev;
+    }
+
+    if (!(oldtc[w0] & bit[w1]))
+    {
+        k = 2*level + 1;      /* edge w1->w0 */
+        ADDELEMENT(x,k);
+        ix[sofar] = k;
+#ifdef DEGPRUNE
+        ++outdeg[w1]; ++indeg[w0];
+        if (lastlev[w0] == level && DEGPRUNE(indeg,outdeg,w0,n)
+         || lastlev[w1] == level && DEGPRUNE(indeg,outdeg,w1,n))
+            retlev = level;
+        else
+#endif
+	{
+	    updatetc1(oldtc,newtc,w1,w0,n);
+            retlev = scan_acyclic1(level+1,ne,minarcs,maxarcs,sofar+1,newtc,group,n);
+	}
+        DELELEMENT(x,k);
+#ifdef DEGPRUNE
+        --outdeg[w1]; --indeg[w0];
+#endif
+        if (retlev < level) return retlev;
+    }
+
+    return level-1;
+}
+
+/**************************************************************************/
+
 static int
 scan(int level, int ne, int minarcs, int maxarcs, int sofar,
-    boolean oriented, grouprec *group, int n)
+    boolean oriented, grouprec *group, int m, int n)
 /* Main recursive scan; returns the level to return to. */
 {
     int k,retlev;
@@ -315,7 +513,7 @@ scan(int level, int ne, int minarcs, int maxarcs, int sofar,
 
     if (level == ne)
     {
-        retlev = trythisone(group,sofar,n);
+        retlev = trythisone(group,sofar,m,n);
         return retlev;
     }
 
@@ -331,7 +529,7 @@ scan(int level, int ne, int minarcs, int maxarcs, int sofar,
             retlev = level;
         else
 #endif
-        retlev = scan(level+1,ne,minarcs,maxarcs,sofar+1,oriented,group,n);
+        retlev = scan(level+1,ne,minarcs,maxarcs,sofar+1,oriented,group,m,n);
         DELELEMENT(x,k);
 #ifdef DEGPRUNE
         --outdeg[w0]; --indeg[w1];
@@ -347,7 +545,7 @@ scan(int level, int ne, int minarcs, int maxarcs, int sofar,
             retlev = level;
         else
 #endif
-        retlev = scan(level+1,ne,minarcs,maxarcs,sofar+1,oriented,group,n);
+        retlev = scan(level+1,ne,minarcs,maxarcs,sofar+1,oriented,group,m,n);
         DELELEMENT(x,k);
 #ifdef DEGPRUNE
         --outdeg[w1]; --indeg[w0];
@@ -370,7 +568,7 @@ scan(int level, int ne, int minarcs, int maxarcs, int sofar,
             retlev = level;
         else
 #endif
-        retlev = scan(level+1,ne,minarcs,maxarcs,sofar+2,oriented,group,n);
+        retlev = scan(level+1,ne,minarcs,maxarcs,sofar+2,oriented,group,m,n);
         DELELEMENT(x,k+1);
         DELELEMENT(x,k);
 #ifdef DEGPRUNE
@@ -387,11 +585,13 @@ scan(int level, int ne, int minarcs, int maxarcs, int sofar,
 
 static void
 direct(graph *g, int nfixed, long minarcs, long maxarcs,
-       boolean oriented, int m, int n)
+       boolean oriented, boolean acyclic, int m, int n)
+/* Head function for orienting.  oriented must be true
+   if acyclic is true.  */
 {
     static DEFAULTOPTIONS_GRAPH(options);
     statsblk stats;
-    setword workspace[100];
+    setword workspace[200];
     grouprec *group;
     long ne;
     int i,j,k,j0,j1,deg;
@@ -399,6 +599,7 @@ direct(graph *g, int nfixed, long minarcs, long maxarcs,
     set *gi;
     int lab[MAXNV],ptn[MAXNV],orbits[MAXNV];
     set active[(MAXNV+WORDSIZE-1)/WORDSIZE];
+    graph tc[MAXNV*MAXMV];
 
     nauty_check(WORDSIZE,m,n,NAUTYVERSIONID);
 
@@ -428,10 +629,12 @@ direct(graph *g, int nfixed, long minarcs, long maxarcs,
     EMPTYSET(x,me);
 
     splitcount = splitres;
-    if (splitmod == 1)
+    if (splitmod == 1 || ne <= 6)
         splitlevel = -1;
     else
-	splitlevel = (ne <= 34 ? ne/2 : 17);
+	splitlevel = (ne <= 36 ? ne/2 : 18);
+
+    if (splitlevel < 0 && splitres > 0) return;
 
 #ifdef DEGPRUNE
     for (i = 0; i < n; ++i) indeg[i] = outdeg[i] = 0;
@@ -444,7 +647,7 @@ direct(graph *g, int nfixed, long minarcs, long maxarcs,
 	    if (DEGPRUNE(indeg,outdeg,i,n)) break;
 	if (i == n)
 #endif
-            trythisone(NULL,0,n);    // only in case 0
+            trythisone(NULL,0,m,n);    // only in case of 0 edges
         return;
     }
 #endif
@@ -488,7 +691,7 @@ direct(graph *g, int nfixed, long minarcs, long maxarcs,
     options.userautomproc = groupautomproc;
     options.userlevelproc = grouplevelproc;
 
-    nauty(g,lab,ptn,active,orbits,&options,&stats,workspace,100,m,n,NULL);
+    nauty(g,lab,ptn,active,orbits,&options,&stats,workspace,200,m,n,NULL);
 
     if (stats.grpsize2 == 0)
         groupsize = stats.grpsize1 + 0.1;
@@ -523,7 +726,15 @@ direct(graph *g, int nfixed, long minarcs, long maxarcs,
 
     lastrejok = FALSE;
 
-    scan(0,ne,minarcs,maxarcs,0,oriented,group,n);
+    if (acyclic)
+    {
+	for (i = 0; i < m*n; ++i) tc[i] = 0;
+	for (i = 0; i < n; ++i) ADDELEMENT(tc+i*m,i);
+        if (m == 1) scan_acyclic1(0,ne,minarcs,maxarcs,0,tc,group,n);
+        else        scan_acyclic(0,ne,minarcs,maxarcs,0,tc,group,m,n);
+    }
+    else
+        scan(0,ne,minarcs,maxarcs,0,oriented,group,m,n);
 }
 
 /**************************************************************************/
@@ -536,7 +747,7 @@ main(int argc, char *argv[])
     int argnum,j,nfixed;
     char *arg,sw;
     boolean badargs;
-    boolean Tswitch,uswitch,eswitch,qswitch,oswitch,fswitch,sswitch;
+    boolean aswitch,Tswitch,uswitch,eswitch,qswitch,oswitch,fswitch,sswitch;
     long minarcs,maxarcs;
     double t;
     char *infilename,*outfilename;
@@ -551,7 +762,7 @@ main(int argc, char *argv[])
     nauty_check(WORDSIZE,2,2*WORDSIZE,NAUTYVERSIONID);
 
     Tswitch = Gswitch = fswitch = Vswitch = FALSE;
-    uswitch = eswitch = oswitch = qswitch = FALSE;
+    uswitch = eswitch = oswitch = aswitch = qswitch = FALSE;
     sswitch = digraph6 = FALSE;
     infilename = outfilename = NULL;
 
@@ -567,6 +778,7 @@ main(int argc, char *argv[])
             {
                 sw = *arg++;
                      SWBOOLEAN('o',oswitch)
+                else SWBOOLEAN('a',aswitch)
                 else SWBOOLEAN('q',qswitch)
                 else SWBOOLEAN('u',uswitch)
                 else SWBOOLEAN('T',Tswitch)
@@ -604,6 +816,7 @@ main(int argc, char *argv[])
         minarcs = 0;
         maxarcs = NOLIMIT;
     }
+
     if (sswitch)
     {
 	splitmod = lsplitmod;
@@ -627,7 +840,9 @@ main(int argc, char *argv[])
     {
         msg[0] = '\0';
         CATMSG0(">A directg");
-        if (sswitch || eswitch || oswitch || uswitch || fswitch) CATMSG0(" -");
+        if (sswitch || eswitch || aswitch || oswitch
+                    || uswitch || fswitch) CATMSG0(" -");
+        if (aswitch) CATMSG0("a");
         if (oswitch) CATMSG0("o");
         if (uswitch) CATMSG0("u");
         if (Tswitch) CATMSG0("T");
@@ -682,6 +897,8 @@ main(int argc, char *argv[])
     dg_nout = 0;
     dg_skipped = 0;
 
+    if (aswitch) oswitch = TRUE;
+
     t = CPUTIME;
     while (TRUE)
     {
@@ -703,7 +920,7 @@ main(int argc, char *argv[])
 	}
 #endif
 
-        direct(g,nfixed,minarcs,maxarcs,oswitch,m,n);
+        direct(g,nfixed,minarcs,maxarcs,oswitch,aswitch,m,n);
         if (!uswitch && ferror(outfile))
 	    gt_abort(">E directg output error\n");
         FREES(g);
@@ -715,7 +932,8 @@ main(int argc, char *argv[])
 #endif
 
 #ifdef SPLITTEST
-    fprintf(stderr,">S %lu cases at level %d\n",splitcases,splitlevel);
+    fprintf(stderr,">S %lu cases at level %d; %.2f sec\n",
+                   splitcases,splitlevel,t);
 #else
     if (!qswitch)
     {

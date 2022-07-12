@@ -5,7 +5,7 @@ includedir=@includedir@
 
 Name: nauty
 Description: Programs and library for graph isomorphism
-Version: 27r3
+Version: 28b4
 Libs: -L${libdir} LIBS
 Libs.private:
 Cflags: -I${includedir} CFLGS

@@ -887,6 +887,86 @@ find_dist2(graph *g, int m, int n, int v, int w, int *dist)
 
 /**************************************************************************/
 
+int
+numcomponents1(graph *g, int n)
+/* Find number of components of undirected graph; case m=1 */
+{
+    setword notvisited,queue;
+    int nc,i;
+
+    nc = 0;
+    notvisited = ALLMASK(n);
+
+    while (notvisited)
+    {
+        ++nc;
+        queue = SWHIBIT(notvisited);
+        notvisited &= ~queue;
+        while (queue)
+        {
+            TAKEBIT(i,queue);
+            notvisited &= ~bit[i];
+            queue |= g[i] & notvisited;
+        }
+    }
+
+    return nc;
+}
+
+int
+numcomponents(graph *g, int m, int n)
+/* Find number of components of undirected graph */
+{
+    int i,nc,head,tail,v,w;
+    set *gw;
+#if MAXN
+    int queue[MAXN];
+    set notvisited[MAXM];
+#else   
+    DYNALLSTAT(int,queue,queue_sz);
+    DYNALLSTAT(set,notvisited,notvisited_sz);
+#endif  
+
+    if (n == 0) return 0;
+    if (m == 1) return numcomponents1(g,n);
+    
+#if !MAXN
+    DYNALLOC1(int,queue,queue_sz,n,"numcomponents");
+    DYNALLOC1(set,notvisited,notvisited_sz,m,"numcomponents");
+#endif  
+ 
+    EMPTYSET(notvisited,m);
+    for (i = 0; i < n; ++i) ADDELEMENT(notvisited,i);
+
+    nc = 0;
+
+    for (v = -1; (v = nextelement(notvisited,m,v)) >= 0;)
+    {
+	++nc;
+        queue[0] = v;
+
+        head = 0;
+        tail = 1;
+        while (head < tail)
+        {
+            w = queue[head++];
+            gw = GRAPHROW(g,w,m);
+            for (i = -1; (i = nextelement(gw,m,i)) >= 0;)
+            {
+                if (ISELEMENT(notvisited,i))
+                {
+                    DELELEMENT(notvisited,i);
+                    queue[tail++] = i;
+                }
+            }
+        }
+    }
+
+    return nc;
+}
+
+/**************************************************************************/
+
 void
 diamstats(graph *g, int m, int n, int *radius, int *diameter)
 /* Find the radius and diameter.  Both -1 if g is disconnected.

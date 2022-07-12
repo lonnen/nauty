@@ -29,7 +29,7 @@
 #include "gtools.h" 
 
 static int ninputs;             /* Number of inputs */
-static unsigned long nout;      /* Number of outputs */
+static nauty_counter nout;      /* Number of outputs */
 typedef graph *graphptr;
 static graphptr *gin;           /* Their contents */
 static int *size;               /* Their sizes */

@@ -1,9 +1,11 @@
-/* TODO:  insert new timings
+/* TODO:
  *        add chordal graphs 
  *        add perfect graphs
- *        add complements for ordinary graphs */
+ *        add complements for ordinary graphs
+ *        add 5-cycle rejection
+ *        improve output by compiling g6 from level n-1 */
 
-/* geng.c  version 3.1; B D McKay, Jan 2019. */
+/* geng.c  version 3.4; B D McKay, May 2022. */
 
 #define USAGE \
 "geng [-cCmtfbd#D#] [-uygsnh] [-lvq] \n\
@@ -43,7 +45,7 @@
 /*  Parameters:
 
              n    = the number of vertices (1..MAXN)
-			Note that MAXN is limited to WORDSIZE
+			Note that MAXN is limited to min(WORDSIZE,64)
              mine = the minimum number of edges (no bounds if missing)
              maxe = the maximum number of edges (same as mine if missing)
                     0 means "infinity" except in the case "0-0"
@@ -174,11 +176,14 @@ PRUNE feature.
    PRUNE for n implies that the call for n-1 already passed. 
 
    For very fast tests, it might be worthwhile using PREPRUNE as
-   well.  It has the same meaning but is applied earlier and more
-   often.
+   well or instead. It has the same meaning but is applied earlier
+   and more often.
+
+   If -c or -C is given, the connectivity test is done before
+   PRUNE but not necessarily before PREPRUNE.
 
    Some parameters are available in global variables:
-   geng_mindeg, geng_maxdeg, geng_mine, geng_maxe;
+   geng_mindeg, geng_maxdeg, geng_mine, geng_maxe, geng_connec;
   
 SUMMARY
 
@@ -387,6 +392,11 @@ efficient to use the res/mod feature than to split by numbers of edges.
                              Updated sample execution times.
               Mar 10, 2018 : Fix overflow at impossibly large n, maxdeg.
               Jan 14, 2019 : Define geng_mindeg, geng_maxdeg, geng_mine, geng_maxe.
+               Jun 1, 2021 : Define geng_connec.
+               Jun 4, 2021 : Improve performance for -c and -C with small edge count.
+              Jun 21, 2021 : K1 is not 2-connected.
+              May 15, 2022 : findmax() now deposits -1 at the end of the extended
+                              sequence in case geng is being called as a function.
 
 **************************************************************************/
 
@@ -396,8 +406,8 @@ efficient to use the res/mod feature than to split by numbers of edges.
 #define MAXN WORDSIZE         /* not more than WORDSIZE */
 #endif
 
-#if MAXN > WORDSIZE
- #error "Can't have MAXN greater than WORDSIZE"
+#if MAXN > WORDSIZE || MAXN > 64
+ #error "Can't have MAXN greater than min(64,WORDSIZE)"
 #endif
 
 #define ONE_WORD_SETS
@@ -507,7 +517,7 @@ extern void SUMMARY(nauty_counter,double);
 #endif
 
 #if defined(PRUNE) || defined(PREPRUNE)
-int geng_mindeg, geng_maxdeg, geng_mine, geng_maxe;
+int geng_mindeg, geng_maxdeg, geng_mine, geng_maxe, geng_connec;
 #endif
 
 /************************************************************************/
@@ -517,13 +527,12 @@ int geng_mindeg, geng_maxdeg, geng_mine, geng_maxe;
 
 static int
 findmaxe(int *table, int n)
-/* Return the n-th entry of a maxe table, extending existing values
-   if necessary. */
+/* Extend table to MAXN vertices if necessary, and return table[n]. */
 {
     int i;
 
-    for (i = 0; i <= n && table[i] >= 0; ++i) {}
-    for ( ; i <= n; ++i) table[i] = EXTEND(table,i);
+    for (i = 0; i <= MAXN && table[i] >= 0; ++i) {}
+    for ( ; i <= MAXN; ++i) table[i] = EXTEND(table,i);
 
     return table[n];
 }
@@ -632,6 +641,41 @@ isconnected(graph *g, int n)
     }
 
     return  seen == allbits;
+}
+
+static boolean
+connpreprune(graph *g, int n, int maxn)
+/* This function speeds up the generation of connected graphs
+   with not many edges. */
+{
+    setword notvisited,queue;
+    int ne,nc,i;
+
+    if (n == maxn || maxe - maxn >= 5) return 0;
+
+    ne = 0;
+    for (i = 0; i < n; ++i) ne += POPCOUNT(g[i]);
+    ne /= 2;
+
+    nc = 0;
+    notvisited = ALLMASK(n);
+
+    while (notvisited)
+    {
+        ++nc;
+        queue = SWHIBIT(notvisited);
+        notvisited &= ~queue;
+        while (queue)
+        {
+            TAKEBIT(i,queue);
+            notvisited &= ~bit[i];
+            queue |= g[i] & notvisited;
+        }
+    }
+
+    if (ne - n + nc > maxe - maxn + 1) return TRUE;
+
+    return FALSE;
 }
 
 /**********************************************************************/
@@ -1372,6 +1416,9 @@ accept1(graph *g, int n, xword x, graph *gx, int *deg, boolean *rigid)
 #ifdef PREPRUNE
     if (PREPRUNE(gx,n+1,maxn)) return FALSE;
 #endif
+    if (connec == 2 && n+2 == maxn && !isconnected(gx,n+1)) return FALSE;
+    if (((connec ==2 && n+2 < maxn) || (connec == 1 && n+2 <= maxn))
+           && connpreprune(gx,n+1,maxn)) return FALSE;
 
     i0 = 0;
     i1 = n;
@@ -1470,6 +1517,9 @@ accept1b(graph *g, int n, xword x, graph *gx, int *deg, boolean *rigid,
 #ifdef PREPRUNE
     if (PREPRUNE(gx,n+1,maxn)) return FALSE;
 #endif
+    if (connec == 2 && n+2 == maxn && !isconnected(gx,n+1)) return FALSE;
+    if (((connec ==2 && n+2 < maxn) || (connec == 1 && n+2 <= maxe))
+           && connpreprune(gx,n+1,maxn)) return FALSE;
 
     i0 = 0;
     i1 = n;
@@ -1593,6 +1643,9 @@ accept2(graph *g, int n, xword x, graph *gx, int *deg, boolean nuniq)
 #ifdef PREPRUNE
     if (PREPRUNE(gx,n+1,maxn)) return FALSE;
 #endif
+    if (connec == 2 && n+2 == maxn && !isconnected(gx,n+1)) return FALSE;
+    if (((connec ==2 && n+2 < maxn) || (connec == 1 && n+2 <= maxe))
+           && connpreprune(gx,n+1,maxn)) return FALSE;
 
     if (nuniq)
     {
@@ -2055,6 +2108,7 @@ main(int argc, char *argv[])
     bipartite = FALSE;
     squarefree = FALSE;
     verbose = FALSE;
+    quiet = FALSE;
     nautyformat = FALSE;
     yformat = FALSE;
     graph6 = FALSE;
@@ -2159,7 +2213,7 @@ PLUGIN_SWITCHES
 
     if (argnum == 0)
         badargs = TRUE;
-    else if (maxn < 1 || maxn > MAXN)
+    else if (maxn < 1 || maxn > MAXN || maxn > 64)
     {
         fprintf(stderr,">E geng: n must be in the range 1..%d\n",MAXN);
         badargs = TRUE;
@@ -2186,11 +2240,17 @@ PLUGIN_SWITCHES
     if (mine < (maxn*mindeg+1) / 2) mine = (maxn*mindeg+1) / 2;
     if (maxdeg > 2*maxe - mindeg*(maxn-1)) maxdeg = 2*maxe - mindeg*(maxn-1);
 
+    if      (connec2) connec = 2;
+    else if (connec1) connec = 1;
+    else              connec = 0;
+    if (connec && mine < maxn-1) mine = maxn - 2 + connec;
+
 #if defined(PRUNE) || defined(PREPRUNE)
     geng_mindeg = mindeg;
     geng_maxdeg = maxdeg;
     geng_mine = mine;
     geng_maxe = maxe;
+    geng_connec = connec;
 #endif
 
     if (!badargs && (mine > maxe || maxe < 0 || maxdeg < 0))
@@ -2205,12 +2265,6 @@ PLUGIN_SWITCHES
         fprintf(stderr,">E geng: must have 0 <= res < mod\n");
         badargs = TRUE;
     }
-
-    if      (connec2) connec = 2;
-    else if (connec1) connec = 1;
-    else              connec = 0;
-
-    if (connec && mine < maxn-1) mine = maxn - 2 + connec;
 
     if (badargs)
     {
@@ -2330,7 +2384,7 @@ PLUGIN_INIT
 
     if (maxn == 1)
     {
-        if (res == 0)
+        if (res == 0 && connec < 2)
         {
             ++ecount[0];
             (*outproc)(outfile,g,1);
@@ -2410,7 +2464,7 @@ PLUGIN_INIT
     fprintf(stderr,"\n>N node counts\n");
     for (i = 1; i < maxn; ++i)
     {
-        fprintf(stderr," level %2d: \n",i);
+        fprintf(stderr," level %2d: ",i);
         fprintf(stderr,COUNTER_FMT " (" COUNTER_FMT
                        " rigid, " COUNTER_FMT " fertile)\n",
                        nodes[i],rigidnodes[i],fertilenodes[i]);
@@ -2438,7 +2492,7 @@ PLUGIN_INIT
     for (i = 1; i < maxn; ++i)
         if (sparse)
         {
-            free(data[i].xorb);
+            free(data[i].xorb); 
             free(data[i].xx);
         }
         else

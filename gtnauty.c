@@ -8,6 +8,7 @@
    May 11, 2010 : use sorttemplates.c
    Sep  5, 2013 : Unify format processing and remove 2^22 limit
    Oct 14, 2017 : Include code for n=0
+   Sep 28, 2019 : Define breakcellwt
 
 **************************************************************************/
 
@@ -64,6 +65,43 @@ setlabptn(int *weight, int *lab, int *ptn, int n)
 	for (i = 0; i < n-1; ++i) ptn[i] = 1;
 	ptn[n-1] = 0;
     }
+}
+
+int
+breakcellwt(int *weight, int *lab, int *ptn, int n1, int n2)
+/* Break (lab[n1..n2-1],ptn[n1..n2-1]) into cells in increasing
+   order of weight.  If is assumed that lab[n1..n2-1] are defined
+   but ptn[n1..n2-1] are ignored.
+   The weight of lab[i] is weight[lab[i]]. 
+   The number of cells is returned. */
+{
+    int i,nc;
+
+    if (n2 <= n1) return 0;
+
+    nc = 1;
+    if (weight)
+    {
+        sortwt(lab+n1,weight,n2-n1);
+        for (i = n1; i < n2-1; ++i)
+        {
+            if (weight[lab[i]] != weight[lab[i+1]])
+	    {
+                ptn[i] = 0;
+		++nc;
+	    }
+            else
+                ptn[i] = 1;
+        }
+        ptn[n2-1] = 0;
+    }
+    else
+    {
+	for (i = n1; i < n2-1; ++i) ptn[i] = 1;
+	ptn[n2-1] = 0;
+    }
+
+    return nc;
 }
 
 static int

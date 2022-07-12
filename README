@@ -26,7 +26,7 @@ followed by
    make 
 to compile nauty and Traces for your system.
 
-If that succeeds without problem, you will have have the
+If that succeeds without problem, you will have the
 program dreadnaut ready to run.
 
 There are some options that can be specified at the ./configure
@@ -85,7 +85,7 @@ blisstog.c - A program which reads one or more files in Bliss format
 
 poptest.c - A program for testing the POPCOUNT macro.
 
-dretodot.c - A program that reads files in dreadaut format and writes
+dretodot.c - A program that reads files in dreadnaut format and writes
   dot files suitable for drawing with graphviz.
 
 ------------------------------------------------------------

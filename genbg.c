@@ -130,7 +130,7 @@ INSTRUMENT feature.
 
 **************************************************************************
 
-    Author:   B. D. McKay, Oct 1994.     bdm@cs.anu.edu.au
+    Author:   B. D. McKay, Oct 1994.     brendan.mckay@anu.edu.au
               Copyright  B. McKay (1994-2017).  All rights reserved.
               This software is subject to the conditions and waivers
               detailed in the file COPYRIGHT.

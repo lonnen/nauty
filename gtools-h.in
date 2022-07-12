@@ -283,6 +283,8 @@ extern void fcanonise_inv_sg
            (sparsegraph*,int,int,sparsegraph*,char*,void(*)(graph*,int*,int*,
              int,int,int,int*,int,boolean,int,int),int,int,int,boolean);
 extern void setlabptn(int*,int*,int*,int);
+extern int breakcellwt(int*,int*,int*,int,int);
+
 extern void fgroup(graph*,int,int,char*,int*,int*);
 extern void fgroup_inv
 	     (graph*,int,int,char*,int*,int*,void(*)(graph*,int*,int*,int,

@@ -1,18 +1,25 @@
-/* vcolg.c version 2.0; B D McKay, May 11, 2017 */
+/* vcolg.c version 3.1; B D McKay, Apr 24, 2021 */
 
 #define USAGE \
-"vcolg [-q] [-u|-T] [-e#|-e#:#] [-m#] [-f#] [infile [outfile]]"
+"vcolg [-q] [-u|-T|-o] [-e#|-e#:#] [-m#] [-c#,..,#] [-f#] [infile [outfile]]"
 
 #define HELPTEXT \
 "  Read graphs or digraphs and colour their vertices in\n\
-  in all possible ways with colours 0,1,2,... .\n\
+  all possible ways with colours 0,1,2,... .\n\
   Isomorphic graphs derived from the same input are suppressed.\n\
   If the input graphs are non-isomorphic then the output graphs are also.\n\
 \n\
     -e# | -e#:#  specify a value or range of the total value of the colours\n\
-    -m# number of available colours (default 2)\n\
+    -m# number of available colours (default 2 if -c not given)\n\
+    -c#,..,#  specify the maximum number of vertices of each colour\n\
+        The total must at least equal the number of vertices in the input.\n\
+    -d#,..,#  minimum vertex degree for each colour (out-degree for digraphs)\n\
+    -D#,..,#  maximum vertex degree for each colour (out-degree for digraphs)\n\
+	-d and -D can have fewer colours than -m/-c but not more\n\
     -f# Use the group that fixes the first # vertices setwise\n\
-    -T  use a simple text output format (nv ne {col} {v1 v2})\n\
+    -T  Use a simple text output format (nv ne {col} {v1 v2})\n\
+    -o  Use sparse6 (undirected) or digraph6 (directed) for output,\n\
+          provided m=2 and the inputs have no loops.\n\
     -u  no output, just count them\n\
     -q  suppress auxiliary information\n"
 
@@ -21,11 +28,12 @@
 #include "gtools.h"
 #include "naugroup.h"
 #include "nautinv.h"
+#include "gutils.h"
 
 nauty_counter vc_nin,vc_nout;
 FILE *outfile;
 
-#define MAXNV 128 
+#define MAXNV 128   /* Maximum number of vertices */
 
 static int col[MAXNV];
 static boolean first;
@@ -33,7 +41,7 @@ static int lastreject[MAXNV];
 static boolean lastrejok;
 static unsigned long groupsize;
 static unsigned long newgroupsize;
-static boolean Tswitch;
+static boolean Tswitch,oswitch;
 
 static int fail_level;
 
@@ -130,6 +138,24 @@ testmax(int *p, int n, int *abort)
 
 /**************************************************************************/
 
+static void
+writeone(FILE *outfile, graph *g, int *col, boolean digraph, int m, int n)
+{
+    int i;
+    set *gi;
+
+    for (i = 0, gi = g; i < n; ++i, gi += m)
+        if (col[i] == 1) ADDELEMENT(gi,i);
+
+    if (digraph)
+	writed6(outfile,g,m,n);
+    else
+        writes6(outfile,g,m,n);
+
+    for (i = 0, gi = g; i < n; ++i, gi += m)
+        if (col[i] == 1) DELELEMENT(gi,i);
+}
+
 static int
 trythisone(grouprec *group, graph *g, boolean digraph, int m, int n)
 /* Try one solution, accept if maximal. */
@@ -139,6 +165,8 @@ trythisone(grouprec *group, graph *g, boolean digraph, int m, int n)
     boolean accept;
     graph *gi;
     size_t ne;
+    char s[20],*p;
+    DYNALLSTAT(char,line,line_sz);
 
     newgroupsize = 1;
 
@@ -169,7 +197,9 @@ trythisone(grouprec *group, graph *g, boolean digraph, int m, int n)
 
         ++vc_nout;
 
-        if (outfile)
+	if (oswitch)
+	    writeone(outfile,g,col,digraph,m,n);
+        else if (outfile)
         {
 #ifdef OUTPROC
             OUTPROC(outfile,g,col,m,n);
@@ -183,16 +213,27 @@ trythisone(grouprec *group, graph *g, boolean digraph, int m, int n)
 		    if (ISELEMENT(gi,i)) ++ne;
 	        ne /= 2;
 	    }
-            fprintf(outfile,"%d %lu",n,(unsigned long)ne);
-    
-	    for (i = 0; i < n; ++i) fprintf(outfile," %d",col[i]);
-	    fprintf(outfile," ");
-	    for (i = 0, gi = g; i < n; ++i, gi += m)
-	    {
-		for (j = (digraph?-1:i-1); (j = nextelement(gi,m,j)) >= 0; )
-                    fprintf(outfile," %d %d",i,j);
-	    }
-            fprintf(outfile,"\n");
+#define PUTINT(xx) { unsigned long ul = (xx); char *sp; \
+ if (ul == 0) *(p++) = '0'; \
+ else { sp = s; while (ul) { *(sp++) = (ul % 10) + '0'; ul /= 10; } \
+        while (sp > s) { *(p++) = *(--sp); } }}
+#define SPC *(p++) = ' '
+
+	    DYNALLOC1(char,line,line_sz,20*(n+ne)+50,"vcolg output");
+	    p = line;
+            PUTINT(n); SPC; PUTINT(ne);
+            for (i = 0; i < n; ++i) { SPC; PUTINT(col[i]); }
+            SPC;
+            for (i = 0, gi = g; i < n; ++i, gi += m)
+            {
+                for (j = (digraph?-1:i-1); (j = nextelement(gi,m,j)) >= 0; )
+		{
+		    SPC; PUTINT(i); SPC; PUTINT(j);
+		}
+            }
+            *(p++) = '\n';
+            *(p++) = '\0';
+            fputs(line,outfile);
 #endif
         }
         return n-1;
@@ -204,8 +245,9 @@ trythisone(grouprec *group, graph *g, boolean digraph, int m, int n)
 /**************************************************************************/
 
 static int
-scan(int level, graph *g, boolean digraph, int *prev, long minedges, long maxedges,
-    long sofar, long numcols, grouprec *group, int m, int n)
+scan(int level, graph *g, boolean digraph, int *prev, long mincols,
+     long maxcols, long sofar, long *colcount, long *mindeg,
+     long *maxdeg, long *deg, long numcols, grouprec *group, int m, int n)
 /* Recursive scan for default case */
 /* Returned value is level to return to. */
 {
@@ -216,17 +258,22 @@ scan(int level, graph *g, boolean digraph, int *prev, long minedges, long maxedg
         return trythisone(group,g,digraph,m,n);
 
     left = n - level - 1;
-    min = minedges - sofar - numcols*left;
+    min = mincols - sofar - numcols*left;
     if (min < 0) min = 0;
-    max = maxedges - sofar;
+    max = maxcols - sofar;
     if (max >= numcols) max = numcols - 1;
     if (prev[level] >= 0 && col[prev[level]] < max)
 	max = col[prev[level]];
 
     for (k = min; k <= max; ++k)
     {
+	if (colcount[k] <= 0) continue;
+	if (mindeg[k] > deg[level] || maxdeg[k] < deg[level]) continue;
+	--colcount[k];
         col[level] = k;
-        ret = scan(level+1,g,digraph,prev,minedges,maxedges,sofar+k,numcols,group,m,n);
+        ret = scan(level+1,g,digraph,prev,mincols,maxcols,
+                       sofar+k,colcount,mindeg,maxdeg,deg,numcols,group,m,n);
+	++colcount[k];
 	if (ret < level) return ret;
     }
 
@@ -236,12 +283,13 @@ scan(int level, graph *g, boolean digraph, int *prev, long minedges, long maxedg
 /**************************************************************************/
 
 static void
-colourgraph(graph *g, int nfixed, long minedges, long maxedges,
+colourgraph(graph *g, int nfixed, long mincols, long maxcols,
+         long *colcount, long *mindeg, long *maxdeg, long *deg,
          long numcols, int m, int n)
 {
     static DEFAULTOPTIONS_GRAPH(options);
     statsblk stats;
-    setword workspace[MAXNV];
+    setword workspace[8*MAXNV];
     grouprec *group;
     int i,j,k,nloops;
     set *gi,*gj;
@@ -311,14 +359,15 @@ colourgraph(graph *g, int nfixed, long minedges, long maxedges,
 
     if (n == 0)
     {
-        scan(0,g,FALSE,prev,minedges,maxedges,0,numcols,FALSE,m,n);
+        scan(0,g,FALSE,prev,mincols,maxcols,0,colcount,
+                               NULL,NULL,NULL,numcols,FALSE,m,n);
 	return;
     }
 
     for (i = nfixed; i < n; ++i) weight[i] += nfixed;
 
-    if (maxedges == NOLIMIT || maxedges > n*numcols) maxedges = n*numcols;
-    if (n*numcols < minedges) return;
+    if (maxcols == NOLIMIT || maxcols > n*numcols) maxcols = n*numcols;
+    if (n*numcols < mincols) return;
 
     options.userautomproc = groupautomproc;
     options.userlevelproc = grouplevelproc;
@@ -331,7 +380,7 @@ colourgraph(graph *g, int nfixed, long minedges, long maxedges,
         for (i = 0, gi = g; i < n; ++i, gi += m)
 	    if (loop[i]) ADDELEMENT(gi,i);
  
-    nauty(g,lab,ptn,NULL,orbits,&options,&stats,workspace,MAXNV,m,n,NULL);
+    nauty(g,lab,ptn,NULL,orbits,&options,&stats,workspace,8*MAXNV,m,n,NULL);
 
     if (stats.grpsize2 == 0)
         groupsize = stats.grpsize1 + 0.1;
@@ -354,18 +403,20 @@ colourgraph(graph *g, int nfixed, long minedges, long maxedges,
     lastrejok = FALSE;
     for (i = 0; i < n; ++i) col[i] = 0;
 
-    scan(0,g,FALSE,prev,minedges,maxedges,0,numcols,group,m,n);
+    scan(0,g,FALSE,prev,mincols,maxcols,0,colcount,
+                           mindeg,maxdeg,deg,numcols,group,m,n);
 }
 
 /**************************************************************************/
 
 static void
-colourdigraph(graph *g, int nfixed, long minedges, long maxedges,
+colourdigraph(graph *g, int nfixed, long mincols, long maxcols,
+         long *colcount, long *mindeg, long *maxdeg, long *deg,
          long numcols, int m, int n)
 {
     static DEFAULTOPTIONS_GRAPH(options);
     statsblk stats;
-    setword workspace[MAXNV];
+    setword workspace[8*MAXNV];
     grouprec *group;
     int i,j,k,nloops;
     size_t ii;
@@ -450,12 +501,13 @@ colourdigraph(graph *g, int nfixed, long minedges, long maxedges,
 
     for (i = nfixed; i < n; ++i) weight[i] += nfixed;
 
-    if (maxedges == NOLIMIT || maxedges > n*numcols) maxedges = n*numcols;
-    if (n*numcols < minedges) return;
+    if (maxcols == NOLIMIT || maxcols > n*numcols) maxcols = n*numcols;
+    if (n*numcols < mincols) return;
 
     if (n == 0)
     {
-        scan(0,g,TRUE,prev,minedges,maxedges,0,numcols,FALSE,m,n);
+        scan(0,g,TRUE,prev,mincols,maxcols,0,colcount,
+             mindeg,maxdeg,deg,numcols,FALSE,m,n);
         return;
     }
 
@@ -472,7 +524,7 @@ colourdigraph(graph *g, int nfixed, long minedges, long maxedges,
         for (i = 0, gi = g; i < n; ++i, gi += m)
 	    if (loop[i]) ADDELEMENT(gi,i);
  
-    nauty(g,lab,ptn,NULL,orbits,&options,&stats,workspace,MAXNV,m,n,NULL);
+    nauty(g,lab,ptn,NULL,orbits,&options,&stats,workspace,8*MAXNV,m,n,NULL);
 
     if (stats.grpsize2 == 0)
         groupsize = stats.grpsize1 + 0.1;
@@ -495,7 +547,8 @@ colourdigraph(graph *g, int nfixed, long minedges, long maxedges,
     lastrejok = FALSE;
     for (i = 0; i < n; ++i) col[i] = 0;
 
-    scan(0,g,TRUE,prev,minedges,maxedges,0,numcols,group,m,n);
+    scan(0,g,TRUE,prev,mincols,maxcols,0,colcount,
+                                mindeg,maxdeg,deg,numcols,group,m,n);
 }
 
 /**************************************************************************/
@@ -503,25 +556,26 @@ colourdigraph(graph *g, int nfixed, long minedges, long maxedges,
 int
 main(int argc, char *argv[])
 {
-    graph *g;
+    graph *g,*gi;
     int m,n,codetype;
-    int argnum,j,nfixed;
+    int argnum,i,j,nfixed;
     char *arg,sw;
-    boolean badargs,digraph;
+    boolean badargs,digraph,cswitch,dswitch,Dswitch;
     boolean fswitch,uswitch,eswitch,qswitch,mswitch;
-    long minedges,maxedges,numcols;
+    long mincols,maxcols,numcols,totcols;
     double t;
     char *infilename,*outfilename;
     FILE *infile;
     char msg[201];
-    int msglen;
+    int msglen,collen,dlen,Dlen;
+    long colcount[MAXNV],mindeg[MAXNV],maxdeg[MAXNV],deg[MAXNV];
 
     HELP; PUTVERSION;
 
     nauty_check(WORDSIZE,1,1,NAUTYVERSIONID);
 
-    fswitch = Tswitch = FALSE;
-    uswitch = eswitch = mswitch = qswitch = FALSE;
+    fswitch = Tswitch = oswitch = cswitch = dswitch = FALSE;
+    uswitch = eswitch = mswitch = qswitch = Dswitch = FALSE;
     infilename = outfilename = NULL;
 
     argnum = 0;
@@ -539,8 +593,12 @@ main(int argc, char *argv[])
                 else SWBOOLEAN('q',qswitch)
                 else SWBOOLEAN('u',uswitch)
                 else SWBOOLEAN('T',Tswitch)
+                else SWBOOLEAN('o',oswitch)
+		else SWSEQUENCEMIN('c',",",cswitch,colcount,1,MAXNV,collen,"vcolg -c")
+		else SWSEQUENCEMIN('d',",",dswitch,mindeg,1,MAXNV,dlen,"vcolg -d")
+		else SWSEQUENCEMIN('D',",",Dswitch,maxdeg,1,MAXNV,Dlen,"vcolg -D")
                 else SWINT('f',fswitch,nfixed,"vcolg -f")
-                else SWRANGE('e',":-",eswitch,minedges,maxedges,"vcolg -e")
+                else SWRANGE('e',":-",eswitch,mincols,maxcols,"vcolg -e")
                 else badargs = TRUE;
             }
         }
@@ -560,34 +618,96 @@ main(int argc, char *argv[])
         exit(1);
     }
 
-    if ((Tswitch!=0) + (uswitch!=0) >= 2)
-        gt_abort(">E vcolg: -T and -u are incompatible\n");
+    if ((Tswitch!=0) + (oswitch!=0) + (uswitch!=0) >= 2)
+        gt_abort(">E vcolg: -T, -o and -u are incompatible\n");
 
 #ifndef OUTPROC
-    if (!Tswitch && !uswitch)
-        gt_abort(">E vcolg: must use -T or -u\n");
+    if (!Tswitch && !oswitch && !uswitch)
+        gt_abort(">E vcolg: must use -T, -o or -u\n");
 #endif
 
     if (!mswitch) numcols = 2;
+
+    if (oswitch && numcols != 2)
+        gt_abort(">E vcolg: -o is only allowed for 2 colours\n");
+
     if (!eswitch)
     {
-        minedges = 0;
-        maxedges = NOLIMIT;
+        mincols = 0;
+        maxcols = NOLIMIT;
     }
     if (!fswitch) nfixed = 0;
+
+    if (cswitch && mswitch && numcols != collen)
+	gt_abort(">E vcolg: -m and -c disagree on number of colours\n");
+
+    if (cswitch)
+    {
+	numcols = collen;
+	totcols = 0;
+	for (i = 0; i < numcols; ++i)
+	    if (colcount[i] < 0)
+		gt_abort(">E vcolg: negative counts not allowed for -c\n");
+	    else
+	    {
+		totcols += colcount[i];
+		if (totcols < 0) { totcols = NOLIMIT; break; } /* catch overflow */
+	    }
+    }
+    else
+	for (i = 0; i < numcols; ++i) colcount[i] = NOLIMIT;
+
+    if (dswitch && dlen > numcols)
+        gt_abort(">E vcolg: -d has too many colours\n");
+    if (Dswitch && Dlen > numcols)
+	gt_abort(">E vcolg: -D has too many colours\n");
+
+    for (i = (dswitch ? dlen : 0); i < numcols; ++i)
+	mindeg[i] = 0;
+    for (i = (Dswitch ? Dlen : 0); i < numcols; ++i)
+	maxdeg[i] = NOLIMIT;
+    for (i = 0; i < numcols; ++i)
+	if (mindeg[i] > maxdeg[i])
+	    gt_abort(">E vcolg : contradictory bound from -d/-D\n");
+
+    if (cswitch && !qswitch)
+    { 
+        fprintf(stderr,">c"); for (i = 0; i < numcols; ++i)
+	    fprintf(stderr," %ld",colcount[i]);
+        fprintf(stderr,"\n");
+    }
+
+    if (dswitch && !qswitch)
+    { 
+        fprintf(stderr,">d");
+        for (i = 0; i < numcols; ++i)
+	    fprintf(stderr," %ld",mindeg[i]);
+        fprintf(stderr,"\n");
+    }
+
+    if (Dswitch && !qswitch)
+    { 
+        fprintf(stderr,">D");
+       
+        for (i = 0; i < numcols; ++i)
+	    if (maxdeg[i] == NOLIMIT) fprintf(stderr," -");
+	    else                      fprintf(stderr," %ld",maxdeg[i]);
+        fprintf(stderr,"\n");
+    }
 
     if (!qswitch)
     {
         msg[0] = '\0';
         CATMSG0(">A vcolg");
         if (eswitch || mswitch || uswitch || (fswitch && nfixed > 0)
-              || Tswitch)
+              || Tswitch || oswitch)
             CATMSG0(" -");
         if (mswitch) CATMSG1("m%ld",numcols);
         if (uswitch) CATMSG0("u");
         if (Tswitch) CATMSG0("T");
+        if (oswitch) CATMSG0("o");
         if (fswitch) CATMSG1("f%d",nfixed);
-        if (eswitch) CATMSG2("e%ld:%ld",minedges,maxedges);
+        if (eswitch) CATMSG2("e%ld:%ld",mincols,maxcols);
         msglen = strlen(msg);
         if (argnum > 0) msglen += strlen(infilename);
         if (argnum > 1) msglen += strlen(outfilename);
@@ -637,10 +757,24 @@ main(int argc, char *argv[])
         if ((g = readgg(infile,NULL,0,&m,&n,&digraph)) == NULL) break;
         ++vc_nin;
 
+	if (cswitch && n > totcols)
+	    gt_abort(">E vcolg: not enough colours for input\n");
+
+        if (oswitch && loopcount(g,m,n) > 0)
+            gt_abort(">E vcolg: loops in input are not allowed for -o\n");
+
+	for (i = 0, gi = g; i < n; ++i, gi += m)
+	{
+	    deg[i] = 0;
+	    for (j = 0; j < m; ++j) deg[i] += POPCOUNT(gi[j]);
+	}
+
 	if (!digraph)
-             colourgraph(g,nfixed,minedges,maxedges,numcols,m,n);
+            colourgraph(g,nfixed,mincols,maxcols,colcount,
+                                   mindeg,maxdeg,deg,numcols,m,n);
 	else
-	     colourdigraph(g,nfixed,minedges,maxedges,numcols,m,n);
+	    colourdigraph(g,nfixed,mincols,maxcols,colcount,
+                                   mindeg,maxdeg,deg,numcols,m,n);
 
 	if (!uswitch && ferror(outfile)) gt_abort(">E vcolg output error\n");
         FREES(g);

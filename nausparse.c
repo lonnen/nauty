@@ -22,6 +22,7 @@
 *                   field of the dispatch vector to sort the lists of the    *
 *                   canonical graph, but isn't there by default.             *
 *       15-Oct-19 : fix static declaration of snwork[]                       *
+*        6-Apr-21 : increase work space in sparsenauty()                     *
 *                                                                            *
 *****************************************************************************/
 
