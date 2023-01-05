@@ -111,15 +111,16 @@ int
 nextelement(const set *set1, int m, int pos)
 {
     setword setwd;
-
-#if  MAXM==1
-    if (pos < 0) setwd = set1[0];
-    else         setwd = set1[0] & BITMASK(pos);
-
-    if (setwd == 0) return -1;
-    else            return FIRSTBITNZ(setwd);
-#else
     int w;
+
+    if (m == 1)
+    {
+        if (pos < 0) setwd = set1[0];
+        else         setwd = set1[0] & BITMASK(pos);
+
+        if (setwd == 0) return -1;
+        else            return FIRSTBITNZ(setwd);
+    }
 
     if (pos < 0)
     {
@@ -138,8 +139,6 @@ nextelement(const set *set1, int m, int pos)
         if (++w == m) return -1;
         setwd = set1[w];
     }
-
-#endif
 }
 
 /*****************************************************************************
@@ -156,32 +155,32 @@ permset(const set *set1, set *set2, int m, int *perm)
 {
     setword setw;
     int pos,b;
-#if MAXM!=1
     int w;
-#endif
 
-    EMPTYSET(set2,m);
-
-#if MAXM==1
-    setw = set1[0];
-    while (setw  != 0)
+    if (m == 1)
     {
-        TAKEBIT(b,setw);
-        pos = perm[b];
-        ADDELEMENT(set2,pos);
-    }
-#else
-    for (w = 0; w < m; ++w)
-    {
-        setw = set1[w];
-        while (setw != 0)
+        *set2 = 0;
+        setw = set1[0];
+        while (setw  != 0)
         {
             TAKEBIT(b,setw);
-            pos = perm[TIMESWORDSIZE(w)+b];
-            ADDELEMENT(set2,pos);
+            *set2 |= bit[perm[b]];
         }
     }
-#endif
+    else
+    {
+        EMPTYSET0(set2,m);
+        for (w = 0; w < m; ++w)
+        {
+            setw = set1[w];
+            while (setw != 0)
+            {
+                TAKEBIT(b,setw);
+                pos = perm[TIMESWORDSIZE(w)+b];
+                ADDELEMENT0(set2,pos);
+            }
+        }
+    }
 }
 
 /*****************************************************************************

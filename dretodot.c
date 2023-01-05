@@ -72,16 +72,16 @@ typedef struct list {
 
 struct list *NewListelem(int el)
 {
-	struct list *L;
-	
+        struct list *L;
+        
     L = malloc(sizeof(list));
     if (L == NULL) {
         fprintf(ERRFILE, "\nError, memory not allocated.\n");
         exit(1);
     }
-	L->vtx = el;
-	L->next = NULL;
-	return L;
+        L->vtx = el;
+        L->next = NULL;
+        return L;
 }
 
 #define FONT_NAME "Arial Narrow"
@@ -110,107 +110,107 @@ TracesStats traces_stats;
 
 void CreateRandColors(int n)
 {
-	int i=0, ind0, ind1, ind2;
+        int i=0, ind0, ind1, ind2;
     char aux[6];
     
     ran_init(n);
-	for (i = 0; i<n; i++)
-	{
-		strcpy(NShape[i].color, "\0");
-		strcpy(aux, "\0");
+        for (i = 0; i<n; i++)
+        {
+                strcpy(NShape[i].color, "\0");
+                strcpy(aux, "\0");
 
         ind1 = KRAN(4096);
         
-	    NShape[i].labcol=(ind1/128) % 2;
-	    for (ind0 = 0; ind0<3; ind0++)
-		{
+            NShape[i].labcol=(ind1/128) % 2;
+            for (ind0 = 0; ind0<3; ind0++)
+                {
             ind2 = ind1 % 16;
             ind1 = (ind1-ind2) / 16;
             switch (ind2)
             {
-				case 0:
+                                case 0:
                     strcpy(aux, NShape[i].color);
                     strcpy(NShape[i].color, "00");
                     strcat(NShape[i].color, aux);
                     break;
-				case 1:
+                                case 1:
                     strcpy(aux, NShape[i].color);
                     strcpy(NShape[i].color, "11");
                     strcat(NShape[i].color, aux);
                     break;
-				case 2:
+                                case 2:
                     strcpy(aux, NShape[i].color);
                     strcpy(NShape[i].color, "22");
                     strcat(NShape[i].color, aux);
                     break;
-				case 3:
+                                case 3:
                     strcpy(aux, NShape[i].color);
                     strcpy(NShape[i].color, "33");
                     strcat(NShape[i].color, aux);
                     break;
-				case 4:
+                                case 4:
                     strcpy(aux, NShape[i].color);
                     strcpy(NShape[i].color, "44");
                     strcat(NShape[i].color, aux);
                     break;
-				case 5:
+                                case 5:
                     strcpy(aux, NShape[i].color);
                     strcpy(NShape[i].color, "55");
                     strcat(NShape[i].color, aux);
                     break;
-				case 6:
+                                case 6:
                     strcpy(aux, NShape[i].color);
                     strcpy(NShape[i].color, "66");
                     strcat(NShape[i].color, aux);
                     break;
-				case 7:
+                                case 7:
                     strcpy(aux, NShape[i].color);
                     strcpy(NShape[i].color, "77");
                     strcat(NShape[i].color, aux);
                     break;
-				case 8:
+                                case 8:
                     strcpy(aux, NShape[i].color);
                     strcpy(NShape[i].color, "88");
                     strcat(NShape[i].color, aux);
                     break;
-				case 9:
+                                case 9:
                     strcpy(aux, NShape[i].color);
                     strcpy(NShape[i].color, "99");
                     strcat(NShape[i].color, aux);
                     break;
-				case 10:
+                                case 10:
                     strcpy(aux, NShape[i].color);
                     strcpy(NShape[i].color, "AA");
                     strcat(NShape[i].color, aux);
                     break;
-				case 11:
+                                case 11:
                     strcpy(aux, NShape[i].color);
                     strcpy(NShape[i].color, "BB");
                     strcat(NShape[i].color, aux);
                     break;
-				case 12:
+                                case 12:
                     strcpy(aux, NShape[i].color);
                     strcpy(NShape[i].color, "CC");
                     strcat(NShape[i].color, aux);
                     break;
-				case 13:
+                                case 13:
                     strcpy(aux, NShape[i].color);
                     strcpy(NShape[i].color, "DD");
                     strcat(NShape[i].color, aux);
                     break;
-				case 14:
+                                case 14:
                     strcpy(aux, NShape[i].color);
                     strcpy(NShape[i].color, "EE");
                     strcat(NShape[i].color, aux);
                     break;
-				case 15:
+                                case 15:
                     strcpy(aux, NShape[i].color);
                     strcpy(NShape[i].color, "FF");
                     strcat(NShape[i].color, aux);
                     break;
             }
-		}
-	}
+                }
+        }
 }
 
 double ComputeFontsize(int vtx) {
@@ -289,11 +289,11 @@ main(int argc, char *argv[])
     MaxV = 1000;
     MaxE = 5000;
     
-	for (j = 1; !badargs && j < argc; ++j)
-	{
-	    arg = argv[j];
-	    if (arg[0] == '-' && arg[1] != '\0')
-	    {
+        for (j = 1; !badargs && j < argc; ++j)
+        {
+            arg = argv[j];
+            if (arg[0] == '-' && arg[1] != '\0')
+            {
             ++arg;
             while (*arg != '\0')
             {
@@ -326,55 +326,55 @@ main(int argc, char *argv[])
                     }
                 }
             }
-	    }
-	    else
-	    {
+            }
+            else
+            {
             ++argnum;
             if      (argnum == 1) infilename = arg;
-	        else if (argnum == 2) outfilename = arg;
-	        else if (argnum == 3) drefilename = arg;
+                else if (argnum == 2) outfilename = arg;
+                else if (argnum == 3) drefilename = arg;
             else                  badargs = TRUE;
-	    }
-	}
+            }
+        }
     
-	if (labelorg < 0) gt_abort(">E dretodot: negative origin forbidden\n");
+        if (labelorg < 0) gt_abort(">E dretodot: negative origin forbidden\n");
     
-	if (badargs || argnum > 3)
-	{
-	    fprintf(stderr, ">E Usage: %s\n", USAGE);
-	    GETHELP;
-	    exit(1);
-	}
+        if (badargs || argnum > 3)
+        {
+            fprintf(stderr, ">E Usage: %s\n", USAGE);
+            GETHELP;
+            exit(1);
+        }
     
-	if (!infilename || infilename[0] == '-')
-	{
-	    infilename = "stdin";
-	    infile = stdin;
-	}
-	else if ((infile = fopen(infilename, "r")) == NULL)
-	{
-	    fprintf(stderr, "Can't open input file %s\n", infilename);
-	    gt_abort(NULL);
-	}
+        if (!infilename || infilename[0] == '-')
+        {
+            infilename = "stdin";
+            infile = stdin;
+        }
+        else if ((infile = fopen(infilename, "r")) == NULL)
+        {
+            fprintf(stderr, "Can't open input file %s\n", infilename);
+            gt_abort(NULL);
+        }
     
-	if (!outfilename || outfilename[0] == '-')
-	{
-	    outfilename = "stdout";
-	    outfile = stdout;
-	}
-	else if ((outfile = fopen(outfilename, "w")) == NULL)
-	{
-	    fprintf(stderr, "Can't open output file %s\n", outfilename);
-	    gt_abort(NULL);
-	}
+        if (!outfilename || outfilename[0] == '-')
+        {
+            outfilename = "stdout";
+            outfile = stdout;
+        }
+        else if ((outfile = fopen(outfilename, "w")) == NULL)
+        {
+            fprintf(stderr, "Can't open output file %s\n", outfilename);
+            gt_abort(NULL);
+        }
 
-	labelorg = initorg;
-	nin = 0;
+        labelorg = initorg;
+        nin = 0;
     
-	while (fscanf(infile, "%1s", s) == 1)
-	{
-	    if (s[0] == 'n')
-	    {
+        while (fscanf(infile, "%1s", s) == 1)
+        {
+            if (s[0] == 'n')
+            {
             if (fscanf(infile, "%1s", s) == 1 && s[0] != '=')
                 ungetc(s[0], infile);
             if (fscanf(infile, "%d", &n) != 1)
@@ -384,17 +384,17 @@ main(int argc, char *argv[])
             }
             if (n <= 0)
                 gt_abort(">E dretodot: n can't be <= 0\n");
-	    }
-	    else if (s[0] == '"')
-	    {
+            }
+            else if (s[0] == '"')
+            {
             while ((c = getc(infile)) != '"' && c != EOF) {}
-	    }
-	    else if (s[0] == '!')
-	    {
+            }
+            else if (s[0] == '!')
+            {
             while ((c = getc(infile)) != '\n' && c != EOF) {}
-	    }
-	    else if (s[0] == '$')
-	    {
+            }
+            else if (s[0] == '$')
+            {
             if ((s[0] = getc(infile)) == '$')
                 labelorg = initorg;
             else
@@ -406,9 +406,9 @@ main(int argc, char *argv[])
                     gt_abort(">E dretodot: must have labelorg >= 0\n");
             }
         }
-	    else if (s[0] == 'g' || (s[0] >= '0' && s[0] <= '9')
+            else if (s[0] == 'g' || (s[0] >= '0' && s[0] <= '9')
                  || s[0] == ';')
-	    {
+            {
             if (n < 0)
                 gt_abort(">E dretodot: g command before n is defined\n");
             if (s[0] != 'g') ungetc(s[0], infile);
@@ -434,7 +434,7 @@ main(int argc, char *argv[])
             SG_INIT(g);
             SG_INIT(g1);
             readgraph_sg(infile, &g, FALSE, FALSE, 0, n);
-	    }
+            }
         else if (s[0] == 'f') {
             readptn(infile, lab, ptn, &numcells, FALSE, n);
             if (numcells > 1) {
@@ -442,11 +442,11 @@ main(int argc, char *argv[])
             }
         }
         else
-	    {
+            {
             fprintf(stderr, ">E dretodot: invalid command \"%c\"\n", s[0]);
             gt_abort(NULL);
-	    }
-	}
+            }
+        }
 
     fclose(infile);
     
@@ -455,15 +455,15 @@ main(int argc, char *argv[])
     }
 
     if (!drefilename || drefilename[0] == '-')
-	{
-	    drefilename = "stdout";
-	    drefile = stdout;
-	}
-	else if ((drefile = fopen(drefilename, "w")) == NULL)
-	{
-	    fprintf(stderr, "Can't open output file %s\n", drefilename);
-	    gt_abort(NULL);
-	}
+        {
+            drefilename = "stdout";
+            drefile = stdout;
+        }
+        else if ((drefile = fopen(drefilename, "w")) == NULL)
+        {
+            fprintf(stderr, "Can't open output file %s\n", drefilename);
+            gt_abort(NULL);
+        }
     
     if (!dswitch) distance = n;
     
@@ -655,9 +655,9 @@ main(int argc, char *argv[])
     if (vswitch) fprintf(stderr, ">Z  drawing size %.2f x %.2f\n", hsize, vsize);
     
     /* Preamble */
-	fprintf(outfile, "graph [center=\"true\", size=\"%.2f, %.2f\", ratio=\"fill\", ranksep=\"0.25\", nodesep=\"0.40\",\n", hsize, vsize);
+        fprintf(outfile, "graph [center=\"true\", size=\"%.2f, %.2f\", ratio=\"fill\", ranksep=\"0.25\", nodesep=\"0.40\",\n", hsize, vsize);
     fprintf(outfile, "       outputorder=\"edgesfirst\", overlap=\"scale\", layout=\"%s\"];\n",model);
-	fprintf(outfile, "node  [shape=\"circle\", width=\"%.2f\", height=\"%.2f\", fixedsize=\"true\",\n",
+        fprintf(outfile, "node  [shape=\"circle\", width=\"%.2f\", height=\"%.2f\", fixedsize=\"true\",\n",
             0.5*nodescale, 0.5*nodescale);
     fprintf(outfile, "       style=\"filled\", color=\"black\",\n");
     fprintf(outfile, "       fontsize=\"13\", fontname=\"%s\"];\n", FONT_NAME);
@@ -726,9 +726,9 @@ main(int argc, char *argv[])
     }
 
     fprintf(outfile, "edge  [penwidth=\"0.8\", color=\"black\", weight=\"10\"];\n");
-	for (i = 0; i < StIndDist; ++i) {
+        for (i = 0; i < StIndDist; ++i) {
         vtx = DistStack[i];
-		for (j1 = g.v[vtx]; j1 < g.v[vtx] + g.d[vtx]; ++j1) {
+                for (j1 = g.v[vtx]; j1 < g.v[vtx] + g.d[vtx]; ++j1) {
             if (CurrVertices[g.e[j1]] == 1) {
                 if (g.e[j1] > vtx)
                     fprintf(outfile, "%d -- %d;\n", vtx + labelorg, g.e[j1] + labelorg);
@@ -752,5 +752,5 @@ main(int argc, char *argv[])
     if (vswitch) fprintf(stderr, "done\n>Z  " COUNTER_FMT
             " graph drawn from %s to %s\n",
             nin, infilename, outfilename);
-	exit(0);
+        exit(0);
 }

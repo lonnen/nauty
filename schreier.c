@@ -31,10 +31,10 @@ static TLS_ATTR set workset2[MAXM];
 #endif
 
 static TLS_ATTR schreier *schreier_freelist = NULL;
-	/* Freelist of scheier structures connected by next field.
+        /* Freelist of scheier structures connected by next field.
          * vec, pwr and orbits fields are assumed allocated. */
 static TLS_ATTR permnode *permnode_freelist = NULL;
-	/* Freelist of permnode structures connected by next field.
+        /* Freelist of permnode structures connected by next field.
          * p[] is assumed extended. */
 
 static TLS_ATTR int schreierfails = SCHREIERFAILS;
@@ -62,9 +62,9 @@ testispermutation(int id, int *p, int n)
 
     if (i < n)
     {
-	fprintf(stderr,">E Bad permutation (id=%d): n=%d p[%d]=%d\n",
-		id,n,i,p[i]);
-	exit(1);
+        fprintf(stderr,">E Bad permutation (id=%d): n=%d p[%d]=%d\n",
+                id,n,i,p[i]);
+        exit(1);
     }
 
     m = SETWORDSNEEDED(n);
@@ -73,13 +73,13 @@ testispermutation(int id, int *p, int n)
 
     for (i = 0; i < n; ++i)
     {
-	if (ISELEMENT(seen,p[i]))
-	{
-	    fprintf(stderr,
-		">E Bad permutation (id=%d): n=%d p[%d]=%d is a repeat\n",
-		id,n,i,p[i]);
-	    exit(1);
-	}
+        if (ISELEMENT(seen,p[i]))
+        {
+            fprintf(stderr,
+                ">E Bad permutation (id=%d): n=%d p[%d]=%d is a repeat\n",
+                id,n,i,p[i]);
+            exit(1);
+        }
         ADDELEMENT(seen,p[i]);
     }
 }
@@ -114,21 +114,21 @@ clearfreelists(void)
     nextsh = schreier_freelist;
     while (nextsh)
     {
-	sh = nextsh;
-	nextsh = sh->next;
-	free(sh->vec);
-	free(sh->pwr);
-	free(sh->orbits);
-	free(sh);
+        sh = nextsh;
+        nextsh = sh->next;
+        free(sh->vec);
+        free(sh->pwr);
+        free(sh->orbits);
+        free(sh);
     }
     schreier_freelist = NULL;
 
     nextp = permnode_freelist;
     while (nextp)
     {
-	p = nextp;
-	nextp = p->next;
-	free(p);
+        p = nextp;
+        nextp = p->next;
+        free(p);
     }
     permnode_freelist = NULL;
 }
@@ -143,16 +143,16 @@ static permnode
 
     while (permnode_freelist)
     {
-	p = permnode_freelist;
-	permnode_freelist = p->next;
-	if (p->nalloc >= n && p->nalloc <= n+100)
-	{
-	    p->next = p->prev = NULL;
-	    p->mark = 0;
+        p = permnode_freelist;
+        permnode_freelist = p->next;
+        if (p->nalloc >= n && p->nalloc <= n+100)
+        {
+            p->next = p->prev = NULL;
+            p->mark = 0;
             return p;
-	}
-	else
-	    free(p);
+        }
+        else
+            free(p);
     }
 
 #if FLEX_ARRAY_OK
@@ -183,20 +183,20 @@ static schreier
 
     while (schreier_freelist)
     {
-	sh = schreier_freelist;
-	schreier_freelist = sh->next;
-	if (sh->nalloc >= n && sh->nalloc <= n+100)
-	{
-	    sh->next = NULL;
-	    return sh;
-	}
-	else
-	{
-	    free(sh->vec);
-	    free(sh->pwr);
-	    free(sh->orbits);
-	    free(sh);
-	}
+        sh = schreier_freelist;
+        schreier_freelist = sh->next;
+        if (sh->nalloc >= n && sh->nalloc <= n+100)
+        {
+            sh->next = NULL;
+            return sh;
+        }
+        else
+        {
+            free(sh->vec);
+            free(sh->pwr);
+            free(sh->orbits);
+            free(sh);
+        }
     }
 
     sh = (schreier*) malloc(sizeof(schreier));
@@ -238,10 +238,10 @@ freeschreier(schreier **gp, permnode **gens)
         nextsh = *gp;
         while (nextsh)
         {
-	    sh = nextsh;
-	    nextsh = sh->next;
-	    sh->next = schreier_freelist;
-	    schreier_freelist = sh;
+            sh = nextsh;
+            nextsh = sh->next;
+            sh->next = schreier_freelist;
+            schreier_freelist = sh;
         }
         *gp = NULL;
     }
@@ -252,9 +252,9 @@ freeschreier(schreier **gp, permnode **gens)
         do
         {
             nextp = p->next;
-	    p->next = permnode_freelist;
-	    permnode_freelist = p;
-	    p = nextp;
+            p->next = permnode_freelist;
+            permnode_freelist = p;
+            p = nextp;
         } while (p != *gens);
         *gens = NULL;
     }
@@ -275,10 +275,10 @@ findpermutation(permnode *pn, int *p, int n)
     rn = pn;
     do
     {
-	for (i = 0; i < n; ++i) 
-	    if (rn->p[i] != p[i]) break;
-	if (i == n) return rn;
-	rn = rn->next;
+        for (i = 0; i < n; ++i) 
+            if (rn->p[i] != p[i]) break;
+        if (i == n) return rn;
+        rn = rn->next;
     } while (rn != pn);
 
     return NULL;
@@ -297,14 +297,14 @@ addpermutation(permnode **ring, int *p, int n)
     rn = *ring;
 
     memcpy(pn->p,p,n*sizeof(int));
-	
+        
     if (!rn)
-	pn->next = pn->prev = pn;
+        pn->next = pn->prev = pn;
     else
     {
-	pn->next = rn->next;
-	pn->prev = rn;
-	rn->next = pn->next->prev = pn;
+        pn->next = rn->next;
+        pn->prev = rn;
+        rn->next = pn->next->prev = pn;
     }
 
     pn->refcount = 0;
@@ -351,7 +351,7 @@ condaddgenerator(schreier **gp, permnode **ring, int *p, int n)
 {
     TESTP(4,p,n);
     if (findpermutation(*ring,p,n)) 
-	return FALSE;
+        return FALSE;
     else
         return filterschreier(*gp,p,ring,FALSE,-1,n);
 }
@@ -367,11 +367,11 @@ delpermnode(permnode **ring)
     if (!*ring) return;
 
     if ((*ring)->next == *ring)
-	newring = NULL;
+        newring = NULL;
     else
     {
-	newring = (*ring)->next;
-	newring->prev = (*ring)->prev;
+        newring = (*ring)->next;
+        newring->prev = (*ring)->prev;
         (*ring)->prev->next = newring;
     }
 
@@ -394,13 +394,13 @@ deleteunmarked(permnode **ring)
 
     while (pn != NULL && pn != firstmarked)
     {
-	if (pn->mark)
-	{
-	    if (!firstmarked) firstmarked = pn;
-	    pn = pn->next;
-	}
-	else
-	    delpermnode(&pn);
+        if (pn->mark)
+        {
+            if (!firstmarked) firstmarked = pn;
+            pn = pn->next;
+        }
+        else
+            delpermnode(&pn);
     }
 
     *ring = pn;
@@ -419,14 +419,14 @@ clearvector(permnode **vec, permnode **ring, int n)
         if (vec[i])
         {
             if (vec[i] != ID_PERMNODE)
-	    {
-		--(vec[i]->refcount);
-		if (vec[i]->refcount == 0 && !vec[i]->mark)
-		{
-		    *ring = vec[i];
-		    delpermnode(ring);
-		}
-	    }
+            {
+                --(vec[i]->refcount);
+                if (vec[i]->refcount == 0 && !vec[i]->mark)
+                {
+                    *ring = vec[i];
+                    delpermnode(ring);
+                }
+            }
             vec[i] = NULL;
         }
 }
@@ -442,8 +442,8 @@ initschreier(schreier *sh, int n)
     sh->fixed = -1;
     for (i = 0; i < n; ++i)
     {
-	sh->vec[i] = NULL; 
-	sh->orbits[i] = i;
+        sh->vec[i] = NULL; 
+        sh->orbits[i] = i;
     }
 }
 
@@ -569,11 +569,11 @@ filterschreier(schreier *gp, int *p, permnode **ring,
 
     if (*ring && p == (*ring)->p)
     {
-	ingroup = TRUE;
-	curr = *ring;
+        ingroup = TRUE;
+        curr = *ring;
     }
     else
-	curr = NULL;
+        curr = NULL;
 
  /* curr is the location of workperm in ring, if anywhere */
 
@@ -583,76 +583,76 @@ filterschreier(schreier *gp, int *p, permnode **ring,
  
     for (lev = 0; lev <= maxlevel; ++lev)
     {
-	for (i = 0; i < n; ++i) if (workperm[i] != i) break;
-	ident = (i == n);
-	if (ident) break;
+        for (i = 0; i < n; ++i) if (workperm[i] != i) break;
+        ident = (i == n);
+        if (ident) break;
 
-	lchanged = FALSE;
-	orbits = sh->orbits;
-	vec = sh->vec;
+        lchanged = FALSE;
+        orbits = sh->orbits;
+        vec = sh->vec;
         pwr = sh->pwr;
-	for (i = 0; i < n; ++i)
-	{
-	    j1 = orbits[i];
+        for (i = 0; i < n; ++i)
+        {
+            j1 = orbits[i];
             while (orbits[j1] != j1) j1 = orbits[j1];
-	    j2 = orbits[workperm[i]];
+            j2 = orbits[workperm[i]];
             while (orbits[j2] != j2) j2 = orbits[j2];
 
-	    if (j1 != j2)
-	    {
-		lchanged = TRUE;
-		if (j1 < j2) orbits[j2] = j1;
-		else         orbits[j1] = j2;
-	    }
-	}
-	if (lchanged)
-	    for (i = 0; i < n; ++i) orbits[i] = orbits[orbits[i]];
+            if (j1 != j2)
+            {
+                lchanged = TRUE;
+                if (j1 < j2) orbits[j2] = j1;
+                else         orbits[j1] = j2;
+            }
+        }
+        if (lchanged)
+            for (i = 0; i < n; ++i) orbits[i] = orbits[orbits[i]];
 
-	if (lchanged) changed = TRUE;
-	
-	if (sh->fixed >= 0)
-	{
-	    for (i = 0; i < n; ++i)
-	        if (vec[i] && !vec[workperm[i]])
-	        {
-		    changed = TRUE;
-		    ipwr = 0;
-		    for (j = workperm[i]; !vec[j] ; j = workperm[j]) ++ipwr;
+        if (lchanged) changed = TRUE;
+        
+        if (sh->fixed >= 0)
+        {
+            for (i = 0; i < n; ++i)
+                if (vec[i] && !vec[workperm[i]])
+                {
+                    changed = TRUE;
+                    ipwr = 0;
+                    for (j = workperm[i]; !vec[j] ; j = workperm[j]) ++ipwr;
 
-		    for (j = workperm[i]; !vec[j] ; j = workperm[j])
-		    {
-			if (!curr)
-			{
-			    if (!ingroup) addpermutation(ring,workperm,n);
-			    else  addpermutationunmarked(ring,workperm,n);
-			    ingroup = TRUE;
-			    curr = *ring;
-			}
-			vec[j] = curr;
-			pwr[j] = ipwr--;
-			++curr->refcount;
-		    }
-	        }
+                    for (j = workperm[i]; !vec[j] ; j = workperm[j])
+                    {
+                        if (!curr)
+                        {
+                            if (!ingroup) addpermutation(ring,workperm,n);
+                            else  addpermutationunmarked(ring,workperm,n);
+                            ingroup = TRUE;
+                            curr = *ring;
+                        }
+                        vec[j] = curr;
+                        pwr[j] = ipwr--;
+                        ++curr->refcount;
+                    }
+                }
 
-	    j = workperm[sh->fixed];
+            j = workperm[sh->fixed];
 
-	    while (j != sh->fixed)
-	    {
-		applyperm(workperm,vec[j]->p,pwr[j],n);
-		++multcount;
-		curr = NULL;
-		j = workperm[sh->fixed];
-	    }
-	    sh = sh->next;
-	}
-	else
-	    break;
+            while (j != sh->fixed)
+            {
+                applyperm(workperm,vec[j]->p,pwr[j],n);
+                ++multcount;
+                curr = NULL;
+                j = workperm[sh->fixed];
+            }
+            sh = sh->next;
+        }
+        else
+            break;
     }
 
     if (!ident && !ingroup)
     {
-	changed = TRUE;
-	addpermutation(ring,p,n);
+        changed = TRUE;
+        addpermutation(ring,p,n);
     }
 
     return changed;
@@ -684,19 +684,19 @@ expandschreier(schreier *gp, permnode **ring, int n)
 
     while (nfails < schreierfails)
     {
-	wordlen = 1 + KRAN(3);
-	for (j = 0; j < wordlen; ++j)
-	{
-	    for (skips = KRAN(17); --skips >= 0; ) pn = pn->next;
-	    for (i = 0; i < n; ++i) workperm2[i] = pn->p[workperm2[i]];
-	}
-	if (filterschreier(gp,workperm2,ring,TRUE,-1,n))
-	{
-	    changed = TRUE;
-	    nfails = 0;
-	}
-	else
-	    ++nfails;
+        wordlen = 1 + KRAN(3);
+        for (j = 0; j < wordlen; ++j)
+        {
+            for (skips = KRAN(17); --skips >= 0; ) pn = pn->next;
+            for (i = 0; i < n; ++i) workperm2[i] = pn->p[workperm2[i]];
+        }
+        if (filterschreier(gp,workperm2,ring,TRUE,-1,n))
+        {
+            changed = TRUE;
+            nfails = 0;
+        }
+        else
+            ++nfails;
     }
 
     return changed;
@@ -719,8 +719,8 @@ getorbits(int *fix, int nfix, schreier *gp, permnode **ring, int n)
     sh = gp;
     for (k = 0; k < nfix; ++k)
     {
-	if (sh->fixed != fix[k]) break;
-	sh = sh->next;
+        if (sh->fixed != fix[k]) break;
+        sh = sh->next;
     }
 
     if (k == nfix) return sh->orbits;
@@ -733,16 +733,16 @@ getorbits(int *fix, int nfix, schreier *gp, permnode **ring, int n)
     
     for (++k; k <= nfix; ++k)
     {
-	if (!sh->next) sh->next = newschreier(n);
-	sh = sh->next;
-	initschreier(sh,n);
-	if (k < nfix)
-	{
-	    sh->fixed = fix[k];
-	    sh->vec[fix[k]] = ID_PERMNODE;
-	}
-	else
-	    sh->fixed = -1;
+        if (!sh->next) sh->next = newschreier(n);
+        sh = sh->next;
+        initschreier(sh,n);
+        if (k < nfix)
+        {
+            sh->fixed = fix[k];
+            sh->vec[fix[k]] = ID_PERMNODE;
+        }
+        else
+            sh->fixed = -1;
     }
 
     if (*ring) expandschreier(gp,ring,n);
@@ -785,19 +785,19 @@ getorbitsmin(int *fix, int nfix, schreier *gp, permnode **ring,
     if (!changed)
         for (k = 0; k < nfix; ++k)
         {
-	    if (sh->orbits[fix[k]] != fix[k])
-	    {
-	        *orbits = sh->orbits;
-	        return k;
-	    }
-	    if (sh->fixed != fix[k]) break;
-	    sh = sh->next;
+            if (sh->orbits[fix[k]] != fix[k])
+            {
+                *orbits = sh->orbits;
+                return k;
+            }
+            if (sh->fixed != fix[k]) break;
+            sh = sh->next;
         }
 
     if (k == nfix)
     {
-	*orbits = sh->orbits;
-	return nfix;
+        *orbits = sh->orbits;
+        return nfix;
     }
  
     sh->fixed = fix[k];
@@ -808,25 +808,25 @@ getorbitsmin(int *fix, int nfix, schreier *gp, permnode **ring,
     
     for (++k; k <= nfix; ++k)
     {
-	if (!sh->next) sh->next = newschreier(n);
-	sh = sh->next;
-	initschreier(sh,n);
-	if (k < nfix)
-	{
-	    sh->fixed = fix[k];
-	    sh->vec[fix[k]] = ID_PERMNODE;
-	}
-	else
-	    sh->fixed = -1;
+        if (!sh->next) sh->next = newschreier(n);
+        sh = sh->next;
+        initschreier(sh,n);
+        if (k < nfix)
+        {
+            sh->fixed = fix[k];
+            sh->vec[fix[k]] = ID_PERMNODE;
+        }
+        else
+            sh->fixed = -1;
     }
     *orbits = fixorbs = sh->orbits;
 
     if (cell)
     {
-	for (icell = 1; icell < ncell; ++icell)
-	    if (fixorbs[cell[icell]] != fixorbs[cell[0]]) break;
+        for (icell = 1; icell < ncell; ++icell)
+            if (fixorbs[cell[icell]] != fixorbs[cell[0]]) break;
 
-	if (icell >= ncell) return nfix;
+        if (icell >= ncell) return nfix;
     }
 
     if (*ring)
@@ -853,21 +853,21 @@ getorbitsmin(int *fix, int nfix, schreier *gp, permnode **ring,
                 sh = gp;
                 for (k = 0; k < nfix; ++k)
                 {
-	            if (sh->orbits[fix[k]] != fix[k])
-	            {
-	                *orbits = sh->orbits;
-	                return k;
-	            }
-	            sh = sh->next;
-		}
-		if (cell)
-		{
-		    for ( ; icell < ncell; ++icell)
-	    	 	if (fixorbs[cell[icell]] != fixorbs[cell[0]]) break;
+                    if (sh->orbits[fix[k]] != fix[k])
+                    {
+                        *orbits = sh->orbits;
+                        return k;
+                    }
+                    sh = sh->next;
+                }
+                if (cell)
+                {
+                    for ( ; icell < ncell; ++icell)
+                        if (fixorbs[cell[icell]] != fixorbs[cell[0]]) break;
 
-		    if (icell >= ncell) return nfix;
-		}
-	    }
+                    if (icell >= ncell) return nfix;
+                }
+            }
             else
                 ++nfails;
         }
@@ -893,17 +893,17 @@ pruneset(set *fixset, schreier *gp, permnode **ring, set *x, int m, int n)
     DYNALLOC1(set,workset,workset_sz,m,"pruneset");
 #endif
     for (i = 0; i < m; ++i) workset[i] = fixset[i];
-	
+        
     sh = gp;
     while (sh->fixed >= 0 && ISELEMENT(workset,sh->fixed))
     {
-	DELELEMENT(workset,sh->fixed);
-	sh = sh->next;
+        DELELEMENT(workset,sh->fixed);
+        sh = sh->next;
     }
 
     k = nextelement(workset,m,-1);
     if (k < 0)
-	orbits = sh->orbits;
+        orbits = sh->orbits;
     else
     {
         sh->fixed = k;
@@ -911,27 +911,27 @@ pruneset(set *fixset, schreier *gp, permnode **ring, set *x, int m, int n)
         sh->vec[k] = ID_PERMNODE;  
 
         for (sha = sh->next; sha ; sha = sha->next)
-	    clearvector(sha->vec,ring,n);
+            clearvector(sha->vec,ring,n);
     
-	while ((k = nextelement(workset,m,k)) >= 0)
+        while ((k = nextelement(workset,m,k)) >= 0)
         {
-	    if (!sh->next) sh->next = newschreier(n);
-	    sh = sh->next;
-	    initschreier(sh,n);
-	    sh->fixed = k;
-	    sh->vec[k] = ID_PERMNODE;
+            if (!sh->next) sh->next = newschreier(n);
+            sh = sh->next;
+            initschreier(sh,n);
+            sh->fixed = k;
+            sh->vec[k] = ID_PERMNODE;
         }
-	if (!sh->next) sh->next = newschreier(n);
-	sh = sh->next;
+        if (!sh->next) sh->next = newschreier(n);
+        sh = sh->next;
         initschreier(sh,n);
-	sh->fixed = -1;
+        sh->fixed = -1;
 
         if (*ring) expandschreier(gp,ring,n);
         orbits = sh->orbits;
     }
 
     for (k = -1; (k = nextelement(x,m,k)) >= 0; )
-	if (orbits[k] != k) DELELEMENT(x,k);
+        if (orbits[k] != k) DELELEMENT(x,k);
 }
 
 /************************************************************************/
@@ -965,8 +965,8 @@ dumpschreier(FILE *f, schreier *gp, permnode *ring, int n)
     jj = -1;
     for (j = 0, sh = gp; sh; sh = sh->next)
     {
-	++j;
-	if (sh->fixed < 0 && jj < 0) jj = j;
+        ++j;
+        if (sh->fixed < 0 && jj < 0) jj = j;
     }
     fprintf(f," levels=%d (%d used); ",j,jj);
 
@@ -980,52 +980,52 @@ dumpschreier(FILE *f, schreier *gp, permnode *ring, int n)
 
     if (ring)
     {
-	fprintf(f,"Generators:\n");
+        fprintf(f,"Generators:\n");
         pn = ring;
-	do
-	{
-	    fprintf(f,"  %03x ref=%lu mk=%d alloc=%d p=",PNCODE(pn),
-			pn->refcount,pn->mark,pn->nalloc);
-	    for (i = 0; i < n; ++i) fprintf(f," %d",pn->p[i]);
-	    fprintf(f,"\n");
-	    pn = pn->next;
-	} while (pn != ring);
+        do
+        {
+            fprintf(f,"  %03x ref=%lu mk=%d alloc=%d p=",PNCODE(pn),
+                        pn->refcount,pn->mark,pn->nalloc);
+            for (i = 0; i < n; ++i) fprintf(f," %d",pn->p[i]);
+            fprintf(f,"\n");
+            pn = pn->next;
+        } while (pn != ring);
     }
 
     if (gp)
     {
-	fprintf(f,"Levels:\n");
-	for (sh = gp; sh; sh = sh->next)
-	{
-	    fprintf(f,"fixed=%2d alloc=%d vec=",sh->fixed,sh->nalloc);
-	    for (i = 0; i < n; ++i)
-	    {
-		if (sh->vec[i] == ID_PERMNODE) fprintf(f," %d=e",i);
-		else if (sh->vec[i])
-		{
-		    k = sh->pwr[i];
-		    j = (sh->vec[i])->p[i];
-		    fprintf(f," %03x",PNCODE(sh->vec[i]));
-		    if (k == 1)
-			fprintf(f,"(%d,%d)",i,j);
-		    else
-		    {
-			fprintf(f,"^%d",k);
-			while (--k >= 1) j = (sh->vec[i])->p[j];
-			fprintf(f,"(%d,%d)",i,j);
-		    }
-		}
-	    }
-	    fprintf(f,"\n  Orb=");
-	    j = 0;
-	    for (i = 0; i < n; ++i)
-	    {
-		fprintf(f," %d",sh->orbits[i]);
-		if (sh->orbits[i] == i) ++j;
-	    }
-	    fprintf(f," [%d]\n",j);
-	    if (sh->fixed < 0) break;
-	}
+        fprintf(f,"Levels:\n");
+        for (sh = gp; sh; sh = sh->next)
+        {
+            fprintf(f,"fixed=%2d alloc=%d vec=",sh->fixed,sh->nalloc);
+            for (i = 0; i < n; ++i)
+            {
+                if (sh->vec[i] == ID_PERMNODE) fprintf(f," %d=e",i);
+                else if (sh->vec[i])
+                {
+                    k = sh->pwr[i];
+                    j = (sh->vec[i])->p[i];
+                    fprintf(f," %03x",PNCODE(sh->vec[i]));
+                    if (k == 1)
+                        fprintf(f,"(%d,%d)",i,j);
+                    else
+                    {
+                        fprintf(f,"^%d",k);
+                        while (--k >= 1) j = (sh->vec[i])->p[j];
+                        fprintf(f,"(%d,%d)",i,j);
+                    }
+                }
+            }
+            fprintf(f,"\n  Orb=");
+            j = 0;
+            for (i = 0; i < n; ++i)
+            {
+                fprintf(f," %d",sh->orbits[i]);
+                if (sh->orbits[i] == i) ++j;
+            }
+            fprintf(f," [%d]\n",j);
+            if (sh->fixed < 0) break;
+        }
     }
 }
 
@@ -1054,23 +1054,23 @@ grouporder(int *fix, int nfix, schreier *gp, permnode **ring,
 
     for (i = 0, sh = gp; i < nfix; ++i, sh = sh->next)
     {
-	orb = sh->orbits;
-	fx = orb[sh->fixed];
-	k = 0;
-	for (j = fx; j < n; ++j) if (orb[j] == fx) ++k;
-	MULTIPLY(*grpsize1,*grpsize2,k);
+        orb = sh->orbits;
+        fx = orb[sh->fixed];
+        k = 0;
+        for (j = fx; j < n; ++j) if (orb[j] == fx) ++k;
+        MULTIPLY(*grpsize1,*grpsize2,k);
     }
 
     orb = sh->orbits;
     k = 1;
     for (i = 0; i < n; ++i)
-	if (orb[i] == i)
-	    workperm[i] = 1;
-	else
-	{
-	    ++workperm[orb[i]];
-	    if (workperm[orb[i]] > k) k = workperm[orb[i]];
-	}
+        if (orb[i] == i)
+            workperm[i] = 1;
+        else
+        {
+            ++workperm[orb[i]];
+            if (workperm[orb[i]] > k) k = workperm[orb[i]];
+        }
     MULTIPLY(*grpsize1,*grpsize2,k);
 }
 

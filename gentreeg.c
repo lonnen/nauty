@@ -1,4 +1,4 @@
-/* gentree version 1.2; Brendan McKay Aug 2017 */
+/* gentree version 1.3; Brendan McKay Oct 2022 */
 /* This program is a wrapper for the program FreeTrees.c written
  * by Gang Li & Frank Ruskey.  See below for their original
  * comments. */
@@ -10,7 +10,8 @@
 #define HELPTEXT \
 " Generate (unrooted) trees.\n\
 \n\
-      n    : the number of vertices\n\
+  n, n1:n2 : the number of vertices or a range\n\
+              Outputs are in order of the number of vertices.\n\
    res/mod : only generate subset res out of subsets 0..mod-1\n\
 \n\
      -D#   : an upper bound for the maximum degree\n\
@@ -97,8 +98,10 @@ Counts for n=1..45:
 /*==============================================================*/
 
 #define MAXN  128  /* max size of the tree.
-	              Check MAXOUTLEN if more than 1000 */
+                      Check MAXOUTLEN if more than 1000 */
 #include "gtools.h"
+
+#define NAUTY_PGM  4   /* 1 = geng, 2 = genbg, 3 = gentourng, 4 = gentreeg */
 
 /*****************************************************************
 
@@ -170,6 +173,7 @@ static nauty_counter nout;                 /* number of trees */
 static FILE *outfile;
 
 static int splitlevel,splitcount,mod,res;   /* -s res/mod */
+static boolean irred; /* homeomorphically irreducible */
 
 static int nv;  /* number of vertices */
 static int mindiam; 
@@ -201,9 +205,9 @@ void WritePar(FILE *f, int vpar[], int n)
        j = vpar[i];
        if (j == 0) *(pout++) = '0';
        else {
-	  for (p = one; j > 0; j /= 10)
-	      *(p++) = '0' + j%10;
-	  while (--p >= one) *(pout++) = *p;
+          for (p = one; j > 0; j /= 10)
+              *(p++) = '0' + j%10;
+          while (--p >= one) *(pout++) = *p;
        }
        if (i < nv) *(pout++) = ' ';
        else       *(pout++) = '\n';
@@ -232,9 +236,9 @@ WriteLev(FILE *f, int vpar[], int n)
        j = lev[i];
        if (j == 0) *(pout++) = '0';
        else {
-	  for (p = one; j > 0; j /= 10)
-	      *(p++) = '0' + j%10;
-	  while (--p >= one) *(pout++) = *p;
+          for (p = one; j > 0; j /= 10)
+              *(p++) = '0' + j%10;
+          while (--p >= one) *(pout++) = *p;
        }
        if (i < nv) *(pout++) = ' ';
        else       *(pout++) = '\n';
@@ -336,11 +340,27 @@ WriteS6(FILE *f, int vpar[], int n)
         gt_abort(">E gentreeg: fwrite() failed\n");
 }
 
+static boolean
+ishi(int *par, int n)
+/* Test if it has a vertex of degree 2 */
+{
+    int degm1[MAXN+1];  /* Degrees minus 1 */
+    int i;
+
+    degm1[1] = -1;
+    for (i = 2; i <= n; ++i) degm1[i] = 0;
+    for (i = 2; i <= n; ++i) ++degm1[par[i]];
+    for (i = 1; i <= n; ++i) if (degm1[i] == 1) return TRUE;
+
+    return FALSE;
+}
+
 static void
 WriteIt(int level)
 {
    if (level < splitlevel && res != 0) return;
 
+   if (irred && ishi(par,nv)) return;
 #ifdef PRUNE
    if (PRUNE(par,nv)) return;
 #endif
@@ -398,7 +418,7 @@ Gen( int level, int p, int s, int cL, int h, int l, int n, int f, int g )
         else {
            par[p] = cL + par[p-cL];
            if (g==1) 
-	   {
+           {
                if (((l-1)*2 < n) && (p-cL<=l) && (
                    ((p-cL+1<l) &&  (par[p-cL+1]==2)  
                    && (p-cL+2<=l) && (par[p-cL+2]==2))     /*case 1*/
@@ -427,7 +447,7 @@ Gen( int level, int p, int s, int cL, int h, int l, int n, int f, int g )
         entry = nextp[p];
         flag= 0; hh=1;
         while ((((f==0) && (entry>=2)) ||
-	       ((f==1) && (entry>=1))) && (flag==0)) {
+               ((f==1) && (entry>=1))) && (flag==0)) {
            if (s==0) h = p-2;
            if (p<=l+h-g) hh = 0; 
            if ((f==0) || (hh==1)) {
@@ -435,14 +455,14 @@ Gen( int level, int p, int s, int cL, int h, int l, int n, int f, int g )
               par[p] = entry;
 
               chi[entry] = chi[entry] + 1;
-	      temp = rChi[par[p]];  rChi[par[p]] = p;
-	      if (chi[entry] >= (entry==1?maxchild:maxchild-1)) nextp[p] = nextp[entry];
+              temp = rChi[par[p]];  rChi[par[p]] = p;
+              if (chi[entry] >= (entry==1?maxchild:maxchild-1)) nextp[p] = nextp[entry];
               if (f == 0) Gen(level+1,p+1,temp,p-temp,h,0,nv-h+1,f,g);
               else if (hh == 1) Gen(level+1,p+1,temp,p-temp,h,l,n,f,g);
-	      chi[entry] = chi[entry] - 1;
-	      rChi[par[p]] = temp;
-	      entry = nextp[entry];
-	      nextp[p] = entry;
+              chi[entry] = chi[entry] - 1;
+              rChi[par[p]] = temp;
+              entry = nextp[entry];
+              nextp[p] = entry;
            } else flag= 1;
         }
         if (f == 0) {
@@ -463,179 +483,203 @@ int
 main(int argc, char *argv[])
 #endif
 {
-        char *arg;
-        boolean badargs,uswitch,sswitch,pswitch,lswitch,Zswitch;
-        boolean qswitch,Dswitch,gotmr,gotf;
-        long Z1,Z2;
-	char *outfilename,sw;
-        int i,j,argnum;
-	int splitlevinc;
-        double t1,t2;
-	char msg[201];
+    char *arg;
+    boolean badargs,uswitch,sswitch,pswitch,lswitch,Zswitch;
+    boolean qswitch,Dswitch,gotmr,gotf;
+    long Z1,Z2,Z1arg,Z2arg;
+    char *outfilename,sw;
+    int i,j,argnum;
+    int splitlevinc;
+    int minnv,maxnv;
+    double t1,t2;
+    int maxdegarg;
+    char msg[201];
 
-	HELP; PUTVERSION;
+    HELP; PUTVERSION;
 
-        badargs = FALSE;
-	uswitch = sswitch = pswitch = lswitch = Zswitch = FALSE;
-        qswitch = Dswitch = gotmr = gotf = FALSE;
-	outfilename = NULL;
+    badargs = FALSE;
+    uswitch = sswitch = pswitch = lswitch = Zswitch = FALSE;
+    qswitch = Dswitch = gotmr = gotf = irred = FALSE;
+    outfilename = NULL;
 
-	splitlevinc = 0;
-	
-        argnum = 0;
-        for (j = 1; !badargs && j < argc; ++j)
+    splitlevinc = 0;
+    
+    argnum = 0;
+    for (j = 1; !badargs && j < argc; ++j)
+    {
+        arg = argv[j];
+        if (arg[0] == '-' && arg[1] != '\0')
         {
-            arg = argv[j];
-            if (arg[0] == '-' && arg[1] != '\0')
+            ++arg;
+            while (*arg != '\0')
             {
-		++arg;
-		while (*arg != '\0')
-		{
-		    sw = *arg++;
-		         SWBOOLEAN('u',uswitch)
-		    else SWBOOLEAN('s',sswitch)
-		    else SWBOOLEAN('p',pswitch)
-		    else SWBOOLEAN('l',lswitch)
-		    else SWRANGE('Z',":-",Zswitch,Z1,Z2,"gentreeg -Z")
-		    else SWBOOLEAN('q',qswitch)
-		    else SWINT('D',Dswitch,maxdeg,"gentreeg -D")
+                sw = *arg++;
+                     SWBOOLEAN('u',uswitch)
+                else SWBOOLEAN('s',sswitch)
+                else SWBOOLEAN('p',pswitch)
+                else SWBOOLEAN('l',lswitch)
+                else SWBOOLEAN('i',irred)
+                else SWRANGE('Z',":-",Zswitch,Z1arg,Z2arg,"gentreeg -Z")
+                else SWBOOLEAN('q',qswitch)
+                else SWINT('D',Dswitch,maxdegarg,"gentreeg -D")
 #ifdef PLUGIN_SWITCHES
 PLUGIN_SWITCHES
 #endif
-                    else badargs = TRUE;
-		}
+                else badargs = TRUE;
             }
-            else if (arg[0] == '-' && arg[1] == '\0')
-		gotf = TRUE;
-	    else
+        }
+        else if (arg[0] == '-' && arg[1] == '\0')
+            gotf = TRUE;
+        else
+        {
+            if (argnum == 0)
             {
-                if (argnum == 0)
+                if (sscanf(arg,"%d:%d",&minnv,&maxnv) == 2)
+                {}
+                else if (sscanf(arg,"%d",&minnv) != 1)
+                    badargs = TRUE;
+                else
+                    maxnv = minnv;
+                ++argnum;
+            }
+            else if (gotf)
+                badargs = TRUE;
+            else
+            {
+                if (!gotmr)
                 {
-                    if (sscanf(arg,"%d",&nv) != 1) badargs = TRUE;
-		    ++argnum;
-		}
-		else if (gotf)
-		    badargs = TRUE;
-		else
-		{
-		    if (!gotmr)
-		    {
-			if (sscanf(arg,"%d/%d",&res,&mod) == 2)
-                        { 
-                            gotmr = TRUE; 
-                            continue; 
-                        }
-		    }
-		    if (!gotf)
-		    {
-			outfilename = arg;
-			gotf = TRUE;
-			continue;
-		    }
+                    if (sscanf(arg,"%d/%d",&res,&mod) == 2)
+                    { 
+                        gotmr = TRUE; 
+                        continue; 
+                    }
+                }
+                if (!gotf)
+                {
+                    outfilename = arg;
+                    gotf = TRUE;
+                    continue;
                 }
             }
         }
+    }
 
-        if (argnum == 0)
-            badargs = TRUE;
-        else if (nv < 1 || nv > MAXN)
-        {
-            fprintf(stderr,">E gentreeg: n must be in the range 1..%d\n",MAXN);
-	    exit(1);
-        }
+    gtools_check(WORDSIZE,SETWORDSNEEDED(maxnv),maxnv,NAUTYVERSIONID);
 
-        if (!gotmr)
-        {
-            mod = 1;
-            res = 0;
-        }
+    if (argnum == 0)
+        badargs = TRUE;
+    else if (minnv < 1 || maxnv > MAXN || minnv > maxnv)
+    {
+        fprintf(stderr,">E gentreeg: n must be in the range 1..%d\n",MAXN);
+        exit(1);
+    }
 
-        if (!Dswitch || maxdeg >= nv) maxdeg = nv - 1;
-        if (!Zswitch || Z2 >= nv) Z2 = nv - 1;
-        if (!Zswitch || Z1 <= 1) Z1 = (nv == 1 ? 0 : nv == 2 ? 1 : 2);
-	mindiam = Z1;
-        maxdiam = Z2;
+    if (badargs)
+    {
+        fprintf(stderr,">E Usage: %s\n",USAGE);
+        GETHELP;
+        exit(1);
+    }
 
-	if (!badargs &&
-	     (maxdiam < mindiam || maxdiam < (nv == 1 ? 0 : nv == 2 ? 1 : 2)))
-            gt_abort(">E gentreeg: impossible diameter bounds\n");
-	if (!badargs && maxdeg < (nv == 1 ? 0 : nv == 2 ? 1 : 2))
-            gt_abort(">E gentreeg: impossible degree bound\n");
+    if (!gotmr)
+    {
+        mod = 1;
+        res = 0;
+    }
 
-        if (!badargs && (res < 0 || res >= mod))
-            gt_abort(">E gentreeg: must have 0 <= res < mod\n");
+    if (!Dswitch || maxdegarg >= maxnv) maxdegarg = maxnv - 1;
+    if (!Zswitch || Z2arg >= maxnv) Z2arg = maxnv - 1;
+    if (!Zswitch || Z1arg <= 0) Z1arg = (minnv == 1 ? 0 : minnv == 2 ? 1 : 2);
 
-        if (badargs)
-        {
-            fprintf(stderr,">E Usage: %s\n",USAGE);
-	    GETHELP;
-            exit(1);
-        }
+    if (Z2arg < Z1arg || Z2arg < (minnv == 1 ? 0 : minnv == 2 ? 1 : 2))
+        gt_abort(">E gentreeg: impossible diameter bounds\n");
+    if (maxdegarg < (maxnv == 1 ? 0 : maxnv == 2 ? 1 : 2))
+        gt_abort(">E gentreeg: impossible degree bound\n");
 
-	if ((lswitch!=0) + (pswitch!=0) + (sswitch!=0) + (uswitch!=0) > 1)
-	    gt_abort(">E gentreeg: -uslp are incompatible\n");
+    if (res < 0 || res >= mod)
+        gt_abort(">E gentreeg: must have 0 <= res < mod\n");
+
+    if ((lswitch!=0) + (pswitch!=0) + (sswitch!=0) + (uswitch!=0) > 1)
+        gt_abort(">E gentreeg: -uslp are incompatible\n");
 
 #ifdef OUTPROC
-        outproc = OUTPROC;
+    outproc = OUTPROC;
 #else
-        if      (uswitch)  outproc = DontWrite;
-        else if (lswitch)  outproc = WriteLev;
-        else if (pswitch)  outproc = WritePar;
-	else               outproc = WriteS6;
+    if      (uswitch)  outproc = DontWrite;
+    else if (lswitch)  outproc = WriteLev;
+    else if (pswitch)  outproc = WritePar;
+    else               outproc = WriteS6;
 #endif
 
 #ifdef PLUGIN_INIT
 PLUGIN_INIT
 #endif
 
-	if (qswitch)
-	    outfile = stdout;
-	else if (!gotf || outfilename == NULL)
-	{
-            outfilename = "stdout";
-            outfile = stdout;
-        }
-        else if ((outfile = fopen(outfilename,"w")) == NULL)
-        {
-            fprintf(stderr,
-                  ">E gentree: can't open %s for writing\n",outfilename);
-            gt_abort(NULL);
-        }
+    if (qswitch)
+        outfile = stdout;
+    else if (!gotf || outfilename == NULL)
+    {
+        outfilename = "stdout";
+        outfile = stdout;
+    }
+    else if ((outfile = fopen(outfilename,"w")) == NULL)
+    {
+        fprintf(stderr,
+              ">E gentree: can't open %s for writing\n",outfilename);
+        gt_abort(NULL);
+    }
 
-	if (!qswitch)
-	{
-	    msg[0] = '\0';
-	    if (strlen(argv[0]) > 75)
-		fprintf(stderr,">A %s",argv[0]);
-	    else
-		CATMSG1(">A %s",argv[0]);
-	   
-	    CATMSG2(" Z=%d:%d",mindiam,maxdiam);
-	    CATMSG2(" D=%d n=%d",maxdeg,nv);
-	    if (mod > 1) CATMSG2(" class=%d/%d",res,mod);
-	    CATMSG0("\n");
-	    fputs(msg,stderr);
-	    fflush(stderr);
-	}
+    if (!qswitch)
+    {
+        msg[0] = '\0';
+        if (strlen(argv[0]) > 75)
+            fprintf(stderr,">A %s",argv[0]);
+        else
+            CATMSG1(">A %s",argv[0]);
+        if (irred) CATMSG0(" -i");
+       
+        CATMSG2(" Z=%d:%d",mindiam,maxdiam);
+        if (minnv == maxnv)
+            CATMSG2(" D=%d n=%d",maxdeg,nv);
+        else
+            CATMSG3(" D=%d n=%d:%d",maxdeg,minnv,maxnv);
+        if (mod > 1) CATMSG2(" class=%d/%d",res,mod);
+        CATMSG0("\n");
+        fputs(msg,stderr);
+        fflush(stderr);
+    }
 
-        t1 = CPUTIME;
+    t1 = CPUTIME;
 
-        nout = 0;
+    nout = 0;
+
+    for (nv = minnv; nv <= maxnv; ++nv)
+    {
+        maxdeg = maxdegarg;
+        if (!Dswitch || maxdeg >= nv) maxdeg = nv - 1;
+     
+        Z1 = Z1arg; Z2 = Z2arg;
+        if (!Zswitch || Z2 >= nv) Z2 = nv - 1;
+        if (!Zswitch || Z1 < 0) Z1 = (nv == 1 ? 0 : nv == 2 ? 1 : 2);
+        if (Z1 < 1 && nv == 2) Z1 = 1;
+        if (Z1 < 2 && nv > 2) Z1 = 2;
+        mindiam = (int)Z1;
+        maxdiam = (int)Z2;
 
         if (nv == 1)
         {
-            if (res == 0)
+            if (res == 0 && mindiam <= 0)
             {
-		par[1] = 0;
+                par[1] = 0;
                 WriteIt(0);
             }
         }
         else if (nv == 2)
         {
-            if (res == 0)
+            if (res == 0 && maxdeg >= 1 && mindiam <= 1 && maxdiam >= 2)
             {
-		par[1] = 0;
-		par[2] = 1;
+                par[1] = 0;
+                par[2] = 1;
                 WriteIt(0);
             }
         }
@@ -651,7 +695,7 @@ PLUGIN_INIT
                 splitlevel = -1;
                 mod = 1;
             }
-            if ( maxdeg > 0 ) maxchild = maxdeg; 
+            if (maxdeg > 0) maxchild = maxdeg; 
             else maxchild = -1;
 
             ub = (maxdiam+1)/2;
@@ -660,23 +704,24 @@ PLUGIN_INIT
             par[1] = 0; par[2] = 1;
             nextp[1]=0; nextp[2]=1;chi[1]=1;
             Gen( 0, 3, 0, 0, ub, 0, nv-ub+1, 0, 0 ); 
-	}
+        }
+    }
 
-        t2 = CPUTIME;
+    t2 = CPUTIME;
 
 #ifdef SUMMARY
-	SUMMARY(nout,t2-t1);
+    SUMMARY(nout,t2-t1);
 #endif
 
-	if (!qswitch)
-	{
-            fprintf(stderr,">Z " COUNTER_FMT 
-	            " trees generated in %3.2f sec\n",nout,t2-t1);
-	}
+    if (!qswitch)
+    {
+        fprintf(stderr,">Z " COUNTER_FMT 
+                " trees generated in %3.2f sec\n",nout,t2-t1);
+    }
 
 #ifdef GENTREEG_MAIN
-	return 0;
+    return 0;
 #else
-        exit(0);
+    exit(0);
 #endif
 }

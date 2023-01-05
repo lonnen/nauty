@@ -139,7 +139,7 @@ main(int argc, char *argv[])
                 else SWBOOLEAN('x',xswitch)
 #ifdef FILTER
                 else SWBOOLEAN('v',vswitch)
-		else SWRANGE('Q',":-",Qswitch,Qlo,Qhi,"filter -Q")
+                else SWRANGE('Q',":-",Qswitch,Qlo,Qhi,"filter -Q")
 #endif
                 else SWLONG('I',Iswitch,refresh,"copyg -I")
                 else SWRANGE('p',":-",pswitch,pval1,pval2,"copyg -p")
@@ -183,7 +183,7 @@ main(int argc, char *argv[])
         if (xswitch) fprintf(stderr,"x");
         if (fswitch) fprintf(stderr,"f");
         if (pswitch) writerange(stderr,'p',pval1,pval2);
-	if (vswitch) fprintf(stderr,"v");
+        if (vswitch) fprintf(stderr,"v");
         if (Qswitch) writerange(stderr,'Q',Qlo,Qhi);
         if (argnum > 0) fprintf(stderr," %s",infilename);
         if (argnum > 1) fprintf(stderr," %s",outfilename);
@@ -246,20 +246,20 @@ main(int argc, char *argv[])
         if ((g = readgg_inc(infile,NULL,0,&m,&n,gprev,mprev,nprev,&digraph))
                                                       == NULL) break;
         ++nin;
-	kept = TRUE;
+        kept = TRUE;
 #ifdef FILTER
-	if ((!vswitch && !FILTER(g,digraph,Qlo,Qhi,m,n)) ||
-	                   (vswitch && FILTER(g,digraph,Qlo,Qhi,m,n))) 
-	    kept = FALSE;
+        if ((!vswitch && !FILTER(g,digraph,Qlo,Qhi,m,n)) ||
+                           (vswitch && FILTER(g,digraph,Qlo,Qhi,m,n))) 
+            kept = FALSE;
         else
-	    ++nout;
+            ++nout;
 #endif
 
-	if (!kept)
-	{ }
-	else if (iswitch)  
+        if (!kept)
+        { }
+        else if (iswitch)  
         {
-	    if (digraph) gt_abort(
+            if (digraph) gt_abort(
                 ">Z incremental sparse6 is incompatible with digraphs\n");
             gbase = gprev;
             if (nprev != n || mprev != m) gbase = NULL;
@@ -268,7 +268,7 @@ main(int argc, char *argv[])
             writeis6(outfile,g,gbase,m,n);
         }
         else if (outcode == readg_code)   writelast(outfile);
-	else if (digraph)             writed6(outfile,g,m,n);
+        else if (digraph)             writed6(outfile,g,m,n);
         else if (outcode == SPARSE6)  writes6(outfile,g,m,n);
         else if (outcode == DIGRAPH6) writed6(outfile,g,m,n);
         else                          writeg6(outfile,g,m,n);
@@ -283,7 +283,7 @@ main(int argc, char *argv[])
     if (!qswitch)
 #ifdef FILTER
 #ifdef SUMMARY
-	SUMMARY();
+        SUMMARY();
 #endif
         fprintf(stderr,">Z  " COUNTER_FMT " graphs read from %s, "
                               COUNTER_FMT " written to %s; %.2f sec\n",

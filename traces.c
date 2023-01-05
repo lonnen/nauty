@@ -1,7 +1,7 @@
 /******************************************************************************
  *                                                                            *
  * This is the main file for traces() version 2.2, which is included into     *
- *   nauty() version 2.7.                                                     *
+ *   nauty() version 2.8.6.                                                   *
  *                                                                            *
  *   nauty is Copyright (1984-2018) Brendan McKay.  All rights reserved.      *
  *   Traces is Copyright Adolfo Piperno, 2008-2018.  All rights reserved.     *
@@ -23,6 +23,7 @@
  *       12-Jul-16 : bug correction (reaching degree 2 vertices)              *
  *       07-Jun-18 : bug correction (finalnumcells, thanks R.Kralovic)        *
  *       07-Jun-18 : bug correction (index computation when findperm)         *
+ *       10-Nov-22 : bug correction (cycles in degree 2 subgraphs)            *
  *****************************************************************************/
 
 #include "traces.h"
@@ -256,7 +257,7 @@ static int  traces_refine_sametrace(Candidate*, int, Partition*,
 static int  traces_refine_refine(sparsegraph*, Candidate*, int, Partition*,
                                  struct TracesVars*, struct TracesInfo*);
 static void  refine_tr_refine(Candidate*, int, Partition*,
-                             struct TracesVars*, struct TracesInfo*);
+                              struct TracesVars*, struct TracesInfo*);
 static int given_gens(sparsegraph*, permnode*, int*, boolean);
 static void quickSort(int*, int);
 static struct Partition* NewPartition(int);
@@ -341,6 +342,7 @@ static const unsigned int fuzz2[] = {006532, 070236, 035523, 062437};
 static int Select_from_CStack(int*, int);
 static void PrintBlissGraph(int);
 static void CodeClassify(int, int, int);
+static void Adjust_Cycles(Candidate*, Partition*, int, TracesVars*);
 
 #define FUZZ1(x) ((x) ^ fuzz1[(x)&3])
 #define FUZZ2(x) ((x) ^ fuzz2[(x)&3])
@@ -742,6 +744,8 @@ DYNALLSTAT(TracesSpine, Spine, Spine_sz);
 DYNALLSTAT(trie*, TrieArray, TrieArray_sz);
 DYNALLSTAT(grph_strct, TheGraph, TheGraph_sz);
 DYNALLSTAT(ExpPathInfo, EPCodes, EPCodes_sz);
+DYNALLSTAT(int, CyclesPart, CyclesPart_sz);
+DYNALLSTAT(int, CyclesLength, CyclesLength_sz);
 #else
 static TLS_ATTR int CStack[MAXN];
 static TLS_ATTR int AUTPERM[MAXN];
@@ -792,6 +796,8 @@ static TLS_ATTR grph_strct TheGraph[MAXN];
 static TLS_ATTR int Neighbs1[MAXN];
 static TLS_ATTR int Neighbs2[MAXN];
 static TLS_ATTR ExpPathInfo EPCodes[MAXN];
+static TLS_ATTR int CyclesPart[MAXN];
+static TLS_ATTR int CyclesLength[MAXN];
 #endif
 
 #define PERMSTACK WorkArray1
@@ -881,7 +887,7 @@ Traces(sparsegraph *g_arg, int *lab, int *ptn,
     
     if (tv->options->verbosity >= 2) {
         for (i = n, tv->digits = 0; i > 0; i /= 10, ++tv->digits) {}
-        sprintf(tv->digstring, "%s%dd ", "%", tv->digits);
+        snprintf(tv->digstring, 25, "%s%dd ", "%", tv->digits);
     }
     
     /* Initialize group and statistics */
@@ -929,7 +935,7 @@ Traces(sparsegraph *g_arg, int *lab, int *ptn,
     
     tv->graph = &redgraph;
     if (g_arg->w) memcpy(tv->graph->w, g_arg->w, tv->graph->wlen*sizeof(int));
-    memcpy(tv->graph->e, g_arg->e, tv->graph->elen*sizeof(int));
+    if (g_arg->e) memcpy(tv->graph->e, g_arg->e, tv->graph->elen*sizeof(int));
     
     for (i=0; i<n; i++) {
         EPCodes[i].info = 0;
@@ -940,11 +946,18 @@ Traces(sparsegraph *g_arg, int *lab, int *ptn,
         if (TheGraph[i].d < tv->mindeg) {
             tv->mindeg = TheGraph[i].d;
         }
-        TheGraph[i].e = tv->graph->e + g_arg->v[i];
-        if (g_arg->w)
+        if (g_arg->e) {
+            TheGraph[i].e = tv->graph->e + g_arg->v[i];
+        }
+        else {
+            TheGraph[i].e = NULL;
+        }
+        if (g_arg->w) {
             TheGraph[i].w = tv->graph->w + g_arg->v[i];
-        else
+        }
+        else {
             TheGraph[i].w = NULL;
+        }
         TheGraph[i].one = FALSE;
     }
     
@@ -4729,10 +4742,10 @@ void refine_tr(sparsegraph *sg, int *lab, int *ptn, int *numcells, int *code, Tr
 }
 
 void refine_tr_refine(Candidate *Cand,
-                     int n,
-                     Partition *Part,
-                     struct TracesVars* tv,
-                     struct TracesInfo *ti) {
+                      int n,
+                      Partition *Part,
+                      struct TracesVars* tv,
+                      struct TracesInfo *ti) {
     
     int i, j, k, jk, sc, ind0, ind1, ind2, ind3, ind4, labi;
     int value, iend, newcell;
@@ -5328,6 +5341,50 @@ void refine_tr_refine(Candidate *Cand,
     return;
 }
 
+void Adjust_Cycles(Candidate *Cand, Partition *Part, int n, struct TracesVars *tv) {
+    int i, j, i1, j1, k;
+    int tmp, arg, cyclength;
+    
+    if (Part->cells < n) {
+        memset(CyclesLength,0,n*sizeof(int));
+        SETMARK(CellMarkers1, tv->markcell1)
+        SETMARK(CellMarkers2, tv->markcell2)
+        i1 = j1 = 0;
+        for (i=0; i<n; i+=Part->cls[i]) {
+            if (Part->cls[i] > 1) {
+                for (j=i; j<i+Part->cls[i]; j++) {
+                    arg = Cand->lab[j];
+                    if (CellMarkers1[arg] != tv->markcell1) {
+                        CellMarkers1[arg] = tv->markcell1;
+                        cyclength = 1;
+                        CyclesPart[i1++] = Cand->invlab[arg];
+                        do {
+                            tmp = NextNeighbour(arg, Cand, Part, CellMarkers1, tv->markcell1, &arg, n);
+                            if (tmp) {
+                                CellMarkers1[arg] = tv->markcell1;
+                                cyclength++;
+                                CyclesPart[i1++] = Cand->invlab[arg];
+                            }
+                        } while (tmp);
+                        for (k=j1; k<i1; k++) {
+                            CyclesLength[CyclesPart[k]] = cyclength;
+                        }
+                        j1 = i1;
+                    }
+                }
+            }
+        }
+    }
+    for (i=0; i<n; i+=Part->cls[i]) {
+        if (Part->cls[i] > 1) {
+            sort2ints(CyclesLength+i, Cand->lab+i, Part->cls[i]);
+        }
+        for (j=i; j<i+Part->cls[i]; j++) {
+            Cand->invlab[Cand->lab[j]] = j;
+        }
+    }
+}
+
 void Allocate_Traces_Structures(int n) {
 #if !MAXN
     DYNALLOC1(int, AUTPERM, AUTPERM_sz, n, "Traces");
@@ -5376,6 +5433,8 @@ void Allocate_Traces_Structures(int n) {
     DYNALLOC1(trie*, TrieArray, TrieArray_sz, n, "Traces");
     DYNALLOC1(grph_strct, TheGraph, TheGraph_sz, n, "Traces");
     DYNALLOC1(ExpPathInfo, EPCodes, EPCodes_sz, n, "Traces");
+    DYNALLOC1(int, CyclesPart, CyclesPart_sz, n, "Traces");
+    DYNALLOC1(int, CyclesLength, CyclesLength_sz, n, "Traces");
 #endif
     return;
 }
@@ -5469,6 +5528,8 @@ int CheckForAutomorphisms(Candidate *CurrCand, Candidate *NextCand,
     int temp, tmp, tmp1, arg, arg1, val, val1;
     searchtrie *TrieCandFrom, *TrieCheckFrom;
     
+    VERB_PRINT("CFA",3,FALSE)
+    
     CheckLevel = 0;
     CheckLevelEnd = 0;
     temp = 0;
@@ -5515,6 +5576,10 @@ int CheckForAutomorphisms(Candidate *CurrCand, Candidate *NextCand,
         default:
             break;
     }
+    
+    
+    Adjust_Cycles(NextCand, Part, n, tv);
+    
     while (CheckLevel <= CheckLevelEnd) {
         CheckAutList = Spine[CheckLevel].liststart;
         while (CheckAutList) {
@@ -5530,6 +5595,7 @@ int CheckForAutomorphisms(Candidate *CurrCand, Candidate *NextCand,
                         }
                     }
                     else {
+                        Adjust_Cycles(CheckAutList, Part, n, tv);
                         if (tv->permInd) ResetAutom(tv->permInd, n, tv);
                         SETMARK(CellMarkers1, tv->markcell1)
                         SETMARK(CellMarkers2, tv->markcell2)
@@ -5799,6 +5865,8 @@ int CheckForSingAutomorphisms(Candidate *CurrCand, Partition *NextPart, Candidat
     CheckAutList = SpineTL->liststart;
     tv->gotonode = NULL;
     
+    VERB_PRINT("CFSA",3,FALSE)
+    
     result = 0;
     while (CheckAutList != NULL) {
         if (CheckAutList->do_it && (CheckAutList->stnode->father == CurrCand->stnode)) {
@@ -6006,6 +6074,8 @@ int CheckForMatching(Candidate *CurrCand, Candidate *NextCand, Partition *Part, 
     int *cls;
     searchtrie *TrieCandFrom, *TrieCheckFrom;
     boolean CodeVerify;
+    
+    VERB_PRINT("CFM",3,FALSE)
     
     SpineTL = Spine+tv->tolevel;
     CheckAutList = SpineTL->liststart;
@@ -6362,54 +6432,54 @@ int CompStage0(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
                      || tv->strategy
                      || (tv->expathlength <=10)
                      )) {
+                    
+                    TempOrbits = NULL;
+                    tv->samepref = FixBase(fix, tv, CurrCand, 0, tv->fromlevel);
+                    if ((tv->samepref != tv->nfix) || ti->thegrouphaschanged) {
+                        if (tv->options->verbosity >= 2) tv->schreier1 -= CPUTIME;
+                        gom_level = getorbitsmin(fix, tv->nfix, gpB, &gensB, &tv->currorbit, CurrCand->lab+tv->tcell, CurrPart->cls[tv->tcell], n, TRUE);
+                        if (tv->options->verbosity >= 2) tv->schreier1 += CPUTIME;
+                        ti->thegrouphaschanged = FALSE;
                         
-                        TempOrbits = NULL;
-                        tv->samepref = FixBase(fix, tv, CurrCand, 0, tv->fromlevel);
-                        if ((tv->samepref != tv->nfix) || ti->thegrouphaschanged) {
-                            if (tv->options->verbosity >= 2) tv->schreier1 -= CPUTIME;
-                            gom_level = getorbitsmin(fix, tv->nfix, gpB, &gensB, &tv->currorbit, CurrCand->lab+tv->tcell, CurrPart->cls[tv->tcell], n, TRUE);
-                            if (tv->options->verbosity >= 2) tv->schreier1 += CPUTIME;
-                            ti->thegrouphaschanged = FALSE;
+                        if (gom_level < tv->nfix) {
+                            PRINT_NOTMIN_VERB(4)
                             
-                            if (gom_level < tv->nfix) {
-                                PRINT_NOTMIN_VERB(4)
+                            TreeNode = CurrCand->stnode;
+                            j2 = CurrCand->lab[Spine[gom_level+1].tgtpos];
+                            i1 = tv->currorbit[j2];
+                            for (j=0; j < tv->nfix - gom_level; j++) {
+                                TreeNode = TreeNode->father;
+                            }
+                            TreeNode1 = TreeNode->first_child;
+                            while (TreeNode1) {
+                                if (TreeNode1->vtx == i1) {
+                                    break;
+                                }
+                                TreeNode1 = TreeNode1->next_sibling;
+                            }
+                            if (TreeNode1) {
+                                while (TreeNode1->goes_to) {
+                                    TreeNode1 = TreeNode1->goes_to;
+                                }
+                                TreeNode2 = TreeNode1->next_sibling;
+                                while (TreeNode2->vtx != j2) {
+                                    TreeNode2 = TreeNode2->next_sibling;
+                                }
+                                TreeNode1->index += TreeNode2->index;
+                                TreeNode2->goes_to = TreeNode1;
+                                PRINT_INDEX(TreeNode1,4,25)
                                 
-                                TreeNode = CurrCand->stnode;
-                                j2 = CurrCand->lab[Spine[gom_level+1].tgtpos];
-                                i1 = tv->currorbit[j2];
-                                for (j=0; j < tv->nfix - gom_level; j++) {
-                                    TreeNode = TreeNode->father;
-                                }
-                                TreeNode1 = TreeNode->first_child;
-                                while (TreeNode1) {
-                                    if (TreeNode1->vtx == i1) {
-                                        break;
-                                    }
-                                    TreeNode1 = TreeNode1->next_sibling;
-                                }
-                                if (TreeNode1) {
-                                    while (TreeNode1->goes_to) {
-                                        TreeNode1 = TreeNode1->goes_to;
-                                    }
-                                    TreeNode2 = TreeNode1->next_sibling;
-                                    while (TreeNode2->vtx != j2) {
-                                        TreeNode2 = TreeNode2->next_sibling;
-                                    }
-                                    TreeNode1->index += TreeNode2->index;
-                                    TreeNode2->goes_to = TreeNode1;
-                                    PRINT_INDEX(TreeNode1,4,25)
-                                    
-                                    ti->minimalinorbits = FALSE;
-                                }
-                                else {
-                                    tv->currorbit = getorbits(fix, tv->nfix, gpB, &gensB, n);
-                                }
+                                ti->minimalinorbits = FALSE;
+                            }
+                            else {
+                                tv->currorbit = getorbits(fix, tv->nfix, gpB, &gensB, n);
                             }
                         }
-                        else {
-                            tv->currorbit = findcurrorbits(gpB, tv->nfix);
-                        }
                     }
+                    else {
+                        tv->currorbit = findcurrorbits(gpB, tv->nfix);
+                    }
+                }
                 else {
                     TempOrbits = WorkArray1;
                     memcpy(TempOrbits, IDENTITY_PERM, n*sizeof(int));
@@ -6521,7 +6591,6 @@ int CompStage0(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
                                 
                                 if (tv->steps > 1) {
                                     if (tv->fromlevel <= tv->lev_of_lastauto) {
-                                        
                                         closeloop = CheckForMatching(CurrCand, NextCand, NextPart, tv, ti, m, n);
                                     }
                                     if (NextCand->do_it) {
@@ -7859,11 +7928,12 @@ void grouporderplus(sparsegraph *sg_orig, Candidate *Cand, Partition *Part, perm
     }
     
     if (Part->cells < n) {
-        
         if (!ti->deg_one) {
-            memcpy(tv->graph->e, sg_orig->e, tv->graph->elen*sizeof(int));
-            for (i=0; i<n; i++) {
-                TheGraph[i].e = tv->graph->e + sg_orig->v[i];
+            if (sg_orig->e) {
+                memcpy(tv->graph->e, sg_orig->e, tv->graph->elen*sizeof(int));
+                for (i=0; i<n; i++) {
+                    TheGraph[i].e = tv->graph->e + sg_orig->v[i];
+                }
             }
         }
         NSFCInd = 0;
@@ -8102,6 +8172,7 @@ void grouporderplus(sparsegraph *sg_orig, Candidate *Cand, Partition *Part, perm
                         }
                         SPECIALGENERATORS
                         if (counts > 2) {
+                            if (tv->permInd) ResetAutom(tv->permInd, n, tv);
                             for (k=0; k<StInd/counts; k++) {
                                 i1 = PERMSTACK[k];
                                 for (j0=0; j0<1; j0++) {
@@ -8717,8 +8788,9 @@ int minint(int u, int v) {
 
 int NextNeighbour(int vtx, Candidate *Cand, Partition *Part, int* Markers, int mark, int *ngh, int n) {
     int *e_vtx;
-    int i, deg;
-    int cell1;
+    int i, j, deg, cell1, nghi;
+    int cell[2];
+    int vert[2];
     
     deg = TheGraph[vtx].d;
     e_vtx = TheGraph[vtx].e;
@@ -8726,17 +8798,29 @@ int NextNeighbour(int vtx, Candidate *Cand, Partition *Part, int* Markers, int m
     if (deg == n-1) {
         return 0;
     }
-    
+    j = 0;
+    cell[0] = cell[1] = n;
     for (i=0; i<deg; i++) {
-        if (Markers[e_vtx[i]] != mark) {
-            cell1 = Part->inv[Cand->invlab[e_vtx[i]]];
+        nghi = e_vtx[i];
+        if (Markers[nghi] != mark) {
+            cell1 = Part->inv[Cand->invlab[nghi]];
             if (Part->cls[cell1] > 1) {
-                *ngh = e_vtx[i];
-                break;
+                cell[j] = cell1;
+                vert[j] = nghi;
+                j++;
+                if (j==2) break;
             }
         }
     }
-    if (i<deg) return 1; else return 0;
+    if (j>0) {
+        if (cell[0] < cell[1]) {
+            *ngh = vert[0];
+        } else {
+            *ngh = vert[1];
+        }
+        return 1;
+    }
+    else return 0;
 }
 
 int NonSingDeg(int vtx, Candidate *Cand, Partition *Part) {
@@ -9878,6 +9962,8 @@ void traces_freedyn(void) {
     DYNFREE(TrieArray, TrieArray_sz);
     DYNFREE(TheGraph, TheGraph_sz);
     DYNFREE(EPCodes, EPCodes_sz);
+    DYNFREE(CyclesPart, CyclesPart_sz);
+    DYNFREE(CyclesLength, CyclesLength_sz);
 #endif
 }
 

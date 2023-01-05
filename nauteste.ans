@@ -11,5 +11,5 @@
        4002 graphs : orbits=16
        3375 graphs : orbits=17
        1408 graphs : orbits=18
- 12869 graphs altogether from 123867 read; cpu=0.62 sec
+ 12869 graphs altogether from 123867 read; cpu=0.45 sec
 >A ./countg --o -z6

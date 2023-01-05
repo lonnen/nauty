@@ -629,61 +629,61 @@ stringtograph(char *s, graph *g, int m)
 
         k = 0;
         v = 0;
-	done = FALSE;
+        done = FALSE;
         while (!done)
         {
-	    if (k == 0)
-	    {
-		x = *(p++);
-		if (x == '\n' || x == '\0')
-		{
-		    done = TRUE; continue;
-		}
-		else
-		{
-		    x -= BIAS6; k = 6;
-		}
-	    }
-	    if ((x & B(k))) ++v;
-	    --k;
+            if (k == 0)
+            {
+                x = *(p++);
+                if (x == '\n' || x == '\0')
+                {
+                    done = TRUE; continue;
+                }
+                else
+                {
+                    x -= BIAS6; k = 6;
+                }
+            }
+            if ((x & B(k))) ++v;
+            --k;
 
-	    need = nb;
-	    j = 0;
-	    while (need > 0 && !done)
-	    {
-		if (k == 0)
-		{
-		    x = *(p++);
-		    if (x == '\n' || x == '\0')
-		    {
-		        done = TRUE; continue;
-		    }
-		    else
-		    {
-		       	x -= BIAS6; k = 6;
-		    }
-		}
-		if (need >= k)
-		{
-		    j = (j << k) | (x & M(k));
-		    need -= k; k = 0;
-		}
-		else
-		{
-		    k -= need;
-		    j = (j << need) | ((x >> k) & M(need));
-		    need = 0;
-		}
-	    }
-	    if (done) continue;
+            need = nb;
+            j = 0;
+            while (need > 0 && !done)
+            {
+                if (k == 0)
+                {
+                    x = *(p++);
+                    if (x == '\n' || x == '\0')
+                    {
+                        done = TRUE; continue;
+                    }
+                    else
+                    {
+                        x -= BIAS6; k = 6;
+                    }
+                }
+                if (need >= k)
+                {
+                    j = (j << k) | (x & M(k));
+                    need -= k; k = 0;
+                }
+                else
+                {
+                    k -= need;
+                    j = (j << need) | ((x >> k) & M(need));
+                    need = 0;
+                }
+            }
+            if (done) continue;
 
-	    if (j > v)
-		v = j;
-	    else if (v < n)
-	    {
-		ADDELEMENT(GRAPHROW(g,v,m),j);
-		ADDELEMENT(GRAPHROW(g,j,m),v);
-	    }
+            if (j > v)
+                v = j;
+            else if (v < n)
+            {
+                ADDELEMENT(GRAPHROW(g,v,m),j);
+                ADDELEMENT(GRAPHROW(g,j,m),v);
+            }
         }
     }
 }
@@ -714,9 +714,9 @@ readgg(FILE *f, graph *g, int reqm, int *pm, int *pn, boolean *digraph)
     }
     else if (s[0] == '&')
     {
-	readg_code = DIGRAPH6;
+        readg_code = DIGRAPH6;
         *digraph = TRUE;
-	p = s + 1;
+        p = s + 1;
     }
     else
     {
@@ -1037,7 +1037,7 @@ putcgraph(FILE *f, graph *g, int linelength, boolean digraph, int m, int n)
     semicolons = 0;
     for (i = 0, pg = g; i < n; ++i, pg += m)
     {
-	j0 = digraph ? -1: i-1;
+        j0 = digraph ? -1: i-1;
         if (nextelement(pg,m,j0) >= 0)
         {
             while (semicolons > 0)

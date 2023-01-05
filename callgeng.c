@@ -37,18 +37,18 @@ main(int argc, char *argv[])
 
     for (n = 3; n <= 10; ++n)
     {
-	sprintf(nstring,"%d",n);
-	geng_argv[0] = "geng";
-	geng_argv[1] = "-q";    /* stops geng writing stuff to stderr */
-	geng_argv[2] = "-cb";
-	geng_argv[3] = "-D4";
-	geng_argv[4] = nstring;
-	geng_argv[5] = NULL;
-	geng_argc = 5;
+        sprintf(nstring,"%d",n);
+        geng_argv[0] = "geng";
+        geng_argv[1] = "-q";    /* stops geng writing stuff to stderr */
+        geng_argv[2] = "-cb";
+        geng_argv[3] = "-D4";
+        geng_argv[4] = nstring;
+        geng_argv[5] = NULL;
+        geng_argc = 5;
 
-	counter = 0;
-	GENG_MAIN(geng_argc,geng_argv);
-	printf("Number of graphs with %d vertices = %lu.\n",n,counter);
+        counter = 0;
+        GENG_MAIN(geng_argc,geng_argv);
+        printf("Number of graphs with %d vertices = %lu.\n",n,counter);
     }
 
     exit(0);

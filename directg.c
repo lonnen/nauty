@@ -241,33 +241,33 @@ trythisone(grouprec *group, int ne, int m, int n)
 
         ++dg_nout;
 
-	if (digraph6)
+        if (digraph6)
         {
-	    EMPTYSET(g,m*n);
-	    for (i = -1; (i = nextelement(x,me,i)) >= 0; )
+            EMPTYSET(g,m*n);
+            for (i = -1; (i = nextelement(x,me,i)) >= 0; )
             {
                 k = i >> 1;
                 if (i & 1) ADDELEMENT(g+m*v1[k],v0[k]);
                 else       ADDELEMENT(g+m*v0[k],v1[k]);
             }
-	}
+        }
 
 #ifdef PROCESS
-	if (!digraph6)
+        if (!digraph6)
         {
-	    EMPTYSET(g,n);
-	    for (i = -1; (i = nextelement(x,me,i)) >= 0; )
+            EMPTYSET(g,n);
+            for (i = -1; (i = nextelement(x,me,i)) >= 0; )
             {
                 k = i >> 1;
                 if (i & 1) ADDELEMENT(g+m*v1[k],v0[k]);
                 else       ADDELEMENT(g+m*v0[k],v1[k]);
             }
-	}
-	PROCESS(outfile,g,n);
+        }
+        PROCESS(outfile,g,n);
 #endif
 
-	if (digraph6)
-	    writed6(outfile,g,m,n);
+        if (digraph6)
+            writed6(outfile,g,m,n);
         else if (outfile)
         {
             fprintf(outfile,"%d %d",n,ne);
@@ -302,10 +302,10 @@ updatetc(graph *oldtc, graph *newtc, int v, int w, int m, int n)
     gw = newtc + m*w;
     for (i = 0, gi = newtc; i < n; ++i, gi += m)
     {
-	if (ISELEMENT(gi,v))
-	{ 
-	    for (j = 0; j < m; ++j) gi[j] |= gw[j];
-	}
+        if (ISELEMENT(gi,v))
+        { 
+            for (j = 0; j < m; ++j) gi[j] |= gw[j];
+        }
     }
 }
 
@@ -324,7 +324,7 @@ updatetc1(graph *oldtc, graph *newtc, int v, int w, int n)
 
     gw = newtc[w];
     for (i = 0; i < n; ++i)
-	if ((newtc[i] & bit[v])) newtc[i] |= gw;
+        if ((newtc[i] & bit[v])) newtc[i] |= gw;
 }
 
 /**************************************************************************/
@@ -370,8 +370,8 @@ scan_acyclic(int level, int ne, int minarcs, int maxarcs, int sofar,
             retlev = level;
         else
 #endif
-	{
-	    updatetc(oldtc,newtc,w0,w1,m,n);
+        {
+            updatetc(oldtc,newtc,w0,w1,m,n);
             retlev = scan_acyclic(level+1,ne,minarcs,maxarcs,sofar+1,newtc,group,m,n);
         }
         DELELEMENT(x,k);
@@ -393,10 +393,10 @@ scan_acyclic(int level, int ne, int minarcs, int maxarcs, int sofar,
             retlev = level;
         else
 #endif
-	{
-	    updatetc(oldtc,newtc,w1,w0,m,n);
+        {
+            updatetc(oldtc,newtc,w1,w0,m,n);
             retlev = scan_acyclic(level+1,ne,minarcs,maxarcs,sofar+1,newtc,group,m,n);
-	}
+        }
         DELELEMENT(x,k);
 #ifdef DEGPRUNE
         --outdeg[w1]; --indeg[w0];
@@ -449,8 +449,8 @@ scan_acyclic1(int level, int ne, int minarcs, int maxarcs, int sofar,
             retlev = level;
         else
 #endif
-	{
-	    updatetc1(oldtc,newtc,w0,w1,n);
+        {
+            updatetc1(oldtc,newtc,w0,w1,n);
             retlev = scan_acyclic1(level+1,ne,minarcs,maxarcs,sofar+1,newtc,group,n);
         }
         DELELEMENT(x,k);
@@ -472,10 +472,10 @@ scan_acyclic1(int level, int ne, int minarcs, int maxarcs, int sofar,
             retlev = level;
         else
 #endif
-	{
-	    updatetc1(oldtc,newtc,w1,w0,n);
+        {
+            updatetc1(oldtc,newtc,w1,w0,n);
             retlev = scan_acyclic1(level+1,ne,minarcs,maxarcs,sofar+1,newtc,group,n);
-	}
+        }
         DELELEMENT(x,k);
 #ifdef DEGPRUNE
         --outdeg[w1]; --indeg[w0];
@@ -632,7 +632,7 @@ direct(graph *g, int nfixed, long minarcs, long maxarcs,
     if (splitmod == 1 || ne <= 6)
         splitlevel = -1;
     else
-	splitlevel = (ne <= 36 ? ne/2 : 18);
+        splitlevel = (ne <= 36 ? ne/2 : 18);
 
     if (splitlevel < 0 && splitres > 0) return;
 
@@ -643,9 +643,9 @@ direct(graph *g, int nfixed, long minarcs, long maxarcs,
     if (ne == 0 && minarcs <= 0 && (!Vswitch || ntisol) && splitres == 0)
     {
 #ifdef DEGPRUNE
-	for (i = 0; i < n; ++i)
-	    if (DEGPRUNE(indeg,outdeg,i,n)) break;
-	if (i == n)
+        for (i = 0; i < n; ++i)
+            if (DEGPRUNE(indeg,outdeg,i,n)) break;
+        if (i == n)
 #endif
             trythisone(NULL,0,m,n);    // only in case of 0 edges
         return;
@@ -728,8 +728,8 @@ direct(graph *g, int nfixed, long minarcs, long maxarcs,
 
     if (acyclic)
     {
-	for (i = 0; i < m*n; ++i) tc[i] = 0;
-	for (i = 0; i < n; ++i) ADDELEMENT(tc+i*m,i);
+        for (i = 0; i < m*n; ++i) tc[i] = 0;
+        for (i = 0; i < n; ++i) ADDELEMENT(tc+i*m,i);
         if (m == 1) scan_acyclic1(0,ne,minarcs,maxarcs,0,tc,group,n);
         else        scan_acyclic(0,ne,minarcs,maxarcs,0,tc,group,m,n);
     }
@@ -785,7 +785,7 @@ main(int argc, char *argv[])
                 else SWBOOLEAN('G',Gswitch)
                 else SWBOOLEAN('V',Vswitch)
                 else SWINT('f',fswitch,nfixed,"directg -f")
-		else SWRANGE('s',"/",sswitch,lsplitres,lsplitmod,"directg -s")
+                else SWRANGE('s',"/",sswitch,lsplitres,lsplitmod,"directg -s")
                 else SWRANGE('e',":-",eswitch,minarcs,maxarcs,"directg -e")
                 else badargs = TRUE;
             }
@@ -819,13 +819,13 @@ main(int argc, char *argv[])
 
     if (sswitch)
     {
-	splitmod = lsplitmod;
-	splitres = lsplitres;
+        splitmod = lsplitmod;
+        splitres = lsplitres;
     }
     else
     {
-	splitmod = 1;
-	splitres = 0;
+        splitmod = 1;
+        splitres = 0;
     }
     splitcases = 0;
     if (sswitch && (splitmod < 1 || splitres < 0 || splitres >= splitmod))
@@ -849,7 +849,7 @@ main(int argc, char *argv[])
         if (Gswitch) CATMSG0("G");
         if (Vswitch) CATMSG0("V");
         if (fswitch) CATMSG1("f%d",nfixed);
-	if (sswitch) CATMSG2("s%d/%d",splitres,splitmod);
+        if (sswitch) CATMSG2("s%d/%d",splitres,splitmod);
         if (eswitch) CATMSG2("e%ld:%ld",minarcs,maxarcs);
         msglen = strlen(msg);
         if (argnum > 0) msglen += strlen(infilename);
@@ -905,24 +905,24 @@ main(int argc, char *argv[])
         if ((g = readg(infile,NULL,0,&m,&n)) == NULL) break;
         ++dg_nin;
 #ifdef PROCESS
-	if (m > 1)
-	{
-	    fprintf(stderr,">E m=1 is needed if PROCESS is defined\n");
-	    exit(1);
-	}
+        if (m > 1)
+        {
+            fprintf(stderr,">E m=1 is needed if PROCESS is defined\n");
+            exit(1);
+        }
 #endif
 #ifdef INPUTGRAPH
-	if (!INPUTGRAPH(g,m,n))
-	{
-	   ++dg_skipped;
-	   FREES(g);
-	   continue;
-	}
+        if (!INPUTGRAPH(g,m,n))
+        {
+           ++dg_skipped;
+           FREES(g);
+           continue;
+        }
 #endif
 
         direct(g,nfixed,minarcs,maxarcs,oswitch,aswitch,m,n);
         if (!uswitch && ferror(outfile))
-	    gt_abort(">E directg output error\n");
+            gt_abort(">E directg output error\n");
         FREES(g);
     }
     t = CPUTIME - t;
@@ -940,7 +940,7 @@ main(int argc, char *argv[])
         fprintf(stderr,">Z " COUNTER_FMT " graphs read from %s",
                        dg_nin,infilename); 
 #ifdef INPUTGRAPH
-	fprintf(stderr,"; " COUNTER_FMT " skipped",dg_skipped);
+        fprintf(stderr,"; " COUNTER_FMT " skipped",dg_skipped);
 #endif
         fprintf(stderr,"; " COUNTER_FMT ,dg_nout);
         if (!uswitch)

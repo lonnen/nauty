@@ -352,28 +352,28 @@ writeline(char *outf, number *val, unsigned long count)
                 printf(vout,val[n++].f/count);
             else if (*outf == 'X')
                 printf(Xout,val[n++].f);
-	    else if (*outf == 'h')
-	    {
-		if (val[n].f < 0)
-		{
-		    neg = TRUE;
-		    hms = -val[n].f;
-		}
-		else
-		{
-		    neg = FALSE;
-		    hms = val[n].f;
-		}
-		mins = hms/60.0;
-		secs = hms - 60*mins;
-		nsecs = secs;
-		++n;
-		if (neg) printf("-");
-		if (secs == nsecs)
-		    printf(hmsout1,mins/60,mins%60,nsecs);
-		else
-		    printf(hmsout2,mins/60,mins%60,secs);
-	    }
+            else if (*outf == 'h')
+            {
+                if (val[n].f < 0)
+                {
+                    neg = TRUE;
+                    hms = -val[n].f;
+                }
+                else
+                {
+                    neg = FALSE;
+                    hms = val[n].f;
+                }
+                mins = hms/60.0;
+                secs = hms - 60*mins;
+                nsecs = secs;
+                ++n;
+                if (neg) printf("-");
+                if (secs == nsecs)
+                    printf(hmsout1,mins/60,mins%60,nsecs);
+                else
+                    printf(hmsout2,mins/60,mins%60,secs);
+            }
             else if (*outf == 'l')
             {
                 for (i = 0; i < val[n].l->nvals; ++i)
@@ -628,8 +628,8 @@ add_one(countnode **to_root, char *fmt, integer pmod, int nval,
                 else if (valtype[i] == M) 
                     mpz_add(*(p->total[i].m),*(p->total[i].m),*(val[i].m));
 #endif
-		else if (valtype[i] == FX)
-		    {if (val[i].f > p->total[i].f) p->total[i].f = val[i].f;}
+                else if (valtype[i] == FX)
+                    {if (val[i].f > p->total[i].f) p->total[i].f = val[i].f;}
                 else  
                     p->total[i].f += val[i].f;   /* F, V and H */
             ++p->count;
@@ -830,7 +830,7 @@ scanline(char *s, char *f, number *val, int *valtype,
             {
 #else
             else if (*f == 'd' || *f == 'x' || *f == 'n' 
-				|| *f == 'p' || *f == 'm')
+                                || *f == 'p' || *f == 'm')
             {
                 if (*f == 'm' && !gmp_warning)
                 {
@@ -1032,18 +1032,18 @@ scanline(char *s, char *f, number *val, int *valtype,
                 neg = (*s == '-');
                 if (*s == '-' || *s == '+') ++s;
                 dval = 0.0;
-		comval = 0.0;
+                comval = 0.0;
                 while (isdigit(*s) || *s == ':')
-		{
-		    if (*s == ':')
-		    {
-			dval = dval*60.0 + comval;
-			comval = 0.0;
-			++s;
-		    }
-		    else
-		        comval = comval*10.0 + (*s++ - '0');
-		}
+                {
+                    if (*s == ':')
+                    {
+                        dval = dval*60.0 + comval;
+                        comval = 0.0;
+                        ++s;
+                    }
+                    else
+                        comval = comval*10.0 + (*s++ - '0');
+                }
                 if (*s == '.')
                 {
                     digval = 1.0;
@@ -1054,7 +1054,7 @@ scanline(char *s, char *f, number *val, int *valtype,
                         comval += (*s++ - '0') * digval;
                     }
                 }
-		dval = dval*60.0 + comval;
+                dval = dval*60.0 + comval;
                 if (doass)
                 {
                     valtype[n] = H;

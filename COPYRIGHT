@@ -4,7 +4,7 @@ Traces, package versions 2.6r3 and later.
 Five categories of software are included in the package:
 A. All files not listed as B-E below, copyright Brendan McKay (1984-)
 B. Files traces.h, traces.c and dretodot.c, copyright Adolfo Piperno (2008-)
-C. File watercluster2.c, copyright Gunnar Brinkmann (2009-)
+C. File watercluster2.c and genposetg.c, copyright Gunnar Brinkmann (2009-)
 D. Files planarity.h and planarity.c, copyright Magma project.
 E. Files nautycliquer.h and nautycliquer.c, copyright to Sampo
    Niskanen and Patric Östergård.

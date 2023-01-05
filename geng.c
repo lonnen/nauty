@@ -1,14 +1,12 @@
 /* TODO:
- *        add chordal graphs 
- *        add perfect graphs
  *        add complements for ordinary graphs
  *        add 5-cycle rejection
- *        improve output by compiling g6 from level n-1 */
+ */
 
-/* geng.c  version 3.4; B D McKay, May 2022. */
+/* geng.c  version 3.6; B D McKay, October 2022. */
 
 #define USAGE \
-"geng [-cCmtfbd#D#] [-uygsnh] [-lvq] \n\
+"geng [-cCmtfkbd#D#] [-uygsnh] [-lvq] \n\
               [-x#X#] n [mine[:maxe]] [res/mod] [file]"
 
 #define HELPTEXT \
@@ -23,6 +21,11 @@
      -C    : only write biconnected graphs\n\
      -t    : only generate triangle-free graphs\n\
      -f    : only generate 4-cycle-free graphs\n\
+     -k    : only generate K4-free graphs\n\
+     -T    : only generate chordal graphs\n\
+     -S    : only generate split graphs\n\
+     -P    : only generate perfect graphs\n\
+     -F    : only generate claw-free graphs\n\
      -b    : only generate bipartite graphs\n\
                 (-t, -f and -b can be used in any combination)\n\
      -m    : save memory at the expense of time (only makes a\n\
@@ -45,7 +48,7 @@
 /*  Parameters:
 
              n    = the number of vertices (1..MAXN)
-			Note that MAXN is limited to min(WORDSIZE,64)
+                        Note that MAXN is limited to min(WORDSIZE,64)
              mine = the minimum number of edges (no bounds if missing)
              maxe = the maximum number of edges (same as mine if missing)
                     0 means "infinity" except in the case "0-0"
@@ -148,8 +151,8 @@ OUTPROC feature.
    nauty format, and n is the number of vertices. Your procedure
    can be in a separate file so long as it is linked with geng. The
    global variables sparse6, graph6, quiet, nooutput, nautyformat,
-   yformat and canonise (all type boolean) can be used to test
-   for the presence of the flags -s, -g, -q, -u, -n, -y and -l,
+   and canonise (all type boolean) can be used to test
+   for the presence of the flags -s, -g, -q, -u, -n, and -l,
    respectively. If -l is present, the group size and similar
    details can be found in the global variable nauty_stats.
 
@@ -213,6 +216,9 @@ CALLING FROM A PROGRAM
    argv[]; that is, one more than the number of arguments.  See the
    sample program callgeng.c.
 
+   You can also call geng from multiple threads at once, see the sample
+   program callgeng2.c.
+
 **************************************************************************
 
 Counts and sample performance statistics.
@@ -268,9 +274,6 @@ Counts and sample performance statistics.
      19 6660282066936   45 days           19   30743624324   7 hr
                                           20  468026657815   4 days
                                           21 8161170076257   106 days
-
-                   Old value was wrong:  18   2142368552  (The program was
-                   ok, but somehow we tabulated the answer incorrectly.)
 
 
      Bipartite Graphs (-b)            C4-free Bipartite Graphs (-bf)
@@ -387,7 +390,7 @@ efficient to use the res/mod feature than to split by numbers of edges.
               Mar 3,  2015 : Improve maxdeg tweaking.
               Jan 18, 2016 : Replace bigint by nauty_counter.
                Mar 8, 2018 : Can now compile for MAXN up to WORDSIZE.
-			     Use setword instead of unsigned for xword.
+                             Use setword instead of unsigned for xword.
                              Revised splitting level.
                              Updated sample execution times.
               Mar 10, 2018 : Fix overflow at impossibly large n, maxdeg.
@@ -397,10 +400,11 @@ efficient to use the res/mod feature than to split by numbers of edges.
               Jun 21, 2021 : K1 is not 2-connected.
               May 15, 2022 : findmax() now deposits -1 at the end of the extended
                               sequence in case geng is being called as a function.
+              Oct 10, 2022 : Obsolete y-format removed
 
 **************************************************************************/
 
-#define NAUTY_PGM  1   /* 1 = geng, 2 = genbg, 3 = gentourng */
+#define NAUTY_PGM  1   /* 1 = geng, 2 = genbg, 3 = gentourng, 4 = gentreeg */
 
 #ifndef MAXN
 #define MAXN WORDSIZE         /* not more than WORDSIZE */
@@ -413,30 +417,40 @@ efficient to use the res/mod feature than to split by numbers of edges.
 #define ONE_WORD_SETS
 #include "gtools.h"   /* which includes nauty.h and stdio.h */
 
+/* No need for TLS if not calling from a program. */
+#ifndef GENG_MAIN
+#undef TLS_ATTR
+#define TLS_ATTR
+#endif
+
 typedef setword xword;
 
-static void (*outproc)(FILE*,graph*,int);
+static TLS_ATTR void (*outproc)(FILE*,graph*,int);
 
-static FILE *outfile;           /* file for output graphs */
-static int connec;              /* 1 for -c, 2 for -C, 0 for neither */
-static boolean bipartite;       /* presence of -b */
-static boolean trianglefree;    /* presence of -t */
-static boolean squarefree;      /* presence of -f */
-static boolean savemem;         /* presence of -m */
-static boolean verbose;         /* presence of -v */
-boolean nautyformat;            /* presence of -n */
-boolean yformat;                /* presence of -y */
-boolean graph6;                 /* presence of -g */
-boolean sparse6;                /* presence of -s */
-boolean nooutput;               /* presence of -u */
-boolean canonise;               /* presence of -l */
-boolean quiet;                  /* presence of -q */
-boolean header;                 /* presence of -h */
-statsblk nauty_stats;
-static int mindeg,maxdeg,maxn,mine,maxe,mod,res;
+static TLS_ATTR FILE *outfile;           /* file for output graphs */
+static TLS_ATTR int connec;              /* 1 for -c, 2 for -C, 0 for neither */
+static TLS_ATTR boolean bipartite;       /* presence of -b */
+static TLS_ATTR boolean trianglefree;    /* presence of -t */
+static TLS_ATTR boolean squarefree;      /* presence of -f */
+static TLS_ATTR boolean k4free;          /* presence of -k */
+static TLS_ATTR boolean splitgraph;      /* presence of -S */
+static TLS_ATTR boolean chordal;         /* presence of -T */
+static TLS_ATTR boolean perfect;         /* presence of -P */
+static TLS_ATTR boolean clawfree;        /* presence of -F */
+static TLS_ATTR boolean savemem;         /* presence of -m */
+static TLS_ATTR boolean verbose;         /* presence of -v */
+boolean TLS_ATTR nautyformat;            /* presence of -n */
+boolean TLS_ATTR graph6;                 /* presence of -g */
+boolean TLS_ATTR sparse6;                /* presence of -s */
+boolean TLS_ATTR nooutput;               /* presence of -u */
+boolean TLS_ATTR canonise;               /* presence of -l */
+boolean TLS_ATTR quiet;                  /* presence of -q */
+boolean TLS_ATTR header;                 /* presence of -h */
+statsblk TLS_ATTR nauty_stats;
+static TLS_ATTR int mindeg,maxdeg,maxn,mine,maxe,mod,res;
 #define PRUNEMULT 50   /* bigger -> more even split at greater cost */
-static int min_splitlevel,odometer,splitlevel,multiplicity;
-static graph gcan[MAXN];
+static TLS_ATTR int min_splitlevel,odometer,splitlevel,multiplicity;
+static TLS_ATTR graph gcan[MAXN];
 
 #define XBIT(i) ((xword)1 << (i))
 #define XPOPCOUNT(x) POPCOUNT(x)
@@ -457,14 +471,14 @@ typedef struct
     xword xlim;           /* number of x-sets in xx[] */
 } leveldata;
 
-static leveldata data[MAXN];      /* data[n] is data for n -> n+1 */
-static nauty_counter ecount[1+MAXN*(MAXN-1)/2];  /* counts by number of edges */
-static nauty_counter nodes[MAXN];     /* nodes at each level */
+static TLS_ATTR leveldata data[MAXN];      /* data[n] is data for n -> n+1 */
+static TLS_ATTR nauty_counter ecount[1+MAXN*(MAXN-1)/2];  /* counts by number of edges */
+static TLS_ATTR nauty_counter nodes[MAXN];     /* nodes at each level */
 
 #ifdef INSTRUMENT
-static nauty_counter rigidnodes[MAXN],fertilenodes[MAXN];
-static nauty_counter a1calls,a1nauty,a1succs;
-static nauty_counter a2calls,a2nauty,a2uniq,a2succs;
+static TLS_ATTR nauty_counter rigidnodes[MAXN],fertilenodes[MAXN];
+static TLS_ATTR nauty_counter a1calls,a1nauty,a1succs;
+static TLS_ATTR nauty_counter a2calls,a2nauty,a2uniq,a2succs;
 #endif
 
 /* The numbers below are actual maximum edge counts.
@@ -474,23 +488,24 @@ static nauty_counter a2calls,a2nauty,a2uniq,a2succs;
    which is done by the procedure findmaxe().
 */
 
-static int maxeb[65] =     /* max edges for -b */
+static TLS_ATTR int maxeb[65] =     /* max edges for -b */
  {0,0,1,2,4, -1};
-static int maxet[65] =     /* max edges for -t */
+static TLS_ATTR int maxet[65] =     /* max edges for -t */
  {0,0,1,2,4, -1};
-static int maxef[65] =     /* max edges for -f */
+static TLS_ATTR int maxef[65] =     /* max edges for -f */
  {0,0,1,3,4, 6,7,9,11,13,
   16,18,21,24,27, 30,33,36,39,42,
   46,50,52,56,59, 63,67,71,76,80,
-  85,90,92,96,102, 106,110,113,117,122, -1};
-static int maxeft[65] =    /* max edges for -ft */
+  85,90,92,96,102, 106,110,113,117,122,
+  127, -1};
+static TLS_ATTR int maxeft[65] =    /* max edges for -ft */
  {0,0,1,2,3, 5,6,8,10,12,
   15,16,18,21,23, 26,28,31,34,38,
   41,44,47,50,54, 57,61,65,68,72,
   76,80,85,87,90, 95,99,104,109,114,
   120,124,129,134,139, 145,150,156,162,168,
   175,176,178, -1};
-static int maxebf[65] =    /* max edges for -bf */
+static TLS_ATTR int maxebf[65] =    /* max edges for -bf */
   {0,0,1,2,3, 4,6,7,9,10,
   12,14,16,18,21, 22,24,26,29,31,
   34,36,39,42,45, 48,52,53,56,58,
@@ -517,7 +532,7 @@ extern void SUMMARY(nauty_counter,double);
 #endif
 
 #if defined(PRUNE) || defined(PREPRUNE)
-int geng_mindeg, geng_maxdeg, geng_mine, geng_maxe, geng_connec;
+int TLS_ATTR geng_mindeg, geng_maxdeg, geng_mine, geng_maxe, geng_connec;
 #endif
 
 /************************************************************************/
@@ -535,44 +550,6 @@ findmaxe(int *table, int n)
     for ( ; i <= MAXN; ++i) table[i] = EXTEND(table,i);
 
     return table[n];
-}
-
-/************************************************************************/
-
-void
-writeny(FILE *f, graph *g, int n)
-/* write graph g (n vertices) to file f in y format */
-{
-    static char ybit[] = {32,16,8,4,2,1};
-    char s[(MAXN*(MAXN-1)/2 + 5)/6 + 4];
-    int i,j,k;
-    char y,*sp;
-
-    sp = s;
-    *(sp++) = 0x40 | n;
-    y = 0x40;
-
-    k = -1;
-    for (j = 1; j < n; ++j)
-    for (i = 0; i < j; ++i)
-    {
-        if (++k == 6)
-        {
-            *(sp++) = y;
-            y = 0x40;
-            k = 0;
-        }
-        if (g[i] & bit[j]) y |= ybit[k];
-    }
-    if (n >= 2) *(sp++) = y;
-    *(sp++) = '\n';
-    *sp = '\0';
-
-    if (fputs(s,f) == EOF || ferror(f))
-    {
-        fprintf(stderr,">E writeny : error on writing file\n");
-        exit(2);
-    }
 }
 
 /************************************************************************/
@@ -605,14 +582,15 @@ nullwrite(FILE *f, graph *g, int n)
 
 void
 writenauty(FILE *f, graph *g, int n)
-/* write graph g (n vertices) to file f in nauty format */
+/* write graph g (n vertices) to file f in nauty format.
+   Each graph is preceded by the number of vertices. */
 {
     int nn;
 
     nn = n;
 
     if (fwrite((char *)&nn,sizeof(int),(size_t)1,f) != 1 ||
-          fwrite((char*)g,sizeof(setword),(size_t)n,f) != n)
+          fwrite((char*)g,sizeof(graph),(size_t)n,f) != n)
     {
         fprintf(stderr,">E writenauty : error on writing file\n");
         exit(2);
@@ -1008,7 +986,7 @@ makeleveldata(boolean restricted)
         ncj = nxsets = 1;
         for (j = 1; j <= nn; ++j)
         { 
-	    ncj = arith(ncj,n-j+1,j);
+            ncj = arith(ncj,n-j+1,j);
             nxsets += ncj;
         }
 
@@ -1043,7 +1021,7 @@ makeleveldata(boolean restricted)
 
         j = 0;
 
-	ilast = (n == WORDSIZE ? ~(setword)0 : XBIT(n)-1);
+        ilast = (n == WORDSIZE ? ~(setword)0 : XBIT(n)-1);
         for (i = 0;; ++i)
         {
             if ((h = XPOPCOUNT(i)) <= maxdeg)
@@ -1367,13 +1345,206 @@ makecanon(graph *g, graph *gcan, int n)
 /* gcan := canonise(g) */
 {
     int lab[MAXN],ptn[MAXN],orbits[MAXN];
-    static DEFAULTOPTIONS_GRAPH(options);
+    static TLS_ATTR DEFAULTOPTIONS_GRAPH(options);
     setword workspace[50];
 
     options.getcanon = TRUE;
 
     nauty(g,lab,ptn,NULL,orbits,&options,&nauty_stats,
           workspace,50,1,n,gcan);
+}
+
+/**************************************************************************/
+
+static boolean
+hask4(graph *g, int n, int maxn)
+/* Return TRUE iff there is a K4 including the last vertex */
+{
+    setword gx,w;
+    int i,j;
+
+    gx = g[n-1];
+    while (gx)
+    {
+        TAKEBIT(i,gx);
+        w = g[i] & gx;
+        while (w)
+        {
+            TAKEBIT(j,w);
+            if ((g[j] & w)) return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+/**************************************************************************/
+
+static boolean
+hasclaw(graph *g, int n, int maxn)
+/* Return TRUE if there is a claw (induced K(1,3)) involving the last vertex */
+{
+    int i,j,k;
+    setword x,y;
+
+    x = g[n-1];
+    while (x)
+    {
+        TAKEBIT(j,x);
+        y = x & ~g[j];
+        while (y)
+        {
+            TAKEBIT(k,y);
+            if (y & ~g[k]) return TRUE;
+        }
+    }
+
+    x = g[n-1];
+    while (x)
+    {
+        TAKEBIT(i,x);
+        y = g[i] & ~(bit[n-1]|g[n-1]);
+        while (y)
+        {
+            TAKEBIT(k,y);
+            if (y & ~g[k]) return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+static boolean
+hasinducedpath(graph *g, int start, setword body, setword last)
+/* return TRUE if there is an induced path in g starting at start,
+   extravertices within body and ending in last.
+ * {start}, body and last should be disjoint. */
+{
+    setword gs,w;
+    int i;
+
+    gs = g[start];
+    if ((gs & last)) return TRUE;
+
+    w = gs & body;
+    while (w)
+    {
+        TAKEBIT(i,w);
+        if (hasinducedpath(g,i,body&~gs,last&~bit[i]&~gs))
+            return TRUE;
+    }
+
+    return FALSE;
+}
+
+static boolean
+notchordal(graph *g, int n, int maxn)
+/* g is a graph of order n. Return TRUE if there is a
+   chordless cycle of length at least 4 that includes
+   the last vertex. */
+{
+    setword all,gn,w,gs;
+    int v,s;
+
+    all = ALLMASK(n);
+    gn = g[n-1];
+
+    while (gn)
+    {
+        TAKEBIT(v,gn);
+        gs = g[v] & ~(bit[n-1]|g[n-1]);
+        while (gs)
+        {
+            TAKEBIT(s,gs);
+            if (hasinducedpath(g,s,all&~(g[n-1]|g[v]),gn&~g[v]))
+                return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+static boolean
+notsplit(graph *g, int n, int maxn)
+/* g is a graph of order n. Return TRUE if either g or its
+   complement has a chordless cycle of length at least 4 that
+   includes the last vertex. */
+{
+    graph gc[MAXN];
+    setword w;
+    int i;
+
+    if (notchordal(g,n,maxn)) return TRUE;
+
+    w = ALLMASK(n);
+    for (i = 0; i < n; ++i) gc[i] = g[i] ^ w ^ bit[i];
+    return notchordal(gc,n,maxn);
+}
+
+static boolean
+hasinducedoddpath(graph *g, int start, setword body, setword last, boolean parity)
+/* return TRUE if there is an induced path of odd length >= 3 in g
+   starting at start, extravertices within body and ending in last.
+   {start}, body and last should be disjoint. */
+{
+    setword gs,w;
+    int i;
+
+    gs = g[start];
+    if ((gs & last) && parity) return TRUE;
+
+    w = gs & body;
+    while (w)
+    {
+        TAKEBIT(i,w);
+        if (hasinducedoddpath(g,i,body&~gs,last&~bit[i]&~gs,!parity))
+            return TRUE;
+    }
+
+    return FALSE;
+}
+
+static boolean
+oddchordless(graph *g, int n, int maxn)
+/* g is a graph of order n. Return TRUE if there is a
+   chordless cycle of odd length at least 5 that includes
+   the last vertex. */
+{
+    setword all,gn,w,gs;
+    int v,s;
+
+    all = ALLMASK(n);
+    gn = g[n-1];
+
+    while (gn)
+    {
+        TAKEBIT(v,gn);
+        gs = g[v] & ~(bit[n-1]|g[n-1]);
+        while (gs)
+        {
+            TAKEBIT(s,gs);
+            if (hasinducedoddpath(g,s,all&~(g[n-1]|g[v]),gn&~g[v],FALSE))
+                return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+static boolean
+notperfect(graph *g, int n, int maxn)
+/* g is a graph of order n. Return TRUE if either g or its
+   complement has a chordless cycle of odd length at least 5 that
+   includes the last vertex. I.e., if it is not perfect. */
+{
+    graph gc[MAXN];
+    setword w;
+    int i;
+
+    if (oddchordless(g,n,maxn)) return TRUE;
+
+    w = ALLMASK(n);
+    for (i = 0; i < n; ++i) gc[i] = g[i] ^ w ^ bit[i];
+    return oddchordless(gc,n,maxn);
 }
 
 /**************************************************************************/
@@ -1391,7 +1562,7 @@ accept1(graph *g, int n, xword x, graph *gx, int *deg, boolean *rigid)
     int i0,i1,degn;
     set active[MAXM];
     statsblk stats;
-    static DEFAULTOPTIONS_GRAPH(options);
+    static TLS_ATTR DEFAULTOPTIONS_GRAPH(options);
     setword workspace[50];
 
 #ifdef INSTRUMENT
@@ -1413,6 +1584,8 @@ accept1(graph *g, int n, xword x, graph *gx, int *deg, boolean *rigid)
         ++deg[i];
     }
 
+    if (k4free && hask4(gx,n+1,maxn)) return FALSE;
+    if (clawfree && hasclaw(gx,n+1,maxn)) return FALSE;
 #ifdef PREPRUNE
     if (PREPRUNE(gx,n+1,maxn)) return FALSE;
 #endif
@@ -1492,7 +1665,7 @@ accept1b(graph *g, int n, xword x, graph *gx, int *deg, boolean *rigid,
     int i0,i1,degn,xubx;
     set active[MAXM];
     statsblk stats;
-    static DEFAULTOPTIONS_GRAPH(options);
+    static TLS_ATTR DEFAULTOPTIONS_GRAPH(options);
     setword workspace[50];
 
 #ifdef INSTRUMENT
@@ -1514,6 +1687,8 @@ accept1b(graph *g, int n, xword x, graph *gx, int *deg, boolean *rigid,
         ++deg[i];
     }
 
+    if (k4free && hask4(gx,n+1,maxn)) return FALSE;
+    if (clawfree && hasclaw(gx,n+1,maxn)) return FALSE;
 #ifdef PREPRUNE
     if (PREPRUNE(gx,n+1,maxn)) return FALSE;
 #endif
@@ -1613,7 +1788,7 @@ accept2(graph *g, int n, xword x, graph *gx, int *deg, boolean nuniq)
     int degn,i0,i1,j,j0,j1;
     set active[MAXM];
     statsblk stats;
-    static DEFAULTOPTIONS_GRAPH(options);
+    static TLS_ATTR DEFAULTOPTIONS_GRAPH(options);
     setword workspace[50];
     boolean cheapacc;
 
@@ -1640,6 +1815,8 @@ accept2(graph *g, int n, xword x, graph *gx, int *deg, boolean nuniq)
         ++degx[i];
     }
 
+    if (k4free && hask4(gx,n+1,maxn)) return FALSE;
+    if (clawfree && hasclaw(gx,n+1,maxn)) return FALSE;
 #ifdef PREPRUNE
     if (PREPRUNE(gx,n+1,maxn)) return FALSE;
 #endif
@@ -1884,6 +2061,9 @@ spaextend(graph *g, int n, int *deg, int ne, boolean rigid,
     if (nx == maxn && xlb < mindeg) xlb = mindeg;
     if (xlb > xub) return;
 
+    if (splitgraph && notsplit(g,n,maxn)) return;
+    if (chordal && notchordal(g,n,maxn)) return;
+    if (perfect && notperfect(g,n,maxn)) return;
 #ifdef PRUNE
     if (PRUNE(g,n,maxn)) return;
 #endif
@@ -1909,6 +2089,9 @@ spaextend(graph *g, int n, int *deg, int ne, boolean rigid,
                           (connec==1 && isconnected(gx,nx)) ||
                           (connec>1 && isbiconnected(gx,nx))))
                 {
+                    if (splitgraph && notsplit(gx,nx,maxn)) continue;
+                    if (chordal && notchordal(gx,nx,maxn)) continue;
+                    if (perfect && notperfect(gx,nx,maxn)) continue;
 #ifdef PRUNE
                     if (!PRUNE(gx,nx,maxn))
 #endif
@@ -2001,6 +2184,9 @@ genextend(graph *g, int n, int *deg, int ne, boolean rigid, int xlb, int xub)
     if (nx == maxn && xlb < mindeg) xlb = mindeg;
     if (xlb > xub) return;
 
+    if (splitgraph && notsplit(g,n,maxn)) return;
+    if (chordal && notchordal(g,n,maxn)) return;
+    if (perfect && notperfect(g,n,maxn)) return;
 #ifdef PRUNE 
     if (PRUNE(g,n,maxn)) return; 
 #endif 
@@ -2025,6 +2211,9 @@ genextend(graph *g, int n, int *deg, int ne, boolean rigid, int xlb, int xub)
                 if (!connec || (connec==1 && isconnected(gx,nx))
                             || (connec>1 && isbiconnected(gx,nx)))
                 {
+                    if (splitgraph && notsplit(gx,nx,maxn)) continue;
+                    if (chordal && notchordal(gx,nx,maxn)) continue;
+                    if (perfect && notperfect(gx,nx,maxn)) continue;
 #ifdef PRUNE
                     if (!PRUNE(gx,nx,maxn))
 #endif
@@ -2104,22 +2293,13 @@ main(int argc, char *argv[])
     nauty_check(WORDSIZE,1,MAXN,NAUTYVERSIONID);
 
     badargs = FALSE;
-    trianglefree = FALSE;
-    bipartite = FALSE;
-    squarefree = FALSE;
-    verbose = FALSE;
-    quiet = FALSE;
-    nautyformat = FALSE;
-    yformat = FALSE;
-    graph6 = FALSE;
-    sparse6 = FALSE;
-    savemem = FALSE;
-    nooutput = FALSE;
-    canonise = FALSE;
-    header = FALSE;
+    trianglefree = bipartite = squarefree = FALSE;
+    k4free = splitgraph = chordal = perfect = clawfree = FALSE;
+    verbose = quiet = FALSE;
+    nautyformat = graph6 = sparse6 = nooutput = FALSE;
+    savemem = canonise = header = FALSE;
     outfilename = NULL;
-    secret = FALSE;
-    safe = FALSE;
+    secret = safe = FALSE;
     connec1 = connec2 = FALSE;
 
     maxdeg = MAXN; 
@@ -2143,10 +2323,14 @@ main(int argc, char *argv[])
                 else SWBOOLEAN('s',sparse6)
                 else SWBOOLEAN('t',trianglefree)
                 else SWBOOLEAN('f',squarefree)
+                else SWBOOLEAN('k',k4free)
+                else SWBOOLEAN('S',splitgraph)
+                else SWBOOLEAN('T',chordal)
+                else SWBOOLEAN('P',perfect)
+                else SWBOOLEAN('F',clawfree)
                 else SWBOOLEAN('b',bipartite)
                 else SWBOOLEAN('v',verbose)
                 else SWBOOLEAN('l',canonise)
-                else SWBOOLEAN('y',yformat)
                 else SWBOOLEAN('h',header)
                 else SWBOOLEAN('m',savemem)
                 else SWBOOLEAN('c',connec1)
@@ -2231,6 +2415,18 @@ PLUGIN_SWITCHES
         maxe = (maxn*maxn - maxn) / 2;
     }
 
+    if (trianglefree || squarefree || bipartite) k4free = FALSE;
+    if (bipartite) perfect = FALSE;  /* bipartite graphs are perfect */
+    if (splitgraph) chordal = perfect = FALSE; /* split graphs are chordal */
+    if (chordal) perfect = FALSE;  /* chordal graphs are perfect */
+    if (clawfree && bipartite)
+    {
+        clawfree = FALSE;
+        if (maxdeg > 2) maxdeg = 2;
+    }
+    if (chordal && bipartite && maxe >= maxn) maxe = maxn - 1;
+    if (splitgraph && bipartite && maxe >= maxn) maxe = maxn - 1;
+
     if (connec1 && mindeg < 1 && maxn > 1) mindeg = 1;
     if (connec2 && mindeg < 2 && maxn > 2) mindeg = 2;
     if (maxdeg >= maxn) maxdeg = maxn - 1;
@@ -2273,15 +2469,13 @@ PLUGIN_SWITCHES
         exit(1);
     }
 
-    if ((nautyformat!=0) + (yformat!=0) + (graph6!=0)
-                         + (sparse6!=0) + (nooutput!=0) > 1)
-        gt_abort(">E geng: -uyngs are incompatible\n");
+    if ((nautyformat!=0) + (graph6!=0) + (sparse6!=0) + (nooutput!=0) > 1)
+        gt_abort(">E geng: -ungs are incompatible\n");
 
 #ifdef OUTPROC
     outproc = OUTPROC;
 #else
     if (nautyformat)   outproc = writenauty;
-    else if (yformat)  outproc = writeny;
     else if (nooutput) outproc = nullwrite;
     else if (sparse6)  outproc = writes6x;
     else               outproc = writeg6x;
@@ -2330,8 +2524,8 @@ PLUGIN_INIT
     else
     {
         multiplicity = PRUNEMULT * mod;
-	if (multiplicity / PRUNEMULT != mod)
-	    gt_abort(">E geng: mod value is too large\n");
+        if (multiplicity / PRUNEMULT != mod)
+            gt_abort(">E geng: mod value is too large\n");
     }
 
     if (!gotX) splitlevinc = 0;
@@ -2344,13 +2538,20 @@ PLUGIN_INIT
         else
             CATMSG1(">A %s",argv[0]);
        
-        CATMSG6(" -%s%s%s%s%s%s",
+        CATMSG7(" -%s%s%s%s%s%s%s",
             connec2      ? "C" : connec1 ? "c" : "",
             trianglefree ? "t" : "",
             squarefree   ? "f" : "",
+            k4free       ? "k" : "",
             bipartite    ? "b" : "",
             canonise     ? "l" : "",
             savemem      ? "m" : "");
+        if (splitgraph || chordal || perfect || clawfree)
+            CATMSG4(" -%s%s%s%s",
+                splitgraph ? "S" : "",
+                chordal ? "T" : "",
+                perfect ? "P" : "",
+                clawfree ? "F" : "");
         if (mod > 1)
             CATMSG2("X%dx%d",splitlevinc,multiplicity);
         CATMSG4("d%dD%d n=%d e=%d",mindeg,maxdeg,maxn,mine);
@@ -2375,7 +2576,7 @@ PLUGIN_INIT
             writeline(outfile,SPARSE6_HEADER);
             fflush(outfile);
         }
-        else if (!yformat && !nautyformat && !nooutput)
+        else if (!nautyformat && !nooutput)
         {
             writeline(outfile,GRAPH6_HEADER);
             fflush(outfile);
@@ -2455,7 +2656,7 @@ PLUGIN_INIT
         for (i = 0; i <= maxe; ++i)
             if (ecount[i] != 0)
             {
-		fprintf(stderr,">C " COUNTER_FMT " graphs with %d edges\n",
+                fprintf(stderr,">C " COUNTER_FMT " graphs with %d edges\n",
                      ecount[i],i);
             }
     }

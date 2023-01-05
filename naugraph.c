@@ -649,8 +649,8 @@ densenauty(graph *g, int *lab, int *ptn, int *orbits,
 {
     if (options->dispatch != &dispatch_graph)
     {
-	fprintf(ERRFILE,"Error: densenauty() needs standard options block\n");
-	exit(1);
+        fprintf(ERRFILE,"Error: densenauty() needs standard options block\n");
+        exit(1);
     }
 
 #if !MAXN

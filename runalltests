@@ -35,6 +35,21 @@ fi
 
 fails=0
 
+if ! ./nautestS ; then
+  echo "16-bit basic tests failed; run nautestS"
+  exit 1
+fi
+
+if ! ./nautestW ; then
+  echo "32-bit basic tests failed; run nautestW"
+  exit 1
+fi
+
+if ! ./nautestL ; then
+  echo "64-bit basic tests failed; run nautestL"
+  exit 1
+fi
+
 runonetest ./dreadtest nautest1.dre nautest1a.ans
 runonetest "./dreadtest -o As" nautest1.dre nautest1b.ans
 runonetest "./dreadtest -o At" nautest1.dre nautest1c.ans
@@ -78,7 +93,12 @@ runonetest "./genrang -r3 114 100 | ./countg --nedDr -q" "" nautestc.ans
 runonetest "./gentourng -q -z 8 | ./pickg -T3" "" nautestd.ans
 runonetest "./gentreeg -q -s 18 | ./countg -z6 --o" "" nauteste.ans
 runonetest "./geng -c -q 8 8 | ./directg -q -o | ./converseg -q | ./labelg -q" "" nautestf.ans
-runonetest "./genbg -q 4 3 10 | ./vcolg -m6 -T" "" nautestg.ans
+runonetest "./genbg -q 4 3 10 | ./vcolg -m5 -T" "" nautestg.ans
+runonetest "./genposetg 8 o q" "" nautesth.ans
+runonetest "./genspecialg -q -c12 -b11,4 -P5,2 -T3,4,5" "" nautesti.ans
+runonetest "./genspecialg -qz -c12 -b11,4 -P5,2 -T3,4,5" "" nautestj.ans
+runonetest "./gentreeg -q 3:4 | ./assembleg -n4:12L -cq" "" nautestk.ans
+runonetest "./geng -q 10 10 | ./countg --WTKcc,ee,hk" "" nautestl.ans
 
 echo " "
 

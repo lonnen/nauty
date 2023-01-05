@@ -37,7 +37,8 @@ static char* special[] =   /* Make sure to use \n */
     ">Z %d graphs read from stdin; %d coloured graphs written to stdout; %*f sec\n",
     ">Z %d graphs read from stdin; %d written to stdout; %*f sec\n",
     "%d graphs altogether from %d read; cpu=%*f sec\n",
-    ">A %*s %s\n"
+    ">A %*s %s\n",
+    ">Z %d posets written; %*f sec\n"
 };
 #define NUMSPECIALS (sizeof(special)/sizeof(*special))
 
@@ -117,12 +118,12 @@ scanline(char *in, char *fmt, char *out)
                 ends = *(f+1);
                 if (ends == ' ')
                 {
-		    dots = 0;
+                    dots = 0;
                     while (*s == ' ' || *s == '\t')
-		    {
-			if (doass && dots == 0) *outf++ = ' ';
+                    {
+                        if (doass && dots == 0) *outf++ = ' ';
                         ++s;
-			++dots;
+                        ++dots;
                     }
                 }
                 while (*s != '\n' && *s != ends)
@@ -138,14 +139,14 @@ scanline(char *in, char *fmt, char *out)
                 while (*s == ' ' || *s == '\t') ++s;
                 if (!isdigit(*s) && *s != '-' && *s != '+') return 0;
                 if (*s == '-' || *s == '+')
-		{
-		    if (doass) *outf++ = *s;
-		    ++s;
-		}
+                {
+                    if (doass) *outf++ = *s;
+                    ++s;
+                }
                 while (isdigit(*s))
                 {
                     if (doass) *outf++ = *s;
-		    ++s;
+                    ++s;
                 }
                 if (!doass) *outf++ = '*';
                 ++f;
@@ -156,16 +157,16 @@ scanline(char *in, char *fmt, char *out)
                 if (!isdigit(*s) && *s != '.' && *s != '-' && *s != '+')
                     return 0;
                 if (*s == '-' || *s == '+')
-		{
-		    if (doass) *outf++ = *s;
-		    ++s;
-		}
-		dots = 0;
+                {
+                    if (doass) *outf++ = *s;
+                    ++s;
+                }
+                dots = 0;
                 while (isdigit(*s) || (dots == 0 && *s == '.'))
                 {
-		    if (*s == '.') ++dots;
+                    if (*s == '.') ++dots;
                     if (doass) *outf++ = *s;
-		    ++s;
+                    ++s;
                 }
                 if (!doass) *outf++ = '*';
                 ++f;
@@ -209,55 +210,55 @@ main(int argc, char *argv[])
 
     if (argc != 3)
     {
-	fprintf(stderr,"Usage: naucompare file1 file2\n");
-	exit(0);
+        fprintf(stderr,"Usage: naucompare file1 file2\n");
+        exit(0);
     }
 
     if (strcmp(argv[1],"-") == 0)
-	f1 = stdin;
+        f1 = stdin;
     else if ((f1 = fopen(argv[1],"r")) == NULL)
     {
-	fprintf(stderr,">E naucompare can't open file 1\n");
-	exit(1);
+        fprintf(stderr,">E naucompare can't open file 1\n");
+        exit(1);
     }
 
     if (strcmp(argv[2],"-") == 0)
-	f2 = stdin;
+        f2 = stdin;
     else if ((f2 = fopen(argv[2],"r")) == NULL)
     {
-	fprintf(stderr,">E naucompare can't open file 2\n");
-	exit(1);
+        fprintf(stderr,">E naucompare can't open file 2\n");
+        exit(1);
     }
 
     diffs = lineno = 0;
 
     for (;;)
     {
-	l1 = fgets(line1,MAXLINELEN,f1);
-	l2 = fgets(line2,MAXLINELEN,f2);
+        l1 = fgets(line1,MAXLINELEN,f1);
+        l2 = fgets(line2,MAXLINELEN,f2);
 
-	if (l1 == NULL || l2 == NULL) break;
+        if (l1 == NULL || l2 == NULL) break;
 
-	++lineno;
-	if (strcmp(l1,l2) != 0)
-	{
-	    for (i = 0; i < NUMSPECIALS; ++i)
-		if (scanline(l1,special[i],line1mod)
-		              && scanline(l2,special[i],line2mod)
+        ++lineno;
+        if (strcmp(l1,l2) != 0)
+        {
+            for (i = 0; i < NUMSPECIALS; ++i)
+                if (scanline(l1,special[i],line1mod)
+                              && scanline(l2,special[i],line2mod)
                               && strcmp(line1mod,line2mod) == 0)
-		    break;
-	    if (i == NUMSPECIALS)
-	    {
-	        if (diffs >= MAXDIFFS)
-		{
-		    printf("----And more differences not reported.\n");
-		    break;
-		}
-		printf("----Difference on line %d:\n",lineno);
-	        printf("%s%s",l1,l2);
-	        ++diffs;
-	    }
-	}
+                    break;
+            if (i == NUMSPECIALS)
+            {
+                if (diffs >= MAXDIFFS)
+                {
+                    printf("----And more differences not reported.\n");
+                    break;
+                }
+                printf("----Difference on line %d:\n",lineno);
+                printf("%s%s",l1,l2);
+                ++diffs;
+            }
+        }
     }
 
     if (l1 != NULL || l2 != NULL) ++diffs;

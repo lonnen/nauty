@@ -18,7 +18,8 @@
 
 static void
 subdivisiongraph(sparsegraph *g, int k, sparsegraph *h)
-/* h := subdivision graph of g, k new vertices per edge */
+/* h := subdivision graph of g, k new vertices per edge ;
+   version for undirected graphs. */
 {
     DYNALLSTAT(size_t,eno,eno_sz);   /* edge number */
     int *ge,*gd,*he,*hd;
@@ -27,13 +28,13 @@ subdivisiongraph(sparsegraph *g, int k, sparsegraph *h)
     size_t i,j,l,gnde,hnde,num;
     size_t hi,lo,mid,w;
 
+    sortlists_sg(g);
     if (k == 0)
     {
-	copy_sg(g,h);
-	return;
+        copy_sg(g,h);
+        return;
     }
 
-    sortlists_sg(g);
     SG_VDE(g,gv,gd,ge);
     gnv = g->nv;
     gnde = g->nde;
@@ -67,8 +68,8 @@ subdivisiongraph(sparsegraph *g, int k, sparsegraph *h)
                     else if  (ge[mid] < i) lo = mid+1;
                     else hi = mid-1;
                 }
-		if (lo > hi)
-		    gt_abort(">E subdivideg : binary search failed\n");
+                if (lo > hi)
+                    gt_abort(">E subdivideg : binary search failed\n");
                 eno[j] = eno[mid];
             }
         }
@@ -86,7 +87,7 @@ subdivisiongraph(sparsegraph *g, int k, sparsegraph *h)
     }
     for (i = gnv; i < hnv; ++i)
     {
-	hd[i] = 2;
+        hd[i] = 2;
         hv[i] = gnde + 2*(i-gnv);
     }
 
@@ -94,23 +95,84 @@ subdivisiongraph(sparsegraph *g, int k, sparsegraph *h)
     {
         for (j = gv[i]; j < gv[i]+gd[i]; ++j)
             if (ge[j] > i)
-	    {
-		w = gnv + k*eno[j];
-		he[j] = w;
-		he[hv[w]] = i;
-		for (l = 1; l < k; ++l)
-		{
-		    he[hv[w]+1] = w+1;
-		    he[hv[w+1]] = w;
-		    ++w;
-		}
-	    }
-	    else
-	    {
-		w = gnv + k*eno[j] + k - 1;
-		he[j] = w;
-		he[hv[w]+1] = i;
-	    }
+            {
+                w = gnv + k*eno[j];
+                he[j] = w;
+                he[hv[w]] = i;
+                for (l = 1; l < k; ++l)
+                {
+                    he[hv[w]+1] = w+1;
+                    he[hv[w+1]] = w;
+                    ++w;
+                }
+            }
+            else
+            {
+                w = gnv + k*eno[j] + k - 1;
+                he[j] = w;
+                he[hv[w]+1] = i;
+            }
+    }
+}
+
+/**************************************************************************/
+
+static void
+subdivisiondigraph(sparsegraph *g, int k, sparsegraph *h)
+/* h := subdivision graph of g, k new vertices per edge ;
+   version for directed graphs. */
+{
+    int *ge,*gd,*he,*hd;
+    size_t *gv,*hv,hvend;
+    int gnv,hnv;
+    size_t i,j,l,t,v,gnde,hnde;
+    size_t hi,lo,mid,w;
+
+    sortlists_sg(g);
+    if (k == 0)
+    {
+        copy_sg(g,h);
+        return;
+    }
+
+    SG_VDE(g,gv,gd,ge);
+    gnv = g->nv;
+    gnde = g->nde;
+
+    if (gnv + k*gnde > NAUTY_INFINITY-2)
+        gt_abort(">E result would be too large\n");
+    hnv = gnv + k*gnde;
+    hnde = gnde + k*gnde;
+
+    SG_ALLOC(*h,hnv,hnde,"subdivisiong");
+    h->nv = hnv;
+    h->nde = hnde;
+    SG_VDE(h,hv,hd,he);
+
+    for (i = 0; i < gnv; ++i)
+    {
+        hv[i] = gv[i];
+        hd[i] = gd[i];
+    }
+    hvend = hv[gnv-1] + hd[gnv-1];
+    v = gnv;
+
+    for (i = 0; i < gnv; ++i)
+    {
+        for (j = gv[i]; j < gv[i]+gd[i]; ++j)
+        {
+            l = ge[j];
+            he[j] = v;
+            for (t = 0; t < k; ++t)
+            {
+                hd[v+t] = 1;
+                hv[v+t] = hvend+t;
+                he[hv[v+t]] = v+t+1;
+            }
+            he[hv[v+k-1]] = l;
+            v += t;
+            hvend += t;
+        }
     }
 }
 
@@ -121,8 +183,8 @@ main(int argc, char *argv[])
 {
     char *infilename,*outfilename;
     FILE *infile,*outfile;
-    boolean badargs,quiet,kswitch;
-    int j,argnum,kvalue;
+    boolean badargs,quiet,kswitch,digraph;
+    int j,argnum,kvalue,nloops;
     int codetype,outcode;
     SG_DECL(g); SG_DECL(h);
     nauty_counter nin;
@@ -170,7 +232,7 @@ main(int argc, char *argv[])
     if (!quiet)
     {
         fprintf(stderr,">A subdivideg");
-	if (kswitch) fprintf(stderr," -k%d",kvalue);
+        if (kswitch) fprintf(stderr," -k%d",kvalue);
         if (argnum > 0) fprintf(stderr," %s",infilename);
         if (argnum > 1) fprintf(stderr," %s",outfilename);
         fprintf(stderr,"\n");
@@ -181,8 +243,6 @@ main(int argc, char *argv[])
     infile = opengraphfile(infilename,&codetype,FALSE,1);
     if (!infile) exit(1);
     if (!infilename) infilename = "stdin";
-
-    NODIGRAPHSYET(codetype);
 
     if (!outfilename || outfilename[0] == '-')
     {
@@ -206,13 +266,16 @@ main(int argc, char *argv[])
 
     nin = 0;
     t = CPUTIME;
-    while (read_sg(infile,&g))
+    while (read_sgg_loops(infile,&g,&nloops,&digraph))
     {
         ++nin;
 
-        subdivisiongraph(&g,kvalue,&h);
-        if (outcode == SPARSE6) writes6_sg(outfile,&h);
-        else                    writeg6_sg(outfile,&h);
+        if (digraph) subdivisiondigraph(&g,kvalue,&h);
+        else         subdivisiongraph(&g,kvalue,&h);
+
+        if (digraph)                 writed6_sg(outfile,&h);
+        else if (outcode == SPARSE6) writes6_sg(outfile,&h);
+        else                         writeg6_sg(outfile,&h);
     }
     t = CPUTIME - t;
 
@@ -220,7 +283,7 @@ main(int argc, char *argv[])
     {
         fprintf(stderr,">Z " COUNTER_FMT
                        " graphs converted from %s to %s in %3.2f sec.\n",
-                nin,infilename,outfilename,t);
+                       nin,infilename,outfilename,t);
     }
 
     exit(0);

@@ -475,24 +475,24 @@ main(int argc, char *argv[])
 
     if (Sswitch)
     {
-	SG_INIT(sg);
-	SG_INIT(sh);
+        SG_INIT(sg);
+        SG_INIT(sh);
         while (TRUE)
         {
-	    if (read_sgg_loops(infile,&sg,&loops,&digraph) == NULL) break;
+            if (read_sgg_loops(infile,&sg,&loops,&digraph) == NULL) break;
             dstr = readg_line;
             ++numread;
-	    n = sg.nv;
+            n = sg.nv;
 #if MAXN
-	    if (n > MAXN) gt_abort(">E shortg: graph larger than MAXN read\n");
+            if (n > MAXN) gt_abort(">E shortg: graph larger than MAXN read\n");
 #endif
             m = SETWORDSNEEDED(n);
             SG_ALLOC(sh,n,sg.nde,"shortg");
             fcanonise_inv_sg(&sg,m,n,&sh,format?fmt:NULL,
-		invarproc[inv].entrypoint_sg,
+                invarproc[inv].entrypoint_sg,
                 mininvarlevel,maxinvarlevel,invararg,loops>0||digraph);
             sortlists_sg(&sh);
-	    if (outcode == DIGRAPH6 || digraph) cdstr = sgtod6(&sh);
+            if (outcode == DIGRAPH6 || digraph) cdstr = sgtod6(&sh);
             else if (outcode == SPARSE6)        cdstr = sgtos6(&sh);
             else                                cdstr = sgtog6(&sh);
 
@@ -517,28 +517,28 @@ main(int argc, char *argv[])
             ++numread;
             n = sg.nv;
 #if MAXN
-	    if (n > MAXN) gt_abort(">E shortg: graph larger than MAXN read\n");
+            if (n > MAXN) gt_abort(">E shortg: graph larger than MAXN read\n");
 #endif
             DYNALLOC1(int,lab,lab_sz,n,"traces@shortg");
             DYNALLOC1(int,ptn,ptn_sz,n,"traces@shortg");
             DYNALLOC1(int,orbits,orbits_sz,n,"traces@shortg");
             SG_ALLOC(sh,n,sg.nde,"labelg");
-	    if (n == 0)
-	    {
-		sh.nv = 0;
-		sh.nde = 0;
-	    }
-	    else
-	    {
+            if (n == 0)
+            {
+                sh.nv = 0;
+                sh.nde = 0;
+            }
+            else
+            {
                 for (ii = 0; ii < n; ++ii) { lab[ii] = ii; ptn[ii] = 1; }
                 ptn[n-1] = 0;
                 Traces(&sg,lab,ptn,orbits,&traces_opts,&traces_stats,&sh);
                 sortlists_sg(&sh);
-	    }
-	    if (outcode == DIGRAPH6 || digraph) cdstr = sgtod6(&sh);
+            }
+            if (outcode == DIGRAPH6 || digraph) cdstr = sgtod6(&sh);
             else if (outcode == SPARSE6)        cdstr = sgtos6(&sh);
             else                                cdstr = sgtog6(&sh);
-	    tosort(sortin,cdstr,kswitch ? dstr : NULL,vswitch ? numread : 0);
+            tosort(sortin,cdstr,kswitch ? dstr : NULL,vswitch ? numread : 0);
         }
     }
     else
@@ -555,7 +555,7 @@ main(int argc, char *argv[])
             fcanonise_inv(g,m,n,h,format?fmt:NULL,
                 invarproc[inv].entrypoint,mininvarlevel,maxinvarlevel,
                 invararg, loops>0||digraph);
-	    if (outcode == DIGRAPH6 || digraph) cdstr = ntod6(h,m,n);
+            if (outcode == DIGRAPH6 || digraph) cdstr = ntod6(h,m,n);
             else if (outcode == SPARSE6)        cdstr = ntos6(h,m,n);
             else                                cdstr = ntog6(h,m,n);
 

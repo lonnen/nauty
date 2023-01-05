@@ -35,9 +35,9 @@
                         of very approximately equal size.
                         Only the class C(res,mod) is written.
 
-	     file = a name for the output file (stdout if missing or "-")
+             file = a name for the output file (stdout if missing or "-")
 
-	     All switches can be concatenated or separate.  However, the
+             All switches can be concatenated or separate.  However, the
              value of -d must be attached to the "d", and similarly for "x".
 
              -c    : only write connected graphs
@@ -48,16 +48,16 @@
 
              -u    : do not output any graphs, just generate and count them
              -z    : use digraph6 output
-	     -g    : use graph6 output
-	     -s    : use sparse6 output
-		For -g and -s, the lower triangle of the adjacency matrix
+             -g    : use graph6 output
+             -s    : use sparse6 output
+                For -g and -s, the lower triangle of the adjacency matrix
                 is written as if it is an undirected graph.  Nauty tools
-		like labelg do not know this format.  To read it you can
+                like labelg do not know this format.  To read it you can
                 read it as an undirected graph then complement the upper
-		triangle.
-	     -h    : for graph6 or sparse6 format, write a header too
+                triangle.
+             -h    : for graph6 or sparse6 format, write a header too
 
-	     -q    : suppress auxiliary output (except from -v)
+             -q    : suppress auxiliary output (except from -v)
 
 Output formats.
 
@@ -96,7 +96,7 @@ PRUNE feature.
      g      = the graph in nauty format (m=1)
      n      = the number of vertices in g
      maxn   = the number of vertices for output 
-	      (the value you gave on the command line to gentourng)
+              (the value you gave on the command line to gentourng)
 
    gentourng constructs the graph starting with vertex 0, then adding
    vertices 1,2,3,... in that order.  Each graph in the sequence is
@@ -166,13 +166,13 @@ Counts:
 **************************************************************************
 
     Author:   B. D. McKay, Nov 2008.
-              Copyright  B. McKay (2008).  All rights reserved.
+              Copyright  B. McKay (2008-2022).  All rights reserved.
               This software is subject to the conditions and waivers
-              detailed in the file nauty.h.
+              detailed in the file COPYRIGHT.
 
 **************************************************************************/
 
-#define NAUTY_PGM  3   /* 1 = geng, 2 = genbg, 3 = gentourng */
+#define NAUTY_PGM  3   /* 1 = geng, 2 = genbg, 3 = gentourng, 4 = gentreeg */
 
 #ifndef MAXN
 #define MAXN 32         /* not more than max(32,WORDSIZE) */
@@ -189,24 +189,24 @@ typedef unsigned int xword;
 
 static void (*outproc)(FILE*,graph*,int);
 
-static FILE *outfile;           /* file for output graphs */
-static int connec;              /* 1 for -c, 0 for not */
-boolean graph6;                 /* presence of -g */
-boolean digraph6;               /* presence of -z */
-boolean sparse6;                /* presence of -s */
-boolean nooutput;               /* presence of -u */
-boolean canonise;               /* presence of -l */
-boolean quiet;                  /* presence of -q */
-boolean header;                 /* presence of -h */
-statsblk nauty_stats;
-static int mindeg,maxdeg,maxn,mod,res;
-static boolean regular;
+static TLS_ATTR FILE *outfile;           /* file for output graphs */
+static TLS_ATTR int connec;              /* 1 for -c, 0 for not */
+boolean TLS_ATTR graph6;                 /* presence of -g */
+boolean TLS_ATTR digraph6;               /* presence of -z */
+boolean TLS_ATTR sparse6;                /* presence of -s */
+boolean TLS_ATTR nooutput;               /* presence of -u */
+boolean TLS_ATTR canonise;               /* presence of -l */
+boolean TLS_ATTR quiet;                  /* presence of -q */
+boolean TLS_ATTR header;                 /* presence of -h */
+statsblk TLS_ATTR nauty_stats;
+static TLS_ATTR int mindeg,maxdeg,maxn,mod,res;
+static TLS_ATTR boolean regular;
 #define PRUNEMULT 20   /* bigger -> more even split at greater cost */
-static int min_splitlevel,odometer,splitlevel,multiplicity;
-static graph gcan[MAXN];
+static TLS_ATTR int min_splitlevel,odometer,splitlevel,multiplicity;
+static TLS_ATTR graph gcan[MAXN];
 
 #if MAXN <= 16
-static xword xbit[] = {0x0001,0x0002,0x0004,0x0008,
+static TLS_ATTR xword xbit[] = {0x0001,0x0002,0x0004,0x0008,
                        0x0010,0x0020,0x0040,0x0080,
                        0x0100,0x0200,0x0400,0x0800,
                        0x1000,0x2000,0x4000,0x8000};
@@ -215,20 +215,20 @@ static xword xbit[] = {0x0001,0x0002,0x0004,0x0008,
     ((x)&0xFF ? 7-leftbit[(x)&0xFF] : 15-leftbit[((x)>>8)&0xFF])
 #define XPOPCOUNT(x) (bytecount[((x)>>8)&0xFF] + bytecount[(x)&0xFF])
 #elif MAXN <= 24
-static xword xbit[] = {0x000001,0x000002,0x000004,0x000008,
+static TLS_ATTR xword xbit[] = {0x000001,0x000002,0x000004,0x000008,
                        0x000010,0x000020,0x000040,0x000080,
                        0x000100,0x000200,0x000400,0x000800,
                        0x001000,0x002000,0x004000,0x008000,
-		       0x010000,0x020000,0x040000,0x080000,
-		       0x100000,0x200000,0x400000,0x800000};
+                       0x010000,0x020000,0x040000,0x080000,
+                       0x100000,0x200000,0x400000,0x800000};
 
 #define XNEXTBIT(x) \
     ((x)&0xFF ? 7-leftbit[(x)&0xFF] : \
       (x)&0xFF00 ? 15-leftbit[((x)>>8)&0xFF] : 23-leftbit[((x)>>16)&0xFF])
 #define XPOPCOUNT(x) (bytecount[((x)>>8)&0xFF] \
-	+ bytecount[((x)>>16)&0xFF] + bytecount[(x)&0xFF])
+        + bytecount[((x)>>16)&0xFF] + bytecount[(x)&0xFF])
 #else
-static xword xbit[] = {0x00000001,0x00000002,0x00000004,0x00000008,
+static TLS_ATTR xword xbit[] = {0x00000001,0x00000002,0x00000004,0x00000008,
                        0x00000010,0x00000020,0x00000040,0x00000080,
                        0x00000100,0x00000200,0x00000400,0x00000800,
                        0x00001000,0x00002000,0x00004000,0x00008000,
@@ -241,10 +241,10 @@ static xword xbit[] = {0x00000001,0x00000002,0x00000004,0x00000008,
     ((x)&0xFF ? 7-leftbit[(x)&0xFF] : \
       (x)&0xFF00 ? 15-leftbit[((x)>>8)&0xFF] : \
         (x)&0xFF0000 ? 23-leftbit[((x)>>16)&0xFF] : \
-			  31-leftbit[((x)>>24)&0xFF])
+                          31-leftbit[((x)>>24)&0xFF])
 #define XPOPCOUNT(x) (bytecount[((x)>>8)&0xFF] \
         + bytecount[((x)>>16)&0xFF] + \
-	+ bytecount[((x)>>24)&0xFF] + bytecount[(x)&0xFF])
+        + bytecount[((x)>>24)&0xFF] + bytecount[(x)&0xFF])
 #endif
 
 typedef struct
@@ -257,14 +257,14 @@ typedef struct
     xword *xorb;          /* min orbit representative */
 } leveldata;
 
-static leveldata data[MAXN];      /* data[n] is data for n -> n+1 */
-static nauty_counter nodes[MAXN];     /* nodes at each level */
-static nauty_counter nout;
+static TLS_ATTR leveldata data[MAXN];      /* data[n] is data for n -> n+1 */
+static TLS_ATTR nauty_counter nodes[MAXN];     /* nodes at each level */
+static TLS_ATTR nauty_counter nout;
 
 #ifdef INSTRUMENT
-static unsigned long rigidnodes[MAXN],fertilenodes[MAXN];
-static unsigned long a1calls,a1nauty,a1succs;
-static unsigned long a2calls,a2nauty,a2uniq,a2succs;
+static TLS_ATTR unsigned long rigidnodes[MAXN],fertilenodes[MAXN];
+static TLS_ATTR unsigned long a1calls,a1nauty,a1succs;
+static TLS_ATTR unsigned long a2calls,a2nauty,a2uniq,a2succs;
 #endif
 
 #ifdef PLUGIN
@@ -290,17 +290,17 @@ void
 write_ascii(FILE *f, graph *g, int n)
 /* write tournament g (n vertices) to file f in ascii format */
 {
-	char s[MAXN*(MAXN-1)/2+2];
-	int i,j;
-	size_t k;
+        char s[MAXN*(MAXN-1)/2+2];
+        int i,j;
+        size_t k;
 
-	k = 0;
-	for (i = 0; i < n-1; ++i)
-	    for (j = i+1; j < n; ++j)
-		if ((g[i] & bit[j])) s[k++] = '1'; else s[k++] = '0';
+        k = 0;
+        for (i = 0; i < n-1; ++i)
+            for (j = i+1; j < n; ++j)
+                if ((g[i] & bit[j])) s[k++] = '1'; else s[k++] = '0';
 
-	s[k++] = '\n';
-	s[k] = '\0';
+        s[k++] = '\n';
+        s[k] = '\0';
 
         if (fwrite(s,1,k,f) != k || ferror(f))
             gt_abort(">E write_ascii : error on writing\n");
@@ -312,7 +312,7 @@ void
 writeg6x(FILE *f, graph *g, int n)
 /* write graph g (n vertices) to file f in graph6 format */
 {
-	writeg6(f,g,1,n);
+        writeg6(f,g,1,n);
 }
 
 /************************************************************************/
@@ -321,7 +321,7 @@ void
 writes6x(FILE *f, graph *g, int n)
 /* write graph g (n vertices) to file f in sparse6 format */
 {
-	writes6(f,g,1,n);
+        writes6(f,g,1,n);
 }
 
 /************************************************************************/
@@ -330,7 +330,7 @@ void
 writed6x(FILE *f, graph *g, int n)
 /* write graph g (n vertices) to file f in digraph6 format */
 {
-	writed6(f,g,1,n);
+        writed6(f,g,1,n);
 }
 
 /***********************************************************************/
@@ -352,7 +352,7 @@ isstrong(graph *g, int n)
         setword seen,expanded,toexpand,allbits;
         int i;
 
-	allbits = ALLMASK(n);
+        allbits = ALLMASK(n);
 
         seen = bit[0] | g[0];
         expanded = bit[0];
@@ -364,7 +364,7 @@ isstrong(graph *g, int n)
             seen |= g[i];
         }
 
-	if (seen != allbits) return FALSE;
+        if (seen != allbits) return FALSE;
  
         seen = (allbits ^ g[0]);
         expanded = bit[0];
@@ -376,7 +376,7 @@ isstrong(graph *g, int n)
             seen |= (g[i] ^ allbits);
         }
 
-	return seen == allbits;
+        return seen == allbits;
 }
 
 /**********************************************************************/
@@ -385,12 +385,12 @@ static void
 gcomplement(graph *g, graph *gc, int n)
 /* Take the complement of g and put it in gc */
 {
-	int i;
-	setword all;
+        int i;
+        setword all;
 
-	all = ~(setword)BITMASK(n-1);
-	for (i = 0; i < n; ++i)
-	    gc[i] = g[i] ^ all ^ bit[i];
+        all = ~(setword)BITMASK(n-1);
+        for (i = 0; i < n; ++i)
+            gc[i] = g[i] ^ all ^ bit[i];
 }
 
 /**************************************************************************/
@@ -403,19 +403,19 @@ makeleveldata(void)
         int n,dmax,dmin;
         long ncj;
         leveldata *d;
-	xword *xcard,*xinv;
-	xword *xset,xw,tttn,nxsets;
-	xword cw;
-	xword i,j;
+        xword *xcard,*xinv;
+        xword *xset,xw,tttn,nxsets;
+        xword cw;
+        xword i,j;
 
         for (n = 1; n < maxn; ++n)
         {
             dmax = n/2; 
-	    if (maxdeg < dmax) dmax = maxdeg;
+            if (maxdeg < dmax) dmax = maxdeg;
             dmin = mindeg - maxn + n + 1;
-	    if (dmin < 0) dmin = 0;
+            if (dmin < 0) dmin = 0;
             ncj = 1;
-	    nxsets = (dmin == 0 ? 1 : 0);
+            nxsets = (dmin == 0 ? 1 : 0);
             for (j = 1; j <= dmax; ++j)
             {
                 ncj = (ncj * (n-j+1)) / j;
@@ -433,22 +433,22 @@ makeleveldata(void)
             if (xset==NULL || xcard==NULL || xinv==NULL || d->xorb==NULL)
             {
                 fprintf(stderr,
-			">E gentourng: calloc failed in makeleveldata()\n");
+                        ">E gentourng: calloc failed in makeleveldata()\n");
                 exit(2);
             }
 
             j = 0;
 
             for (i = 0;; ++i)
-	    {
+            {
                 if ((h = XPOPCOUNT(i)) <= dmax && h >= dmin)
                 {
                     xset[j] = i;
                     xcard[j] = h;
                     ++j;
                 }
-		if (i == (xword)((1L<<n)-1)) break;
-	    }
+                if (i == (xword)((1L<<n)-1)) break;
+            }
 
             if (j != nxsets)
             {
@@ -499,7 +499,7 @@ userautomproc(int count, int *p, int *orbits,
 /* form orbits on powerset of VG
    called by nauty;  operates on data[n] */
 {
-	xword i,j1,j2,moved,pi,pxi;
+        xword i,j1,j2,moved,pi,pxi;
         xword lo,hi;
         xword *xorb,*xinv,*xset,w;
 
@@ -569,12 +569,12 @@ refinex(graph *g, int *lab, int *ptn, int level, int *numcells,
         }
 
         *code = 0;
-	lact = *active;
+        lact = *active;
 
         split1 = -1;
         while (*numcells < n && lact)
         {
-	    TAKEBIT(split1,lact);
+            TAKEBIT(split1,lact);
             
             for (split2 = split1; ptn[split2] > 0; ++split2) {}
             if (split1 == split2)       /* trivial splitting cell */
@@ -603,7 +603,7 @@ refinex(graph *g, int *lab, int *ptn, int level, int *numcells,
                     {
                         ptn[c2] = 0;
                         ++*numcells;
-			lact |= bit[c1];
+                        lact |= bit[c1];
                     }
                 }
             }
@@ -692,7 +692,7 @@ makecanon(graph *g, graph *gcan, int n)
 /* gcan := canonise(g) */
 {
         int lab[MAXN],ptn[MAXN],orbits[MAXN];
-        static DEFAULTOPTIONS_GRAPH(options);
+        static TLS_ATTR DEFAULTOPTIONS_GRAPH(options);
         setword workspace[200];
 
         options.getcanon = TRUE;
@@ -716,7 +716,7 @@ accept1(graph *g, int n, xword x, graph *gx, int *deg, boolean *rigid)
         int i0,i1,degn;
         set active[MAXM];
         statsblk stats;
-        static DEFAULTOPTIONS_GRAPH(options);
+        static TLS_ATTR DEFAULTOPTIONS_GRAPH(options);
         setword workspace[200];
 
 #ifdef INSTRUMENT
@@ -729,18 +729,18 @@ accept1(graph *g, int n, xword x, graph *gx, int *deg, boolean *rigid)
         deg[n] = degn = XPOPCOUNT(x);
 
         for (i = 0; i < n; ++i)
-	{
-	    if ((xbit[i] & x))
-		gx[n] |= bit[i];
-	    else
-	    {
-		gx[i] |= bit[n];
-		++deg[i];
-	    }
-	}
+        {
+            if ((xbit[i] & x))
+                gx[n] |= bit[i];
+            else
+            {
+                gx[i] |= bit[n];
+                ++deg[i];
+            }
+        }
 
 #ifdef PREPRUNE
-	if (PREPRUNE(gx,n+1,maxn)) return FALSE;
+        if (PREPRUNE(gx,n+1,maxn)) return FALSE;
 #endif
 
         i0 = 0;
@@ -779,10 +779,10 @@ accept1(graph *g, int n, xword x, graph *gx, int *deg, boolean *rigid)
         options.getcanon = TRUE;
         options.digraph = TRUE;
         options.defaultptn = FALSE;
-	options.userautomproc = userautomproc;
+        options.userautomproc = userautomproc;
      /*
         if (!regular || nx != maxn-1) options.userautomproc = userautomproc;
-	else                          options.userautomproc = NULL;
+        else                          options.userautomproc = NULL;
      */
 
         active[0] = 0;
@@ -817,13 +817,13 @@ hitinvar(graph *g, int *invar, int n)
         {
             inv = 0;
             x = y = g[v];
-	    while (y)
-	    {
-		TAKEBIT(i,y);
-		z = x & g[i];
-		d = POPCOUNT(z);
-		if (d > inv) inv = d;
-	    }
+            while (y)
+            {
+                TAKEBIT(i,y);
+                z = x & g[i];
+                d = POPCOUNT(z);
+                if (d > inv) inv = d;
+            }
 
             invar[v] = inv;
             if (v < n-1 && inv > invar[n-1]) return FALSE;
@@ -847,9 +847,9 @@ accept2(graph *g, int n, xword x, graph *gx, int *deg, boolean nuniq)
         int degn,i0,i1,j,j0,j1;
         set active[MAXM];
         statsblk stats;
-        static DEFAULTOPTIONS_GRAPH(options);
+        static TLS_ATTR DEFAULTOPTIONS_GRAPH(options);
         setword workspace[200];
-	boolean cheapacc;
+        boolean cheapacc;
 
 #ifdef INSTRUMENT
         ++a2calls;
@@ -859,22 +859,22 @@ accept2(graph *g, int n, xword x, graph *gx, int *deg, boolean nuniq)
         gxn = 0;
 
         for (i = 0; i < n; ++i)
-	{
-	    if ((xbit[i] & x))
-	    {
-		gxn |= bit[i];
-		gx[i] = g[i];
-		degx[i] = deg[i];
-	    }
-	    else
-	    {
-		gx[i] = g[i] | bit[n];
-		degx[i] = deg[i] + 1;
-	    }
-	}
-	gx[n] = gxn;
+        {
+            if ((xbit[i] & x))
+            {
+                gxn |= bit[i];
+                gx[i] = g[i];
+                degx[i] = deg[i];
+            }
+            else
+            {
+                gx[i] = g[i] | bit[n];
+                degx[i] = deg[i] + 1;
+            }
+        }
+        gx[n] = gxn;
         degx[n] = degn = XPOPCOUNT(x);
-	    
+            
 #ifdef PREPRUNE
         if (PREPRUNE(gx,n+1,maxn)) return FALSE;
 #endif
@@ -983,8 +983,8 @@ accept2(graph *g, int n, xword x, graph *gx, int *deg, boolean nuniq)
 
         if (code < 0) return FALSE;
 
-	cheapacc = FALSE;
-	if (code > 0) cheapacc = TRUE;
+        cheapacc = FALSE;
+        if (code > 0) cheapacc = TRUE;
     
         if (cheapacc)
         {
@@ -1026,13 +1026,13 @@ genextend(graph *g, int n, int *deg, boolean rigid)
 {
         xword x,dlow,dhigh,dcrit;
         xword *xset,*xcard,*xorb;
-	xword i,imin,imax;
+        xword i,imin,imax;
         int nx,xc,j,dmax;
         int xlb,xub,xlbx,xubx;
         graph gx[MAXN];
         int degx[MAXN];
         boolean rigidx;
-	boolean subconnec;
+        boolean subconnec;
 
 #ifdef INSTRUMENT
         boolean haschild;
@@ -1043,52 +1043,52 @@ genextend(graph *g, int n, int *deg, boolean rigid)
         nx = n + 1;
         ++nodes[n];
 
-	if (regular && nx == maxn)
-	{
-	    x = 0;
-	    for (i = 0; i < n; ++i)
-		if (deg[i] == maxdeg) x |= xbit[i];
+        if (regular && nx == maxn)
+        {
+            x = 0;
+            for (i = 0; i < n; ++i)
+                if (deg[i] == maxdeg) x |= xbit[i];
 
             if (accept2(g,n,x,gx,deg,FALSE))
             {
 #ifdef PRUNE
                 if (!PRUNE(gx,nx,maxn))
 #endif
-		{
+                {
 #ifdef INSTRUMENT
                     haschild = TRUE;
 #endif
-		    ++nout;
+                    ++nout;
                     (*outproc)(outfile,canonise ? gcan : gx,nx);
-		}
+                }
             }
 #ifdef INSTRUMENT
             if (haschild) ++fertilenodes[n];
 #endif
-	    return;
-	}
+            return;
+        }
 
         dmax = deg[n-1];
 
-	xlb = mindeg + n + 1 - maxn;
-	if (0 > xlb) xlb = 0;
-	xub = dmax+1;
-	if (n/2 < xub) xub = n/2;
-	if (maxdeg < xub) xub = maxdeg;
+        xlb = mindeg + n + 1 - maxn;
+        if (0 > xlb) xlb = 0;
+        xub = dmax+1;
+        if (n/2 < xub) xub = n/2;
+        if (maxdeg < xub) xub = maxdeg;
 
-	if (xlb > xub) return;
+        if (xlb > xub) return;
 
         dlow = dcrit = dhigh = 0;
         for (i = 0; i < n; ++i)
-	{
+        {
             if (deg[i] == dmax) dlow |= xbit[i];
-	    if (deg[i] == maxdeg) dhigh |= xbit[i];
-	    if (deg[i] == mindeg + n - maxn) dcrit |= xbit[i];
-	}
+            if (deg[i] == maxdeg) dhigh |= xbit[i];
+            if (deg[i] == mindeg + n - maxn) dcrit |= xbit[i];
+        }
 
         if (XPOPCOUNT(dhigh) > xlb) xlb = XPOPCOUNT(dhigh);
-	if (n-XPOPCOUNT(dcrit) < xub) xub = n - XPOPCOUNT(dcrit);
-	if (xub == dmax+1 && XPOPCOUNT(dlow)+dmax >= n) --xub;
+        if (n-XPOPCOUNT(dcrit) < xub) xub = n - XPOPCOUNT(dcrit);
+        if (xub == dmax+1 && XPOPCOUNT(dlow)+dmax >= n) --xub;
         if (xlb > xub) return;
 
 #ifdef PRUNE 
@@ -1102,16 +1102,16 @@ genextend(graph *g, int n, int *deg, boolean rigid)
         xorb = data[n].xorb;
 
         if (nx == maxn)
-	{
-	    subconnec = connec && isstrong(g,n);
+        {
+            subconnec = connec && isstrong(g,n);
             for (i = imin; i < imax; ++i)
             {
                 if (!rigid && xorb[i] != i) continue;
                 x = xset[i];
                 xc = xcard[i];
                 if (xc == dmax+1 && (x & dlow) != 0) continue;
- 		if ((dhigh & ~x) != 0) continue;
-		if ((dcrit & x) != 0) continue;
+                if ((dhigh & ~x) != 0) continue;
+                if ((dcrit & x) != 0) continue;
 
                 if (accept2(g,n,x,gx,deg,
                             xc < dmax || (xc == dmax && (x & dlow) == 0)))
@@ -1120,26 +1120,26 @@ genextend(graph *g, int n, int *deg, boolean rigid)
 #ifdef PRUNE
                         if (!PRUNE(gx,nx,maxn))
 #endif
-			{
+                        {
 #ifdef INSTRUMENT
                             haschild = TRUE;
 #endif
-			    ++nout;
+                            ++nout;
                             (*outproc)(outfile,canonise ? gcan : gx,nx);
-			}
+                        }
                     }
             }
-	}
+        }
         else
-	{
+        {
             for (i = imin; i < imax; ++i)
             {
                 if (!rigid && xorb[i] != i) continue;
                 x = xset[i];
                 xc = xcard[i];
                 if (xc == dmax+1 && (x & dlow) != 0) continue;
- 		if ((dhigh & ~x) != 0) continue;
-		if ((dcrit & x) != 0) continue;
+                if ((dhigh & ~x) != 0) continue;
+                if ((dcrit & x) != 0) continue;
                 if (nx == splitlevel)
                 {
                     if (odometer-- != 0) continue;
@@ -1148,10 +1148,10 @@ genextend(graph *g, int n, int *deg, boolean rigid)
 
                 for (j = 0; j < n; ++j) degx[j] = deg[j];
                 xlbx = mindeg+nx+1-maxn;
-		if (xlbx < 0) xlbx = 0;
-		xubx = xc + 1;
-		if (maxdeg < xubx) xubx = maxdeg;
-		if (nx/2 < xubx) xubx = nx/2;
+                if (xlbx < 0) xlbx = 0;
+                xubx = xc + 1;
+                if (maxdeg < xubx) xubx = maxdeg;
+                if (nx/2 < xubx) xubx = nx/2;
                 if (xlbx > xubx) continue;
 
                 data[nx].lo = data[nx].xstart[xlbx];
@@ -1164,7 +1164,7 @@ genextend(graph *g, int n, int *deg, boolean rigid)
                     genextend(gx,nx,degx,rigidx);
                 }
             }
-	}
+        }
 
         if (n == splitlevel-1 && n >= min_splitlevel
                 && nodes[n] >= multiplicity)
@@ -1186,42 +1186,42 @@ main(int argc, char *argv[])
 {
         char *arg;
         boolean badargs,gotd,gotD,gotf,gotmr;
-	boolean secret,connec1;
-	char *outfilename,sw;
+        boolean secret,connec1;
+        char *outfilename,sw;
         int i,j,argnum;
         graph g[1];
         int deg[1];
-	int splitlevinc;
+        int splitlevinc;
         double t1,t2;
-	char msg[201];
+        char msg[201];
 
-	HELP; PUTVERSION;
-	nauty_check(WORDSIZE,1,MAXN,NAUTYVERSIONID);
+        HELP; PUTVERSION;
+        nauty_check(WORDSIZE,1,MAXN,NAUTYVERSIONID);
 
-	if (MAXN > 32 || MAXN > WORDSIZE || MAXN > 8*sizeof(xword))
-	{
-	    fprintf(stderr,
-		    "gentourng: incompatible MAXN, WORDSIZE, or xword\n");
-	    fprintf(stderr,"--See notes in program source\n");
-	    exit(1);
-	}
+        if (MAXN > 32 || MAXN > WORDSIZE || MAXN > 8*sizeof(xword))
+        {
+            fprintf(stderr,
+                    "gentourng: incompatible MAXN, WORDSIZE, or xword\n");
+            fprintf(stderr,"--See notes in program source\n");
+            exit(1);
+        }
 
         badargs = FALSE;
-	graph6 = FALSE;
-	digraph6 = FALSE;
-	sparse6 = FALSE;
+        graph6 = FALSE;
+        digraph6 = FALSE;
+        sparse6 = FALSE;
         nooutput = FALSE;
         canonise = FALSE;
-	header = FALSE;
-	outfilename = NULL;
-	secret = FALSE;
-	connec1 = FALSE;
+        header = FALSE;
+        outfilename = NULL;
+        secret = FALSE;
+        connec1 = FALSE;
 
         maxdeg = MAXN; 
-	mindeg = 0;
-	splitlevinc = 0;
-	
-	gotd = gotD = gotf = gotmr = FALSE;
+        mindeg = 0;
+        splitlevinc = 0;
+        
+        gotd = gotD = gotf = gotmr = FALSE;
 
         argnum = 0;
         for (j = 1; !badargs && j < argc; ++j)
@@ -1229,54 +1229,54 @@ main(int argc, char *argv[])
             arg = argv[j];
             if (arg[0] == '-' && arg[1] != '\0')
             {
-		++arg;
-		while (*arg != '\0')
-		{
-		    sw = *arg++;
-		         SWBOOLEAN('u',nooutput)
-		    else SWBOOLEAN('g',graph6)
-		    else SWBOOLEAN('z',digraph6)
-		    else SWBOOLEAN('s',sparse6)
-		    else SWBOOLEAN('l',canonise)
-		    else SWBOOLEAN('h',header)
-		    else SWBOOLEAN('q',quiet)
-		    else SWBOOLEAN('c',connec1)
-		    else SWBOOLEAN('$',secret)
-		    else SWINT('d',gotd,mindeg,"gentourng -d")
-		    else SWINT('D',gotD,maxdeg,"gentourng -D")
+                ++arg;
+                while (*arg != '\0')
+                {
+                    sw = *arg++;
+                         SWBOOLEAN('u',nooutput)
+                    else SWBOOLEAN('g',graph6)
+                    else SWBOOLEAN('z',digraph6)
+                    else SWBOOLEAN('s',sparse6)
+                    else SWBOOLEAN('l',canonise)
+                    else SWBOOLEAN('h',header)
+                    else SWBOOLEAN('q',quiet)
+                    else SWBOOLEAN('c',connec1)
+                    else SWBOOLEAN('$',secret)
+                    else SWINT('d',gotd,mindeg,"gentourng -d")
+                    else SWINT('D',gotD,maxdeg,"gentourng -D")
 #ifdef PLUGIN_SWITCHES
 PLUGIN_SWITCHES
 #endif
                     else badargs = TRUE;
-		}
+                }
             }
             else if (arg[0] == '-' && arg[1] == '\0')
-		gotf = TRUE;
-	    else
+                gotf = TRUE;
+            else
             {
                 if (argnum == 0)
                 {
                     if (sscanf(arg,"%d",&maxn) != 1) badargs = TRUE;
-		    ++argnum;
-		}
-		else if (gotf)
-		    badargs = TRUE;
-		else
-		{
-		    if (!gotmr)
-		    {
-			if (sscanf(arg,"%d/%d",&res,&mod) == 2)
+                    ++argnum;
+                }
+                else if (gotf)
+                    badargs = TRUE;
+                else
+                {
+                    if (!gotmr)
+                    {
+                        if (sscanf(arg,"%d/%d",&res,&mod) == 2)
                         { 
                             gotmr = TRUE; 
                             continue; 
                         }
-		    }
-		    if (!gotf)
-		    {
-			outfilename = arg;
-			gotf = TRUE;
-			continue;
-		    }
+                    }
+                    if (!gotf)
+                    {
+                        outfilename = arg;
+                        gotf = TRUE;
+                        continue;
+                    }
                 }
             }
         }
@@ -1295,20 +1295,20 @@ PLUGIN_SWITCHES
             res = 0;
         }
 
-	if (connec1) connec = 1;
-	else         connec = 0;
+        if (connec1) connec = 1;
+        else         connec = 0;
 
         if (maxdeg >= maxn) maxdeg = maxn - 1;
-	if (mindeg < 0) mindeg = 0;
+        if (mindeg < 0) mindeg = 0;
 
-	if (!badargs &&
-	     (maxdeg < mindeg || 2*maxdeg < maxn-1 || 2*mindeg > maxn-1))
-	{
+        if (!badargs &&
+             (maxdeg < mindeg || 2*maxdeg < maxn-1 || 2*mindeg > maxn-1))
+        {
             fprintf(stderr,">E gentourng: impossible degree bounds\n");
             badargs = TRUE;
         }
 
-	if (connec && mindeg < 1 && maxn > 1) mindeg = 1;
+        if (connec && mindeg < 1 && maxn > 1) mindeg = 1;
         if (connec && maxdeg == maxn-1 && maxn > 1) maxdeg = maxn - 2;
 
         if (!badargs && (res < 0 || res >= mod))
@@ -1320,33 +1320,33 @@ PLUGIN_SWITCHES
         if (badargs)
         {
             fprintf(stderr,">E Usage: %s\n",USAGE);
-	    GETHELP;
+            GETHELP;
             exit(1);
         }
 
-	if ((graph6!=0) + (sparse6!=0) + (digraph6!=0) + (nooutput!=0) > 1)
-	    gt_abort(">E gentourng: -ungzs are incompatible\n");
+        if ((graph6!=0) + (sparse6!=0) + (digraph6!=0) + (nooutput!=0) > 1)
+            gt_abort(">E gentourng: -ungzs are incompatible\n");
 
 #ifdef OUTPROC
         outproc = OUTPROC;
 #else
         if      (nooutput) outproc = nullwrite;
-	else if (sparse6)  outproc = writes6x;
+        else if (sparse6)  outproc = writes6x;
         else if (graph6)   outproc = writeg6x;
         else if (digraph6) outproc = writed6x;
-	else               outproc = write_ascii;
+        else               outproc = write_ascii;
 #endif
 
 #ifdef PLUGIN_INIT
 PLUGIN_INIT
 #endif
 
-	for (i = 0; i < maxn; ++i)  nodes[i] = 0;
+        for (i = 0; i < maxn; ++i)  nodes[i] = 0;
 
-	if (nooutput)
-	    outfile = stdout;
-	else if (!gotf || outfilename == NULL)
-	{
+        if (nooutput)
+            outfile = stdout;
+        else if (!gotf || outfilename == NULL)
+        {
             outfilename = "stdout";
             outfile = stdout;
         }
@@ -1359,44 +1359,44 @@ PLUGIN_INIT
 
         multiplicity = PRUNEMULT * mod;
 
-	if (!quiet)
-	{
-	    msg[0] = '\0';
-	    if (strlen(argv[0]) > 75)
-		fprintf(stderr,">A %s",argv[0]);
-	    else
-		CATMSG1(">A %s",argv[0]);
-	   
-	    CATMSG2(" -%s%s",connec1  ? "c" : "",canonise ? "l" : "");
-	 /*
-	    if (mod > 1)
-		CATMSG2("X%dx%d",splitlevinc,multiplicity);
-	 */
-	    CATMSG3("d%dD%d n=%d",mindeg,maxdeg,maxn);
-	    if (mod > 1) CATMSG2(" class=%d/%d",res,mod);
-	    CATMSG0("\n");
-	    fputs(msg,stderr);
-	    fflush(stderr);
-	}
+        if (!quiet)
+        {
+            msg[0] = '\0';
+            if (strlen(argv[0]) > 75)
+                fprintf(stderr,">A %s",argv[0]);
+            else
+                CATMSG1(">A %s",argv[0]);
+           
+            CATMSG2(" -%s%s",connec1  ? "c" : "",canonise ? "l" : "");
+         /*
+            if (mod > 1)
+                CATMSG2("X%dx%d",splitlevinc,multiplicity);
+         */
+            CATMSG3("d%dD%d n=%d",mindeg,maxdeg,maxn);
+            if (mod > 1) CATMSG2(" class=%d/%d",res,mod);
+            CATMSG0("\n");
+            fputs(msg,stderr);
+            fflush(stderr);
+        }
 
         g[0] = 0;
         deg[0] = 0;
 
         t1 = CPUTIME;
 
-	if (header)
-	{
-	    if (sparse6)
-	    {
+        if (header)
+        {
+            if (sparse6)
+            {
                 writeline(outfile,SPARSE6_HEADER);
-		fflush(outfile);
-	    }
-	    else if (!nooutput)
-	    {
-		writeline(outfile,GRAPH6_HEADER);
-		fflush(outfile);
-	    }
-	}
+                fflush(outfile);
+            }
+            else if (!nooutput)
+            {
+                writeline(outfile,GRAPH6_HEADER);
+                fflush(outfile);
+            }
+        }
 
         nout = 0;
 
@@ -1412,31 +1412,31 @@ PLUGIN_INIT
         {
             makeleveldata();
 
-	    if (maxn >= 14 && mod > 1)     splitlevel = maxn - 4;
-	    else if (maxn >= 6 && mod > 1) splitlevel = maxn - 3;
-	    else                           splitlevel = -1;
+            if (maxn >= 14 && mod > 1)     splitlevel = maxn - 4;
+            else if (maxn >= 6 && mod > 1) splitlevel = maxn - 3;
+            else                           splitlevel = -1;
 
-	    splitlevel += splitlevinc;
-	    if (splitlevel > maxn - 1) splitlevel = maxn - 1;
-	    if (splitlevel < 3) splitlevel = -1;
+            splitlevel += splitlevinc;
+            if (splitlevel > maxn - 1) splitlevel = maxn - 1;
+            if (splitlevel < 3) splitlevel = -1;
 
-	    min_splitlevel = 6;
-	    odometer = secret ? -1 : res;
-	    regular = mindeg == maxdeg;
-	    if (regular) connec = FALSE; /* All reg tourns are strong! */
+            min_splitlevel = 6;
+            odometer = secret ? -1 : res;
+            regular = mindeg == maxdeg;
+            if (regular) connec = FALSE; /* All reg tourns are strong! */
 
             genextend(g,1,deg,TRUE);
-	}
+        }
         t2 = CPUTIME;
 
 #ifdef INSTRUMENT
         fprintf(stderr,"\n>N node counts\n");
         for (i = 1; i < maxn; ++i)
-	{
+        {
             fprintf(stderr," level %2d: \n",i);
-	    fprintf(stderr,COUNTER_FMT " (%lu rigid, %lu fertile)\n",
+            fprintf(stderr,COUNTER_FMT " (%lu rigid, %lu fertile)\n",
                            nodes[i],rigidnodes[i],fertilenodes[i]);
-	}
+        }
         fprintf(stderr,">A1 %lu calls to accept1, %lu nauty, %lu succeeded\n",
                         a1calls,a1nauty,a1succs);
         fprintf(stderr,
@@ -1446,24 +1446,24 @@ PLUGIN_INIT
 #endif
 
 #ifdef SUMMARY
-	SUMMARY(nout,t2-t1);
+        SUMMARY(nout,t2-t1);
 #endif
 
-	if (!quiet)
-	{
+        if (!quiet)
+        {
             fprintf(stderr,">Z " COUNTER_FMT " graphs generated in %3.2f sec\n",
                     nout,t2-t1);
-	}
+        }
 
 #ifdef GENG_MAIN
-	for (i = 1; i < maxn; ++i)
-	{
-	    free(data[i].xorb);
-	    free(data[i].xset);
-	    free(data[i].xinv);
-	    free(data[i].xcard);
-	}
-	return 0;
+        for (i = 1; i < maxn; ++i)
+        {
+            free(data[i].xorb);
+            free(data[i].xset);
+            free(data[i].xinv);
+            free(data[i].xcard);
+        }
+        return 0;
 #else
         exit(0);
 #endif

@@ -1,5 +1,5 @@
 /**************************************************************************
-*    This is the header file for Version 2.8 of nauty().                  *
+*    This is the header file for Version 2.8.6 of nauty().
 *    nauty.h.  Generated from nauty-h.in by configure.
 **************************************************************************/
 
@@ -23,11 +23,11 @@ it is necessary to check they are correct.
                                  /* 2 = in malloc.h, 0 = in neither place */
 #define HAS_MATH_INF 1 /* INFINITY is defined in math.h or */
                                  /* some system header likely to be used */
+#define HAVE_FLOCKFILE 1  /* Whether flockfile() is available */
 #define HAS_STDIO_UNLOCK 1  /* Whether there are getc_unlocked, */
                                /* putc_unlocked,flockfile and funlockfile */
 
 #define DEFAULT_WORDSIZE 32
-
 
 /* Note that thread-local storage (TLS) is only useful for running nauty
    in multiple threads and will slow it down a little otherwise. */
@@ -429,7 +429,7 @@ it is necessary to check they are correct.
 #if defined(LLONG_MAX) 
 #define SIZEOF_LONG_LONG 8
 #else
-#define SIZEOF_LONG 8   /* 0 if nonexistent */
+#define SIZEOF_LONG_LONG 8   /* 0 if nonexistent */
 #endif
 
 #if defined(_MSC_VER)
@@ -550,13 +550,13 @@ typedef unsigned long nauty_counter;
 #define NAUTYREQUIRED NAUTYVERSIONID  /* Minimum compatible version */
 
 #if WORDSIZE==16
-#define NAUTYVERSION "2.8 (16 bits)"
+#define NAUTYVERSION "2.8.6 (16 bits)"
 #endif
 #if WORDSIZE==32
-#define NAUTYVERSION "2.8 (32 bits)"
+#define NAUTYVERSION "2.8.6 (32 bits)"
 #endif
 #if WORDSIZE==64
-#define NAUTYVERSION "2.8 (64 bits)"
+#define NAUTYVERSION "2.8.6 (64 bits)"
 #endif
 
 #ifndef  MAXN  /* maximum allowed n value; use 0 for dynamic sizing. */

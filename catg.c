@@ -81,7 +81,7 @@ openfile_head(char *filename, char **header)
     }
     else
     {
-	ungetc(c,f);
+        ungetc(c,f);
         head[0] = '\0';
     }
 

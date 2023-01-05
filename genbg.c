@@ -69,7 +69,7 @@ PRUNE feature.
       n1  = the number of vertices in the first colour class
             (same as the n1 parameter on the command line)
       n2  = the number of vertices in the second colour class
-	    (this will always be at least 1)
+            (this will always be at least 1)
       maxn2 = the value of n2 on the command line
    If n2=maxn2, the graph has the output size.
 
@@ -1280,12 +1280,12 @@ genextend(graph *g, int n2, int *deg, int ne, boolean rigid, int xlb, int xub)
                 }
                 if (j >= 0) continue;
             }
-	    if (antichain)
-	    {
-		for (j = 0; j < n2; ++j)
-		    if ((xval[j] & ~x) == 0) break;
-		if (j < n2) continue;
-	    }
+            if (antichain)
+            {
+                for (j = 0; j < n2; ++j)
+                    if ((xval[j] & ~x) == 0) break;
+                if (j < n2) continue;
+            }
             if (footfree)
             {
                 y = x & (hideg | deg1);
@@ -1373,12 +1373,12 @@ genextend(graph *g, int n2, int *deg, int ne, boolean rigid, int xlb, int xub)
                 }
                 if (j >= 0) continue;
             }
-	    if (antichain)
-	    {
-		for (j = 0; j < n2; ++j)
-		    if ((xval[j] & ~x) == 0) break;
-		if (j < n2) continue;
-	    }
+            if (antichain)
+            {
+                for (j = 0; j < n2; ++j)
+                    if ((xval[j] & ~x) == 0) break;
+                if (j < n2) continue;
+            }
             xval[n2] = x;
 
             for (j = 0; j < n; ++j) degx[j] = deg[j];
@@ -1553,7 +1553,7 @@ PLUGIN_SWITCHES
         fprintf(stderr,
            ">E genbg: must have n1=1..%d, n1+n2=1..%d\n",MAXN1,MAXN);
 #if WORDSIZE==32
-	fprintf(stderr,"Try genbgL instead.\n");
+        fprintf(stderr,"Try genbgL instead.\n");
 #endif
         badargs = TRUE;
     }

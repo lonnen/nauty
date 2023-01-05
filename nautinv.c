@@ -1,8 +1,8 @@
 /*****************************************************************************
 *                                                                            *
-*  Vertex-invariants source file for nauty 2.7.                              *
+*  Vertex-invariants source file for nauty 2.8.                              *
 *                                                                            *
-*   Copyright (1989-2013) Brendan McKay.  All rights reserved.               *
+*   Copyright (1989-2022) Brendan McKay.  All rights reserved.               *
 *   Subject to waivers and disclaimers in nauty.h.                           *
 *                                                                            *
 *   CHANGE HISTORY                                                           *
@@ -52,11 +52,11 @@
 
 #define MASH(l,i) ((((l) ^ 056345) + (i)) & 077777)
     /* : expression whose long value depends only on long l and int/long i.
-	 Anything goes, preferably non-commutative. */
+         Anything goes, preferably non-commutative. */
 
 #define CLEANUP(l) ((int)((l) % 077777))
     /* : expression whose value depends on long l and is less than 077777
-	 when converted to int then short.  Anything goes. */
+         when converted to int then short.  Anything goes. */
 
 #define ACCUM(x,y)   x = (((x) + (y)) & 077777)
     /* : must be commutative. */
@@ -189,36 +189,36 @@ void
 twopaths(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
          int *invar, int invararg, boolean digraph, int m, int n)
 {
-        int i,v,w;
-        int wt;
-        set *gv,*gw;
+    int i,v,w;
+    int wt;
+    set *gv,*gw;
 
 #if !MAXN
-	DYNALLOC1(set,workset,workset_sz,m,"twopaths");
-	DYNALLOC1(int,workshort,workshort_sz,n+2,"twopaths");
+    DYNALLOC1(set,workset,workset_sz,m,"twopaths");
+    DYNALLOC1(int,workshort,workshort_sz,n+2,"twopaths");
 #endif
 
-        wt = 1;
-        for (i = 0; i < n; ++i)
-        {
-            workshort[lab[i]] = wt;
-            if (ptn[i] <= level) ++wt;
-        }
+    wt = 1;
+    for (i = 0; i < n; ++i)
+    {
+        workshort[lab[i]] = wt;
+        if (ptn[i] <= level) ++wt;
+    }
 
-        for (v = 0, gv = (set*)g; v < n; ++v, gv += M)
+    for (v = 0, gv = (set*)g; v < n; ++v, gv += M)
+    {
+        EMPTYSET(workset,m);
+        w = -1;
+        while ((w = nextelement(gv,M,w)) >= 0)
         {
-            EMPTYSET(workset,m);
-            w = -1;
-            while ((w = nextelement(gv,M,w)) >= 0)
-            {
-                gw = GRAPHROW(g,w,m);
-                for (i = M; --i >= 0;) UNION(workset[i],gw[i]);
-            }
-            wt = 0;
-            w = -1;
-            while ((w = nextelement(workset,M,w)) >= 0) ACCUM(wt,workshort[w]);
-            invar[v] = wt;
+            gw = GRAPHROW(g,w,m);
+            for (i = M; --i >= 0;) UNION(workset[i],gw[i]);
         }
+        wt = 0;
+        w = -1;
+        while ((w = nextelement(workset,M,w)) >= 0) ACCUM(wt,workshort[w]);
+        invar[v] = wt;
+    }
 }
 
 /*****************************************************************************
@@ -235,69 +235,69 @@ void
 quadruples(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
            int *invar, int invararg, boolean digraph, int m, int n)
 {
-        int i,pc;
-        setword sw;
-        set *gw;
-        int wt;
-        int v,iv,v1,v2,v3;
-        set *gv;
-        long wv,wv1,wv2,wv3;
+    int i,pc;
+    setword sw;
+    set *gw;
+    int wt;
+    int v,iv,v1,v2,v3;
+    set *gv;
+    long wv,wv1,wv2,wv3;
 
 #if !MAXN
-        DYNALLOC1(int,workshort,workshort_sz,n+2,"quadruples");
-	DYNALLOC1(set,ws1,ws1_sz,m,"quadruples");
-	DYNALLOC1(set,workset,workset_sz,m,"quadruples");
+    DYNALLOC1(int,workshort,workshort_sz,n+2,"quadruples");
+    DYNALLOC1(set,ws1,ws1_sz,m,"quadruples");
+    DYNALLOC1(set,workset,workset_sz,m,"quadruples");
 #endif
 
-        for (i = n; --i >= 0;) invar[i] = 0;
+    for (i = n; --i >= 0;) invar[i] = 0;
 
-        wt = 1;
-        for (i = 0; i < n; ++i)
-        {
-            workshort[lab[i]] = FUZZ2(wt);
-            if (ptn[i] <= level) ++wt;
-        }
+    wt = 1;
+    for (i = 0; i < n; ++i)
+    {
+        workshort[lab[i]] = FUZZ2(wt);
+        if (ptn[i] <= level) ++wt;
+    }
 
-        iv = tvpos - 1;
-        do
-        {
-             v = lab[++iv];
-             gv = GRAPHROW(g,v,m);
-             wv = workshort[v];
-             for (v1 = 0; v1 < n-2; ++v1)
-             {
-                wv1 = workshort[v1];
-                if (wv1 == wv && v1 <= v) continue;
-                wv1 += wv;
-                gw = GRAPHROW(g,v1,m);
-                for (i = M; --i >= 0;) workset[i] = gv[i] ^ gw[i];
-                for (v2 = v1+1; v2 < n-1; ++v2)
+    iv = tvpos - 1;
+    do
+    {
+         v = lab[++iv];
+         gv = GRAPHROW(g,v,m);
+         wv = workshort[v];
+         for (v1 = 0; v1 < n-2; ++v1)
+         {
+            wv1 = workshort[v1];
+            if (wv1 == wv && v1 <= v) continue;
+            wv1 += wv;
+            gw = GRAPHROW(g,v1,m);
+            for (i = M; --i >= 0;) workset[i] = gv[i] ^ gw[i];
+            for (v2 = v1+1; v2 < n-1; ++v2)
+            {
+                wv2 = workshort[v2];
+                if (wv2 == wv && v2 <= v) continue;
+                wv2 += wv1;
+                gw = GRAPHROW(g,v2,m);
+                for (i = M; --i >= 0;) ws1[i] = workset[i] ^ gw[i];
+                for (v3 = v2+1; v3 < n; ++v3)
                 {
-                    wv2 = workshort[v2];
-                    if (wv2 == wv && v2 <= v) continue;
-                    wv2 += wv1;
-                    gw = GRAPHROW(g,v2,m);
-                    for (i = M; --i >= 0;) ws1[i] = workset[i] ^ gw[i];
-                    for (v3 = v2+1; v3 < n; ++v3)
-                    {
-                        wv3 = workshort[v3];
-                        if (wv3 == wv && v3 <= v) continue;
-                        wv3 += wv2;
-                        gw = GRAPHROW(g,v3,m);
-                        pc = 0;
-                        for (i = M; --i >= 0;)
-                            if ((sw = ws1[i] ^ gw[i]) != 0) pc += POPCOUNT(sw);
-                        wt = (FUZZ1(pc)+wv3) & 077777;
-                        wt = FUZZ2(wt);
-                        ACCUM(invar[v],wt);
-                        ACCUM(invar[v1],wt);
-                        ACCUM(invar[v2],wt);
-                        ACCUM(invar[v3],wt);
-                    }
+                    wv3 = workshort[v3];
+                    if (wv3 == wv && v3 <= v) continue;
+                    wv3 += wv2;
+                    gw = GRAPHROW(g,v3,m);
+                    pc = 0;
+                    for (i = M; --i >= 0;)
+                        if ((sw = ws1[i] ^ gw[i]) != 0) pc += POPCOUNT(sw);
+                    wt = (FUZZ1(pc)+wv3) & 077777;
+                    wt = FUZZ2(wt);
+                    ACCUM(invar[v],wt);
+                    ACCUM(invar[v1],wt);
+                    ACCUM(invar[v2],wt);
+                    ACCUM(invar[v3],wt);
                 }
             }
         }
-        while (ptn[iv] > level);
+    }
+    while (ptn[iv] > level);
 }
 
 /*****************************************************************************
@@ -314,59 +314,59 @@ void
 triples(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
         int *invar, int invararg, boolean digraph, int m, int n)
 {
-        int i,pc;
-        setword sw;
-        set *gw;
-        int wt;
-        int v,iv,v1,v2;
-        set *gv;
-        long wv,wv1,wv2;
+    int i,pc;
+    setword sw;
+    set *gw;
+    int wt;
+    int v,iv,v1,v2;
+    set *gv;
+    long wv,wv1,wv2;
 
 #if !MAXN
-        DYNALLOC1(set,workset,workset_sz,m,"triples");
-        DYNALLOC1(int,workshort,workshort_sz,n+2,"triples");
+    DYNALLOC1(set,workset,workset_sz,m,"triples");
+    DYNALLOC1(int,workshort,workshort_sz,n+2,"triples");
 #endif
 
-        for (i = n; --i >= 0;) invar[i] = 0;
+    for (i = n; --i >= 0;) invar[i] = 0;
 
-        wt = 1;
-        for (i = 0; i < n; ++i)
-        {
-            workshort[lab[i]] = FUZZ1(wt);
-            if (ptn[i] <= level) ++wt;
-        }
+    wt = 1;
+    for (i = 0; i < n; ++i)
+    {
+        workshort[lab[i]] = FUZZ1(wt);
+        if (ptn[i] <= level) ++wt;
+    }
 
-        iv = tvpos - 1;
-        do
-        {
-             v = lab[++iv];
-             gv = GRAPHROW(g,v,m);
-             wv = workshort[v];
-             for (v1 = 0; v1 < n-1; ++v1)
-             {
-                wv1 = workshort[v1];
-                if (wv1 == wv && v1 <= v) continue;
-                wv1 += wv;
-                gw = GRAPHROW(g,v1,m);
-                for (i = M; --i >= 0;) workset[i] = gv[i] ^ gw[i];
-                for (v2 = v1+1; v2 < n; ++v2)
-                {
-                    wv2 = workshort[v2];
-                    if (wv2 == wv && v2 <= v) continue;
-                    wv2 += wv1;
-                    gw = GRAPHROW(g,v2,m);
-                    pc = 0;
-                    for (i = M; --i >= 0;)
-                        if ((sw = workset[i] ^ gw[i]) != 0) pc += POPCOUNT(sw);
-                    wt = (FUZZ1(pc)+wv2) & 077777;
-                    wt = FUZZ2(wt);
-                    ACCUM(invar[v],wt);
-                    ACCUM(invar[v1],wt);
-                    ACCUM(invar[v2],wt);
-                }
+    iv = tvpos - 1;
+    do
+    {
+         v = lab[++iv];
+         gv = GRAPHROW(g,v,m);
+         wv = workshort[v];
+         for (v1 = 0; v1 < n-1; ++v1)
+         {
+            wv1 = workshort[v1];
+            if (wv1 == wv && v1 <= v) continue;
+            wv1 += wv;
+            gw = GRAPHROW(g,v1,m);
+            for (i = M; --i >= 0;) workset[i] = gv[i] ^ gw[i];
+            for (v2 = v1+1; v2 < n; ++v2)
+            {
+                wv2 = workshort[v2];
+                if (wv2 == wv && v2 <= v) continue;
+                wv2 += wv1;
+                gw = GRAPHROW(g,v2,m);
+                pc = 0;
+                for (i = M; --i >= 0;)
+                    if ((sw = workset[i] ^ gw[i]) != 0) pc += POPCOUNT(sw);
+                wt = (FUZZ1(pc)+wv2) & 077777;
+                wt = FUZZ2(wt);
+                ACCUM(invar[v],wt);
+                ACCUM(invar[v1],wt);
+                ACCUM(invar[v2],wt);
             }
         }
-        while (ptn[iv] > level);
+    }
+    while (ptn[iv] > level);
 }
 
 /*****************************************************************************
@@ -382,54 +382,54 @@ void
 adjtriang(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
           int *invar, int invararg, boolean digraph, int m, int n)
 {
-        int j,pc;
-        setword sw;
-        set *gi;
-        int wt;
-        int i,v1,v2;
-        boolean v1v2;
-        set *gv1,*gv2;
+    int j,pc;
+    setword sw;
+    set *gi;
+    int wt;
+    int i,v1,v2;
+    boolean v1v2;
+    set *gv1,*gv2;
 
 #if !MAXN
-        DYNALLOC1(set,workset,workset_sz,m,"adjtriang");
-        DYNALLOC1(int,workshort,workshort_sz,n+2,"adjtriang");
+    DYNALLOC1(set,workset,workset_sz,m,"adjtriang");
+    DYNALLOC1(int,workshort,workshort_sz,n+2,"adjtriang");
 #endif
 
-        for (i = n; --i >= 0;) invar[i] = 0;
+    for (i = n; --i >= 0;) invar[i] = 0;
 
-        wt = 1;
-        for (i = 0; i < n; ++i)
-        {
-            workshort[lab[i]] = FUZZ1(wt);
-            if (ptn[i] <= level) ++wt;
-        }
+    wt = 1;
+    for (i = 0; i < n; ++i)
+    {
+        workshort[lab[i]] = FUZZ1(wt);
+        if (ptn[i] <= level) ++wt;
+    }
 
-        for (v1 = 0, gv1 = g; v1 < n; ++v1, gv1 += M)
+    for (v1 = 0, gv1 = g; v1 < n; ++v1, gv1 += M)
+    {
+        for (v2 = (digraph ? 0 : v1+1); v2 < n; ++v2)
         {
-            for (v2 = (digraph ? 0 : v1+1); v2 < n; ++v2)
+            if (v2 == v1) continue;
+            v1v2 = (ISELEMENT(gv1,v2) != 0);
+            if ((invararg == 0 && !v1v2)
+                     || (invararg == 1 && v1v2)) continue;
+            wt = workshort[v1];
+            ACCUM(wt,workshort[v2]);
+            ACCUM(wt,v1v2);
+
+            gv2 = GRAPHROW(g,v2,m);
+            for (i = M; --i >= 0;) workset[i] = gv1[i] & gv2[i];
+            i = -1;
+            while ((i = nextelement(workset,M,i)) >= 0)
             {
-                if (v2 == v1) continue;
-                v1v2 = (ISELEMENT(gv1,v2) != 0);
-                if ((invararg == 0 && !v1v2)
-			 || (invararg == 1 && v1v2)) continue;
-                wt = workshort[v1];
-                ACCUM(wt,workshort[v2]);
-                ACCUM(wt,v1v2);
-
-                gv2 = GRAPHROW(g,v2,m);
-                for (i = M; --i >= 0;) workset[i] = gv1[i] & gv2[i];
-                i = -1;
-                while ((i = nextelement(workset,M,i)) >= 0)
-                {
-                    pc = 0;
-                    gi = GRAPHROW(g,i,m);
-                    for (j = M; --j >= 0;)
-                        if ((sw = workset[j] & gi[j]) != 0) pc += POPCOUNT(sw);
-                    pc = (pc + wt) & 077777;
-                    ACCUM(invar[i],pc);
-                }
+                pc = 0;
+                gi = GRAPHROW(g,i,m);
+                for (j = M; --j >= 0;)
+                    if ((sw = workset[j] & gi[j]) != 0) pc += POPCOUNT(sw);
+                pc = (pc + wt) & 077777;
+                ACCUM(invar[i],pc);
             }
         }
+    }
 }
 
 /*****************************************************************************
@@ -449,49 +449,49 @@ void
 getbigcells(int *ptn, int level, int minsize, int *bigcells,
             int *cellstart, int *cellsize, int n)
 {
-        int cell1,cell2,j;
-        int si,st;
-        int bc,i,h;
+    int cell1,cell2,j;
+    int si,st;
+    int bc,i,h;
 
-        bc = 0;
-        for (cell1 = 0; cell1 < n; cell1 = cell2 + 1)
+    bc = 0;
+    for (cell1 = 0; cell1 < n; cell1 = cell2 + 1)
+    {
+        for (cell2 = cell1; ptn[cell2] > level; ++cell2) {}
+
+        if (cell2 >= cell1 + minsize - 1)
         {
-            for (cell2 = cell1; ptn[cell2] > level; ++cell2) {}
-
-            if (cell2 >= cell1 + minsize - 1)
-            {
-                cellstart[bc] = cell1;
-                cellsize[bc] = cell2 - cell1 + 1;
-                ++bc;
-            }
+            cellstart[bc] = cell1;
+            cellsize[bc] = cell2 - cell1 + 1;
+            ++bc;
         }
-        *bigcells = bc;
+    }
+    *bigcells = bc;
 
-        j = bc / 3;
-        h = 1;
-        do
-            h = 3 * h + 1;
-        while (h < j);
+    j = bc / 3;
+    h = 1;
+    do
+        h = 3 * h + 1;
+    while (h < j);
 
-        do                      /* shell sort */
+    do                      /* shell sort */
+    {
+        for (i = h; i < bc; ++i)
         {
-            for (i = h; i < bc; ++i)
+            st = cellstart[i];
+            si = cellsize[i];
+            for (j = i; cellsize[j-h] > si ||
+                        (cellsize[j-h] == si && cellstart[j-h] > st); )
             {
-                st = cellstart[i];
-                si = cellsize[i];
-                for (j = i; cellsize[j-h] > si ||
-                            (cellsize[j-h] == si && cellstart[j-h] > st); )
-                {
-                    cellsize[j] = cellsize[j-h];
-                    cellstart[j] = cellstart[j-h];
-                    if ((j -= h) < h) break;
-                }
-                cellsize[j] = si;
-                cellstart[j] = st;
+                cellsize[j] = cellsize[j-h];
+                cellstart[j] = cellstart[j-h];
+                if ((j -= h) < h) break;
             }
-            h /= 3;
+            cellsize[j] = si;
+            cellstart[j] = st;
         }
-        while (h > 0);
+        h /= 3;
+    }
+    while (h > 0);
 }
 
 /*****************************************************************************
@@ -508,58 +508,58 @@ void
 celltrips(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
           int *invar, int invararg, boolean digraph, int m, int n)
 {
-        int i,pc;
-        setword sw;
-        set *gw;
-        int wt;
-        int v,iv,v1,iv1,v2,iv2;
-        int icell,bigcells,cell1,cell2;
-        int *cellstart,*cellsize;
-        set *gv;
+    int i,pc;
+    setword sw;
+    set *gw;
+    int wt;
+    int v,iv,v1,iv1,v2,iv2;
+    int icell,bigcells,cell1,cell2;
+    int *cellstart,*cellsize;
+    set *gv;
 
 #if !MAXN
-        DYNALLOC1(set,workset,workset_sz,m,"celltrips");
-        DYNALLOC1(int,workshort,workshort_sz,n+2,"celltrips");
+    DYNALLOC1(set,workset,workset_sz,m,"celltrips");
+    DYNALLOC1(int,workshort,workshort_sz,n+2,"celltrips");
 #endif
 
-        for (i = n; --i >= 0;) invar[i] = 0;
+    for (i = n; --i >= 0;) invar[i] = 0;
 
-        cellstart = workshort;
-        cellsize = workshort + (n/2);
-        getbigcells(ptn,level,3,&bigcells,cellstart,cellsize,n);
+    cellstart = workshort;
+    cellsize = workshort + (n/2);
+    getbigcells(ptn,level,3,&bigcells,cellstart,cellsize,n);
 
-        for (icell = 0; icell < bigcells; ++icell)
+    for (icell = 0; icell < bigcells; ++icell)
+    {
+        cell1 = cellstart[icell];
+        cell2 = cell1 + cellsize[icell] - 1;
+        for (iv = cell1; iv <= cell2 - 2; ++iv)
         {
-            cell1 = cellstart[icell];
-            cell2 = cell1 + cellsize[icell] - 1;
-            for (iv = cell1; iv <= cell2 - 2; ++iv)
+            v = lab[iv];
+            gv = GRAPHROW(g,v,m);
+            for (iv1 = iv + 1; iv1 <= cell2 - 1; ++iv1)
             {
-                v = lab[iv];
-                gv = GRAPHROW(g,v,m);
-                for (iv1 = iv + 1; iv1 <= cell2 - 1; ++iv1)
+                v1 = lab[iv1];
+                gw = GRAPHROW(g,v1,m);
+                for (i = M; --i >= 0;) workset[i] = gv[i] ^ gw[i];
+                for (iv2 = iv1 + 1; iv2 <= cell2; ++iv2)
                 {
-                    v1 = lab[iv1];
-                    gw = GRAPHROW(g,v1,m);
-                    for (i = M; --i >= 0;) workset[i] = gv[i] ^ gw[i];
-                    for (iv2 = iv1 + 1; iv2 <= cell2; ++iv2)
-                    {
-                        v2 = lab[iv2];
-                        gw = GRAPHROW(g,v2,m);
-                        pc = 0;
-                        for (i = M; --i >= 0;)
-                            if ((sw = workset[i] ^ gw[i]) != 0)
-                                pc += POPCOUNT(sw);
-                        wt = FUZZ1(pc);
-                        ACCUM(invar[v],wt);
-                        ACCUM(invar[v1],wt);
-                        ACCUM(invar[v2],wt);
-                    }
+                    v2 = lab[iv2];
+                    gw = GRAPHROW(g,v2,m);
+                    pc = 0;
+                    for (i = M; --i >= 0;)
+                        if ((sw = workset[i] ^ gw[i]) != 0)
+                            pc += POPCOUNT(sw);
+                    wt = FUZZ1(pc);
+                    ACCUM(invar[v],wt);
+                    ACCUM(invar[v1],wt);
+                    ACCUM(invar[v2],wt);
                 }
             }
-            wt = invar[lab[cell1]];
-            for (i = cell1 + 1; i <= cell2; ++i)
-                if (invar[lab[i]] != wt) return;
         }
+        wt = invar[lab[cell1]];
+        for (i = cell1 + 1; i <= cell2; ++i)
+            if (invar[lab[i]] != wt) return;
+    }
 }
 
 /*****************************************************************************
@@ -576,66 +576,66 @@ void
 cellquads(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
           int *invar, int invararg, boolean digraph, int m, int n)
 {
-        int i,pc;
-        setword sw;
-        set *gw;
-        int wt;
-        int v,iv,v1,iv1,v2,iv2,v3,iv3;
-        int icell,bigcells,cell1,cell2;
-        int *cellstart,*cellsize;
-        set *gv;
+    int i,pc;
+    setword sw;
+    set *gw;
+    int wt;
+    int v,iv,v1,iv1,v2,iv2,v3,iv3;
+    int icell,bigcells,cell1,cell2;
+    int *cellstart,*cellsize;
+    set *gv;
 
 #if !MAXN
-        DYNALLOC1(set,workset,workset_sz,m,"cellquads");
-        DYNALLOC1(int,workshort,workshort_sz,n+2,"cellquads");
-	DYNALLOC1(set,ws1,ws1_sz,m,"cellquads");
+    DYNALLOC1(set,workset,workset_sz,m,"cellquads");
+    DYNALLOC1(int,workshort,workshort_sz,n+2,"cellquads");
+    DYNALLOC1(set,ws1,ws1_sz,m,"cellquads");
 #endif
 
-        for (i = n; --i >= 0;) invar[i] = 0;
+    for (i = n; --i >= 0;) invar[i] = 0;
 
-        cellstart = workshort;
-        cellsize = workshort + (n/2);
-        getbigcells(ptn,level,4,&bigcells,cellstart,cellsize,n);
+    cellstart = workshort;
+    cellsize = workshort + (n/2);
+    getbigcells(ptn,level,4,&bigcells,cellstart,cellsize,n);
 
-        for (icell = 0; icell < bigcells; ++icell)
+    for (icell = 0; icell < bigcells; ++icell)
+    {
+        cell1 = cellstart[icell];
+        cell2 = cell1 + cellsize[icell] - 1;
+        for (iv = cell1; iv <= cell2 - 3; ++iv)
         {
-            cell1 = cellstart[icell];
-            cell2 = cell1 + cellsize[icell] - 1;
-            for (iv = cell1; iv <= cell2 - 3; ++iv)
+            v = lab[iv];
+            gv = GRAPHROW(g,v,m);
+            for (iv1 = iv + 1; iv1 <= cell2 - 2; ++iv1)
             {
-                v = lab[iv];
-                gv = GRAPHROW(g,v,m);
-                for (iv1 = iv + 1; iv1 <= cell2 - 2; ++iv1)
+                v1 = lab[iv1];
+                gw = GRAPHROW(g,v1,m);
+                for (i = M; --i >= 0;) workset[i] = gv[i] ^ gw[i];
+                for (iv2 = iv1 + 1; iv2 <= cell2 - 1; ++iv2)
                 {
-                    v1 = lab[iv1];
-                    gw = GRAPHROW(g,v1,m);
-                    for (i = M; --i >= 0;) workset[i] = gv[i] ^ gw[i];
-                    for (iv2 = iv1 + 1; iv2 <= cell2 - 1; ++iv2)
+                    v2 = lab[iv2];
+                    gw = GRAPHROW(g,v2,m);
+                    for (i = M; --i >= 0;) ws1[i] = workset[i] ^ gw[i];
+                    for (iv3 = iv2 + 1; iv3 <= cell2; ++iv3)
                     {
-                        v2 = lab[iv2];
-                        gw = GRAPHROW(g,v2,m);
-                        for (i = M; --i >= 0;) ws1[i] = workset[i] ^ gw[i];
-                        for (iv3 = iv2 + 1; iv3 <= cell2; ++iv3)
-                        {
-                            v3 = lab[iv3];
-                            gw = GRAPHROW(g,v3,m);
-                            pc = 0;
-                            for (i = M; --i >= 0;)
-                                if ((sw = ws1[i] ^ gw[i]) != 0)
-                                    pc += POPCOUNT(sw);
-                            wt = FUZZ1(pc);
-                            ACCUM(invar[v],wt);
-                            ACCUM(invar[v1],wt);
-                            ACCUM(invar[v2],wt);
-                            ACCUM(invar[v3],wt);
-                        }
+                        v3 = lab[iv3];
+                        gw = GRAPHROW(g,v3,m);
+                        pc = 0;
+                        for (i = M; --i >= 0;)
+                            if ((sw = ws1[i] ^ gw[i]) != 0)
+                                pc += POPCOUNT(sw);
+                        wt = FUZZ1(pc);
+                        ACCUM(invar[v],wt);
+                        ACCUM(invar[v1],wt);
+                        ACCUM(invar[v2],wt);
+                        ACCUM(invar[v3],wt);
                     }
                 }
             }
-            wt = invar[lab[cell1]];
-            for (i = cell1 + 1; i <= cell2; ++i)
-                if (invar[lab[i]] != wt) return;
         }
+        wt = invar[lab[cell1]];
+        for (i = cell1 + 1; i <= cell2; ++i)
+            if (invar[lab[i]] != wt) return;
+    }
 }
 
 /*****************************************************************************
@@ -652,74 +652,74 @@ void
 cellquins(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
           int *invar, int invararg, boolean digraph, int m, int n)
 {
-        int i,pc;
-        setword sw;
-        set *gw;
-        int wt;
-        int v,iv,v1,iv1,v2,iv2,v3,iv3,v4,iv4;
-        int icell,bigcells,cell1,cell2;
-        int *cellstart,*cellsize;
-        set *gv;
+    int i,pc;
+    setword sw;
+    set *gw;
+    int wt;
+    int v,iv,v1,iv1,v2,iv2,v3,iv3,v4,iv4;
+    int icell,bigcells,cell1,cell2;
+    int *cellstart,*cellsize;
+    set *gv;
 
 #if !MAXN
-        DYNALLOC1(set,workset,workset_sz,m,"cellquins");
-        DYNALLOC1(int,workshort,workshort_sz,n+2,"cellquins");
-	DYNALLOC1(set,ws1,ws1_sz,m,"cellquins");
-	DYNALLOC1(set,ws2,ws2_sz,m,"cellquins");
+    DYNALLOC1(set,workset,workset_sz,m,"cellquins");
+    DYNALLOC1(int,workshort,workshort_sz,n+2,"cellquins");
+    DYNALLOC1(set,ws1,ws1_sz,m,"cellquins");
+    DYNALLOC1(set,ws2,ws2_sz,m,"cellquins");
 #endif
 
-        for (i = n; --i >= 0;) invar[i] = 0;
+    for (i = n; --i >= 0;) invar[i] = 0;
 
-        cellstart = workshort;
-        cellsize = workshort + (n/2);
-        getbigcells(ptn,level,5,&bigcells,cellstart,cellsize,n);
+    cellstart = workshort;
+    cellsize = workshort + (n/2);
+    getbigcells(ptn,level,5,&bigcells,cellstart,cellsize,n);
 
-        for (icell = 0; icell < bigcells; ++icell)
+    for (icell = 0; icell < bigcells; ++icell)
+    {
+        cell1 = cellstart[icell];
+        cell2 = cell1 + cellsize[icell] - 1;
+        for (iv = cell1; iv <= cell2 - 4; ++iv)
         {
-            cell1 = cellstart[icell];
-            cell2 = cell1 + cellsize[icell] - 1;
-            for (iv = cell1; iv <= cell2 - 4; ++iv)
+            v = lab[iv];
+            gv = GRAPHROW(g,v,m);
+            for (iv1 = iv + 1; iv1 <= cell2 - 3; ++iv1)
             {
-                v = lab[iv];
-                gv = GRAPHROW(g,v,m);
-                for (iv1 = iv + 1; iv1 <= cell2 - 3; ++iv1)
+                v1 = lab[iv1];
+                gw = GRAPHROW(g,v1,m);
+                for (i = M; --i >= 0;) workset[i] = gv[i] ^ gw[i];
+                for (iv2 = iv1 + 1; iv2 <= cell2 - 2; ++iv2)
                 {
-                    v1 = lab[iv1];
-                    gw = GRAPHROW(g,v1,m);
-                    for (i = M; --i >= 0;) workset[i] = gv[i] ^ gw[i];
-                    for (iv2 = iv1 + 1; iv2 <= cell2 - 2; ++iv2)
+                    v2 = lab[iv2];
+                    gw = GRAPHROW(g,v2,m);
+                    for (i = M; --i >= 0;) ws1[i] = workset[i] ^ gw[i];
+                    for (iv3 = iv2 + 1; iv3 <= cell2 - 1; ++iv3)
                     {
-                        v2 = lab[iv2];
-                        gw = GRAPHROW(g,v2,m);
-                        for (i = M; --i >= 0;) ws1[i] = workset[i] ^ gw[i];
-                        for (iv3 = iv2 + 1; iv3 <= cell2 - 1; ++iv3)
+                        v3 = lab[iv3];
+                        gw = GRAPHROW(g,v3,m);
+                        for (i = M; --i >= 0;) ws2[i] = ws1[i] ^ gw[i];
+                        for (iv4 = iv3 + 1; iv4 <= cell2; ++iv4)
                         {
-                            v3 = lab[iv3];
-                            gw = GRAPHROW(g,v3,m);
-                            for (i = M; --i >= 0;) ws2[i] = ws1[i] ^ gw[i];
-                            for (iv4 = iv3 + 1; iv4 <= cell2; ++iv4)
-                            {
-                                v4 = lab[iv4];
-                                gw = GRAPHROW(g,v4,m);
-                                pc = 0;
-                                for (i = M; --i >= 0;)
-                                    if ((sw = ws2[i] ^ gw[i]) != 0)
-                                        pc += POPCOUNT(sw);
-                                wt = FUZZ1(pc);
-                                ACCUM(invar[v],wt);
-                                ACCUM(invar[v1],wt);
-                                ACCUM(invar[v2],wt);
-                                ACCUM(invar[v3],wt);
-                                ACCUM(invar[v4],wt);
-                            }
+                            v4 = lab[iv4];
+                            gw = GRAPHROW(g,v4,m);
+                            pc = 0;
+                            for (i = M; --i >= 0;)
+                                if ((sw = ws2[i] ^ gw[i]) != 0)
+                                    pc += POPCOUNT(sw);
+                            wt = FUZZ1(pc);
+                            ACCUM(invar[v],wt);
+                            ACCUM(invar[v1],wt);
+                            ACCUM(invar[v2],wt);
+                            ACCUM(invar[v3],wt);
+                            ACCUM(invar[v4],wt);
                         }
                     }
                 }
             }
-            wt = invar[lab[cell1]];
-            for (i = cell1 + 1; i <= cell2; ++i)
-                if (invar[lab[i]] != wt) return;
         }
+        wt = invar[lab[cell1]];
+        for (i = cell1 + 1; i <= cell2; ++i)
+            if (invar[lab[i]] != wt) return;
+    }
 }
 
 /*****************************************************************************
@@ -731,22 +731,22 @@ cellquins(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
 static int
 uniqinter(set *s1, set *s2, int m)
 {
-	int i,j;
-	setword w;
+    int i,j;
+    setword w;
 
-	for (i = 0; i < M; ++i)
-	{
-	    if ((w = s1[i] & s2[i]) != 0)
-	    {
-		j = FIRSTBITNZ(w);
-		if (w != BITT[j]) return -1;
-		j += TIMESWORDSIZE(i);
-		for (++i; i < M; ++i)
-		    if (s1[i] & s2[i]) return -1;
-		return j;
-	    }
-	}
-	return -1;
+    for (i = 0; i < M; ++i)
+    {
+        if ((w = s1[i] & s2[i]) != 0)
+        {
+            j = FIRSTBITNZ(w);
+            if (w != BITT[j]) return -1;
+            j += TIMESWORDSIZE(i);
+            for (++i; i < M; ++i)
+                if (s1[i] & s2[i]) return -1;
+            return j;
+        }
+    }
+    return -1;
 }
 
 /*****************************************************************************
@@ -764,108 +764,108 @@ void
 cellfano2(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
           int *invar, int invararg, boolean digraph, int m, int n)
 {
-        int i,pc;
-        setword sw;
-        int wt;
-        int v0,v1,v2,v3,iv0,iv1,iv2,iv3;
-        int icell,bigcells,cell1,cell2;
-        int *cellstart,*cellsize;
-	int nw,x01,x02,x03,x12,x13,x23;
-	int pnt0,pnt1,pnt2;
-	set *gv0,*gv1,*gv2,*gv3;
-	set *gp0,*gp1,*gp2;
+    int i,pc;
+    setword sw;
+    int wt;
+    int v0,v1,v2,v3,iv0,iv1,iv2,iv3;
+    int icell,bigcells,cell1,cell2;
+    int *cellstart,*cellsize;
+    int nw,x01,x02,x03,x12,x13,x23;
+    int pnt0,pnt1,pnt2;
+    set *gv0,*gv1,*gv2,*gv3;
+    set *gp0,*gp1,*gp2;
 
 #if !MAXN
-        DYNALLOC1(int,workshort,workshort_sz,n+2,"cellfano2");
-	DYNALLOC1(int,vv,vv_sz,n,"cellfano2");
-	DYNALLOC1(int,ww,ww_sz,n,"cellfano2");
+    DYNALLOC1(int,workshort,workshort_sz,n+2,"cellfano2");
+    DYNALLOC1(int,vv,vv_sz,n,"cellfano2");
+    DYNALLOC1(int,ww,ww_sz,n,"cellfano2");
 #endif
 
-        for (i = n; --i >= 0;) invar[i] = 0;
+    for (i = n; --i >= 0;) invar[i] = 0;
 
-        cellstart = workshort;
-        cellsize = workshort + (n/2);
-        getbigcells(ptn,level,4,&bigcells,cellstart,cellsize,n);
+    cellstart = workshort;
+    cellsize = workshort + (n/2);
+    getbigcells(ptn,level,4,&bigcells,cellstart,cellsize,n);
 
-        for (icell = 0; icell < bigcells; ++icell)
+    for (icell = 0; icell < bigcells; ++icell)
+    {
+        cell1 = cellstart[icell];
+        cell2 = cell1 + cellsize[icell] - 1;
+        for (iv0 = cell1; iv0 <= cell2 - 3; ++iv0)
         {
-            cell1 = cellstart[icell];
-            cell2 = cell1 + cellsize[icell] - 1;
-            for (iv0 = cell1; iv0 <= cell2 - 3; ++iv0)
+            v0 = lab[iv0];
+            gv0 = GRAPHROW(g,v0,m);
+            nw = 0;
+            for (iv1 = iv0 + 1; iv1 <= cell2; ++iv1)
             {
-                v0 = lab[iv0];
-                gv0 = GRAPHROW(g,v0,m);
-		nw = 0;
-		for (iv1 = iv0 + 1; iv1 <= cell2; ++iv1)
-		{
-		    v1 = lab[iv1];
-                    if (ISELEMENT(gv0,v1)) continue;
-                    if ((x01 = uniqinter(gv0,GRAPHROW(g,v1,m),m)) < 0) continue;
-		    vv[nw] = v1;
-		    ww[nw] = x01;
-		    ++nw;
-		}	
+                v1 = lab[iv1];
+                if (ISELEMENT(gv0,v1)) continue;
+                if ((x01 = uniqinter(gv0,GRAPHROW(g,v1,m),m)) < 0) continue;
+                vv[nw] = v1;
+                ww[nw] = x01;
+                ++nw;
+            }
 
-                for (iv1 = 0; iv1 < nw-2; ++iv1)
+            for (iv1 = 0; iv1 < nw-2; ++iv1)
+            {
+                v1 = vv[iv1];
+                gv1 = GRAPHROW(g,v1,m);
+                x01 = ww[iv1];
+
+                for (iv2 = iv1 + 1; iv2 < nw-1; ++iv2)
                 {
-                    v1 = vv[iv1];
-                    gv1 = GRAPHROW(g,v1,m);
-		    x01 = ww[iv1];
+                    x02 = ww[iv2];
+                    if (x02 == x01) continue;
+                    v2 = vv[iv2];
+                    if (ISELEMENT(gv1,v2)) continue;
+                    gv2 = GRAPHROW(g,v2,m);
+                    if ((x12 = uniqinter(gv1,gv2,m)) < 0) continue;
 
-                    for (iv2 = iv1 + 1; iv2 < nw-1; ++iv2)
+                    for (iv3 = iv2 + 1; iv3 < nw; ++iv3)
                     {
-			x02 = ww[iv2];
-			if (x02 == x01) continue;
-                        v2 = vv[iv2];
-			if (ISELEMENT(gv1,v2)) continue;
-                        gv2 = GRAPHROW(g,v2,m);
-			if ((x12 = uniqinter(gv1,gv2,m)) < 0) continue;
+                        x03 = ww[iv3];
+                        if (x03 == x01 || x03 == x02) continue;
+                        v3 = vv[iv3];
+                        if (ISELEMENT(gv1,v3) || ISELEMENT(gv2,v3))
+                            continue;
+                        gv3 = GRAPHROW(g,v3,m);
+                        if ((x13 = uniqinter(gv1,gv3,m)) < 0) continue;
+                        if ((x23 = uniqinter(gv2,gv3,m)) < 0
+                                               || x23 == x13) continue;
 
-                        for (iv3 = iv2 + 1; iv3 < nw; ++iv3)
+                        if ((pnt0 = uniqinter(GRAPHROW(g,x01,m),
+                                             GRAPHROW(g,x23,m),m)) < 0)
+                            continue;
+                        if ((pnt1 = uniqinter(GRAPHROW(g,x02,m),
+                                             GRAPHROW(g,x13,m),m)) < 0)
+                            continue;
+                        if ((pnt2 = uniqinter(GRAPHROW(g,x03,m),
+                                             GRAPHROW(g,x12,m),m)) < 0)
+                            continue;
+
+                        gp0 = GRAPHROW(g,pnt0,m);
+                        gp1 = GRAPHROW(g,pnt1,m);
+                        gp2 = GRAPHROW(g,pnt2,m);
+
+                        pc = 0;
+                        for (i = M; --i >= 0;)
                         {
-			    x03 = ww[iv3];
-			    if (x03 == x01 || x03 == x02) continue;
-                            v3 = vv[iv3];
-			    if (ISELEMENT(gv1,v3) || ISELEMENT(gv2,v3))
-				continue;
-                            gv3 = GRAPHROW(g,v3,m);
-			    if ((x13 = uniqinter(gv1,gv3,m)) < 0) continue;
-			    if ((x23 = uniqinter(gv2,gv3,m)) < 0
-                                                   || x23 == x13) continue;
-
-			    if ((pnt0 = uniqinter(GRAPHROW(g,x01,m),
-						 GRAPHROW(g,x23,m),m)) < 0)
-				continue;
-			    if ((pnt1 = uniqinter(GRAPHROW(g,x02,m),
-                                                 GRAPHROW(g,x13,m),m)) < 0)
-                                continue;
-                            if ((pnt2 = uniqinter(GRAPHROW(g,x03,m),
-                                                 GRAPHROW(g,x12,m),m)) < 0)
-                                continue;
-
-			    gp0 = GRAPHROW(g,pnt0,m);
-			    gp1 = GRAPHROW(g,pnt1,m);
-			    gp2 = GRAPHROW(g,pnt2,m);
-
-			    pc = 0;
-			    for (i = M; --i >= 0;)
-			    {
-				sw = gp0[i] & gp1[i] & gp2[i];
-				if (sw) pc += POPCOUNT(sw);
-			    }
-			    wt = FUZZ1(pc);
-			    ACCUM(invar[v0],wt);
-			    ACCUM(invar[v1],wt);
-                            ACCUM(invar[v2],wt);
-                            ACCUM(invar[v3],wt);
+                            sw = gp0[i] & gp1[i] & gp2[i];
+                            if (sw) pc += POPCOUNT(sw);
                         }
+                        wt = FUZZ1(pc);
+                        ACCUM(invar[v0],wt);
+                        ACCUM(invar[v1],wt);
+                        ACCUM(invar[v2],wt);
+                        ACCUM(invar[v3],wt);
                     }
                 }
             }
-            wt = invar[lab[cell1]];
-            for (i = cell1 + 1; i <= cell2; ++i)
-                if (invar[lab[i]] != wt) return;
         }
+        wt = invar[lab[cell1]];
+        for (i = cell1 + 1; i <= cell2; ++i)
+            if (invar[lab[i]] != wt) return;
+    }
 }
 
 /*****************************************************************************
@@ -878,24 +878,24 @@ cellfano2(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
 void
 setnbhd(graph *g, int m, int n, set *w, set *wn)
 {
-	int i,j;
-	set *gi;
+    int i,j;
+    set *gi;
 
-	i = nextelement(w,M,-1);
-	if (i < 0)
-	{
-	    EMPTYSET(wn,M);
-	    return;
-	}
+    i = nextelement(w,M,-1);
+    if (i < 0)
+    {
+        EMPTYSET(wn,M);
+        return;
+    }
 
-	gi = GRAPHROW(g,i,M);
-	for (j = M; --j >= 0;) wn[j] = gi[j];
+    gi = GRAPHROW(g,i,M);
+    for (j = M; --j >= 0;) wn[j] = gi[j];
 
-	while ((i = nextelement(w,M,i)) >= 0)
-	{
-	    gi = GRAPHROW(g,i,M);
-            for (j = M; --j >= 0;) wn[j] |= gi[j];
-	}
+    while ((i = nextelement(w,M,i)) >= 0)
+    {
+        gi = GRAPHROW(g,i,M);
+        for (j = M; --j >= 0;) wn[j] |= gi[j];
+    }
 }    
 
 /*****************************************************************************
@@ -913,101 +913,101 @@ void
 cellfano(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
          int *invar, int invararg, boolean digraph, int m, int n)
 {
-        int i,pc;
-        setword sw;
-        int wt;
-        int v0,v1,v2,v3,iv0,iv1,iv2,iv3;
-        int icell,bigcells,cell1,cell2;
-        int *cellstart,*cellsize;
-	set *gv0,*gv1,*gv2,*gv3;
+    int i,pc;
+    setword sw;
+    int wt;
+    int v0,v1,v2,v3,iv0,iv1,iv2,iv3;
+    int icell,bigcells,cell1,cell2;
+    int *cellstart,*cellsize;
+    set *gv0,*gv1,*gv2,*gv3;
 
 #if !MAXN
-        DYNALLOC1(int,workshort,workshort_sz,n+2,"cellfano");
-	DYNALLOC1(set,w01,w01_sz,m,"cellfano");
-	DYNALLOC1(set,w02,w02_sz,m,"cellfano");
-	DYNALLOC1(set,w03,w03_sz,m,"cellfano");
-	DYNALLOC1(set,w12,w12_sz,m,"cellfano");
-	DYNALLOC1(set,w13,w13_sz,m,"cellfano");
-	DYNALLOC1(set,w23,w23_sz,m,"cellfano");
-	DYNALLOC1(set,pt0,pt0_sz,m,"cellfano");
-	DYNALLOC1(set,pt1,pt1_sz,m,"cellfano");
-	DYNALLOC1(set,pt2,pt2_sz,m,"cellfano");
-	DYNALLOC1(set,workset,workset_sz,m,"cellfano");
+    DYNALLOC1(int,workshort,workshort_sz,n+2,"cellfano");
+    DYNALLOC1(set,w01,w01_sz,m,"cellfano");
+    DYNALLOC1(set,w02,w02_sz,m,"cellfano");
+    DYNALLOC1(set,w03,w03_sz,m,"cellfano");
+    DYNALLOC1(set,w12,w12_sz,m,"cellfano");
+    DYNALLOC1(set,w13,w13_sz,m,"cellfano");
+    DYNALLOC1(set,w23,w23_sz,m,"cellfano");
+    DYNALLOC1(set,pt0,pt0_sz,m,"cellfano");
+    DYNALLOC1(set,pt1,pt1_sz,m,"cellfano");
+    DYNALLOC1(set,pt2,pt2_sz,m,"cellfano");
+    DYNALLOC1(set,workset,workset_sz,m,"cellfano");
 #else
 #endif
 
-        for (i = n; --i >= 0;) invar[i] = 0;
+    for (i = n; --i >= 0;) invar[i] = 0;
 
-        cellstart = workshort;
-        cellsize = workshort + (n/2);
-        getbigcells(ptn,level,4,&bigcells,cellstart,cellsize,n);
+    cellstart = workshort;
+    cellsize = workshort + (n/2);
+    getbigcells(ptn,level,4,&bigcells,cellstart,cellsize,n);
 
-        for (icell = 0; icell < bigcells; ++icell)
+    for (icell = 0; icell < bigcells; ++icell)
+    {
+        cell1 = cellstart[icell];
+        cell2 = cell1 + cellsize[icell] - 1;
+        for (iv0 = cell1; iv0 <= cell2 - 3; ++iv0)
         {
-            cell1 = cellstart[icell];
-            cell2 = cell1 + cellsize[icell] - 1;
-            for (iv0 = cell1; iv0 <= cell2 - 3; ++iv0)
+            v0 = lab[iv0];
+            gv0 = GRAPHROW(g,v0,m);
+            for (iv1 = iv0 + 1; iv1 <= cell2 - 2; ++iv1)
             {
-                v0 = lab[iv0];
-                gv0 = GRAPHROW(g,v0,m);
-                for (iv1 = iv0 + 1; iv1 <= cell2 - 2; ++iv1)
+                v1 = lab[iv1];
+                if (ISELEMENT(gv0,v1)) continue;
+                gv1 = GRAPHROW(g,v1,m);
+                for (i = M; --i >= 0;) workset[i] = gv0[i] & gv1[i];
+                setnbhd(g,m,n,workset,w01);
+
+                for (iv2 = iv1 + 1; iv2 <= cell2 - 1; ++iv2)
                 {
-                    v1 = lab[iv1];
-		    if (ISELEMENT(gv0,v1)) continue;
-                    gv1 = GRAPHROW(g,v1,m);
-                    for (i = M; --i >= 0;) workset[i] = gv0[i] & gv1[i];
-		    setnbhd(g,m,n,workset,w01);
+                    v2 = lab[iv2];
+                    if (ISELEMENT(gv0,v2) || ISELEMENT(gv1,v2))
+                        continue;
+                    gv2 = GRAPHROW(g,v2,m);
+                    for (i = M; --i >= 0;) workset[i] = gv0[i] & gv2[i];
+                    setnbhd(g,m,n,workset,w02);
+                    for (i = M; --i >= 0;) workset[i] = gv1[i] & gv2[i];
+                    setnbhd(g,m,n,workset,w12);
 
-                    for (iv2 = iv1 + 1; iv2 <= cell2 - 1; ++iv2)
+                    for (iv3 = iv2 + 1; iv3 <= cell2; ++iv3)
                     {
-                        v2 = lab[iv2];
-			if (ISELEMENT(gv0,v2) || ISELEMENT(gv1,v2))
-			    continue;
-                        gv2 = GRAPHROW(g,v2,m);
-			for (i = M; --i >= 0;) workset[i] = gv0[i] & gv2[i];
-                        setnbhd(g,m,n,workset,w02);
-                        for (i = M; --i >= 0;) workset[i] = gv1[i] & gv2[i];
-                        setnbhd(g,m,n,workset,w12);
-
-                        for (iv3 = iv2 + 1; iv3 <= cell2; ++iv3)
+                        v3 = lab[iv3];
+                        if (ISELEMENT(gv0,v3) || ISELEMENT(gv1,v3) ||
+                                    ISELEMENT(gv2,v3))
+                            continue;
+                        gv3 = GRAPHROW(g,v3,m);
+                        for (i = M; --i >= 0;) workset[i] = gv0[i] & gv3[i];
+                        setnbhd(g,m,n,workset,w03);
+                        for (i = M; --i >= 0;) workset[i] = gv1[i] & gv3[i];
+                        setnbhd(g,m,n,workset,w13);
+                        for (i = M; --i >= 0;) workset[i] = gv2[i] & gv3[i];
+                        setnbhd(g,m,n,workset,w23);
+                    
+                        for (i = M; --i >= 0;) workset[i] = w01[i] & w23[i];
+                        setnbhd(g,m,n,workset,pt0);
+                        for (i = M; --i >= 0;) workset[i] = w03[i] & w12[i];
+                        setnbhd(g,m,n,workset,pt1);
+                        for (i = M; --i >= 0;) workset[i] = w02[i] & w13[i];
+                        setnbhd(g,m,n,workset,pt2);
+                        pc = 0;
+                        for (i = M; --i >= 0;)
                         {
-                            v3 = lab[iv3];
-			    if (ISELEMENT(gv0,v3) || ISELEMENT(gv1,v3) ||
-					ISELEMENT(gv2,v3))
-				continue;
-                            gv3 = GRAPHROW(g,v3,m);
-                            for (i = M; --i >= 0;) workset[i] = gv0[i] & gv3[i];
-                            setnbhd(g,m,n,workset,w03);
-                            for (i = M; --i >= 0;) workset[i] = gv1[i] & gv3[i];
-                            setnbhd(g,m,n,workset,w13);
-                            for (i = M; --i >= 0;) workset[i] = gv2[i] & gv3[i];
-                            setnbhd(g,m,n,workset,w23);
-			
-			    for (i = M; --i >= 0;) workset[i] = w01[i] & w23[i];
-			    setnbhd(g,m,n,workset,pt0);
-                            for (i = M; --i >= 0;) workset[i] = w03[i] & w12[i];
-                            setnbhd(g,m,n,workset,pt1);
-                            for (i = M; --i >= 0;) workset[i] = w02[i] & w13[i];
-                            setnbhd(g,m,n,workset,pt2);
-			    pc = 0;
-			    for (i = M; --i >= 0;)
-			    {
-				sw = pt0[i] & pt1[i] & pt2[i];
-				if (sw) pc += POPCOUNT(sw);
-			    }
-			    wt = FUZZ1(pc);
-			    ACCUM(invar[v0],wt);
-			    ACCUM(invar[v1],wt);
-                            ACCUM(invar[v2],wt);
-                            ACCUM(invar[v3],wt);
+                            sw = pt0[i] & pt1[i] & pt2[i];
+                            if (sw) pc += POPCOUNT(sw);
                         }
+                        wt = FUZZ1(pc);
+                        ACCUM(invar[v0],wt);
+                        ACCUM(invar[v1],wt);
+                        ACCUM(invar[v2],wt);
+                        ACCUM(invar[v3],wt);
                     }
                 }
             }
-            wt = invar[lab[cell1]];
-            for (i = cell1 + 1; i <= cell2; ++i)
-                if (invar[lab[i]] != wt) return;
         }
+        wt = invar[lab[cell1]];
+        for (i = cell1 + 1; i <= cell2; ++i)
+            if (invar[lab[i]] != wt) return;
+    }
 }
 
 /*****************************************************************************
@@ -1023,69 +1023,69 @@ void
 distances(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
           int *invar, int invararg, boolean digraph, int m, int n)
 {
-        int i;
-        set *gw;
-        int wt;
-        int d,dlim,cell1,cell2,iv,v,w;
-        boolean success;
+    int i;
+    set *gw;
+    int wt;
+    int d,dlim,cell1,cell2,iv,v,w;
+    boolean success;
 
 #if !MAXN
-        DYNALLOC1(set,workset,workset_sz,m,"distances");
-        DYNALLOC1(int,workshort,workshort_sz,n+2,"distances");
-	DYNALLOC1(set,ws1,ws1_sz,m,"distances");
-	DYNALLOC1(set,ws2,ws2_sz,m,"distances"); 
+    DYNALLOC1(set,workset,workset_sz,m,"distances");
+    DYNALLOC1(int,workshort,workshort_sz,n+2,"distances");
+    DYNALLOC1(set,ws1,ws1_sz,m,"distances");
+    DYNALLOC1(set,ws2,ws2_sz,m,"distances"); 
 #endif
 
-        for (i = n; --i >= 0;) invar[i] = 0;
+    for (i = n; --i >= 0;) invar[i] = 0;
 
-        wt = 1;
-        for (i = 0; i < n; ++i)
+    wt = 1;
+    for (i = 0; i < n; ++i)
+    {
+        workshort[lab[i]] = FUZZ1(wt);
+        if (ptn[i] <= level) ++wt;
+    }
+
+    if (invararg > n || invararg == 0) dlim = n;
+    else                               dlim = invararg+1;
+
+    success = FALSE;
+    for (cell1 = 0; cell1 < n; cell1 = cell2 + 1)
+    {
+        for (cell2 = cell1; ptn[cell2] > level; ++cell2) {}
+        if (cell2 == cell1) continue;
+
+        for (iv = cell1; iv <= cell2; ++iv)
         {
-            workshort[lab[i]] = FUZZ1(wt);
-            if (ptn[i] <= level) ++wt;
-        }
-
-	if (invararg > n || invararg == 0) dlim = n;
-	else                               dlim = invararg+1;
-
-        success = FALSE;
-        for (cell1 = 0; cell1 < n; cell1 = cell2 + 1)
-        {
-            for (cell2 = cell1; ptn[cell2] > level; ++cell2) {}
-            if (cell2 == cell1) continue;
-
-            for (iv = cell1; iv <= cell2; ++iv)
+            v = lab[iv];
+            EMPTYSET(ws1,m);
+            ADDELEMENT(ws1,v);
+            EMPTYSET(ws2,m);
+            ADDELEMENT(ws2,v);
+            for (d = 1; d < dlim; ++d)
             {
-                v = lab[iv];
-                EMPTYSET(ws1,m);
-                ADDELEMENT(ws1,v);
-                EMPTYSET(ws2,m);
-                ADDELEMENT(ws2,v);
-                for (d = 1; d < dlim; ++d)
+                EMPTYSET(workset,m);
+                wt = 0;
+                w = -1;
+                while ((w = nextelement(ws2,M,w)) >= 0)
                 {
-                    EMPTYSET(workset,m);
-                    wt = 0;
-                    w = -1;
-                    while ((w = nextelement(ws2,M,w)) >= 0)
-                    {
-                        gw = GRAPHROW(g,w,m);
-                        ACCUM(wt,workshort[w]);
-                        for (i = M; --i >= 0;) workset[i] |= gw[i];
-                    }
-                    if (wt == 0) break;
-                    ACCUM(wt,d);
-                    wt = FUZZ2(wt);
-                    ACCUM(invar[v],wt);
-                    for (i = M; --i >= 0;)
-                    {
-                        ws2[i] = workset[i] & ~ws1[i];
-                        ws1[i] |= ws2[i];
-                    }
+                    gw = GRAPHROW(g,w,m);
+                    ACCUM(wt,workshort[w]);
+                    for (i = M; --i >= 0;) workset[i] |= gw[i];
                 }
-                if (invar[v] != invar[lab[cell1]]) success = TRUE;
+                if (wt == 0) break;
+                ACCUM(wt,d);
+                wt = FUZZ2(wt);
+                ACCUM(invar[v],wt);
+                for (i = M; --i >= 0;)
+                {
+                    ws2[i] = workset[i] & ~ws1[i];
+                    ws1[i] |= ws2[i];
+                }
             }
-            if (success) break;
+            if (invar[v] != invar[lab[cell1]]) success = TRUE;
         }
+        if (success) break;
+    }
 }
 
 /*****************************************************************************
@@ -1100,67 +1100,67 @@ void
 indsets(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
         int *invar, int invararg, boolean digraph, int m, int n)
 {
-        int i;
-        int wt;
-        set *gv;
-        int ss,setsize;
-        int v[MAXCLIQUE];
-        long wv[MAXCLIQUE];
-        set *s0,*s1;
+    int i;
+    int wt;
+    set *gv;
+    int ss,setsize;
+    int v[MAXCLIQUE];
+    long wv[MAXCLIQUE];
+    set *s0,*s1;
 
 #if !MAXN
-        DYNALLOC1(int,workshort,workshort_sz,n+2,"indsets");
-	DYNALLOC2(set,wss,wss_sz,m,MAXCLIQUE-1,"indsets");
+    DYNALLOC1(int,workshort,workshort_sz,n+2,"indsets");
+    DYNALLOC2(set,wss,wss_sz,m,MAXCLIQUE-1,"indsets");
 #endif
 
-        for (i = n; --i >= 0;) invar[i] = 0;
+    for (i = n; --i >= 0;) invar[i] = 0;
 
-        if (invararg <= 1 || digraph) return;
+    if (invararg <= 1 || digraph) return;
 
-        if (invararg > MAXCLIQUE) setsize = MAXCLIQUE;
-        else                      setsize = invararg;
+    if (invararg > MAXCLIQUE) setsize = MAXCLIQUE;
+    else                      setsize = invararg;
 
-        wt = 1;
-        for (i = 0; i < n; ++i)
+    wt = 1;
+    for (i = 0; i < n; ++i)
+    {
+        workshort[lab[i]] = FUZZ2(wt);
+        if (ptn[i] <= level) ++wt;
+    }
+
+    for (v[0] = 0; v[0] < n; ++v[0])
+    {
+        wv[0] = workshort[v[0]];
+        s0 = (set*)wss;
+        EMPTYSET(s0,m);
+        for (i = v[0]+1; i < n; ++i) ADDELEMENT(s0,i);
+        gv = GRAPHROW(g,v[0],m);
+        for (i = M; --i >= 0;) s0[i] &= ~gv[i];
+        ss = 1;
+        v[1] = v[0];
+        while (ss > 0)
         {
-            workshort[lab[i]] = FUZZ2(wt);
-            if (ptn[i] <= level) ++wt;
-        }
-
-        for (v[0] = 0; v[0] < n; ++v[0])
-        {
-            wv[0] = workshort[v[0]];
-            s0 = (set*)wss;
-            EMPTYSET(s0,m);
-            for (i = v[0]+1; i < n; ++i) ADDELEMENT(s0,i);
-            gv = GRAPHROW(g,v[0],m);
-            for (i = M; --i >= 0;) s0[i] &= ~gv[i];
-            ss = 1;
-            v[1] = v[0];
-            while (ss > 0)
+            if (ss == setsize)
             {
-                if (ss == setsize)
+                wt = FUZZ1(wv[ss-1]);
+                for (i = ss; --i >= 0;) ACCUM(invar[v[i]],wt);
+                --ss;
+            }
+            else if ((v[ss] = nextelement((set*)wss+M*(ss-1),M,v[ss])) < 0)
+                --ss;
+            else
+            {
+                wv[ss] = wv[ss-1] + workshort[v[ss]];
+                ++ss;
+                if (ss < setsize)
                 {
-                    wt = FUZZ1(wv[ss-1]);
-                    for (i = ss; --i >= 0;) ACCUM(invar[v[i]],wt);
-                    --ss;
-                }
-                else if ((v[ss] = nextelement((set*)wss+M*(ss-1),M,v[ss])) < 0)
-                    --ss;
-                else
-                {
-                    wv[ss] = wv[ss-1] + workshort[v[ss]];
-                    ++ss;
-                    if (ss < setsize)
-                    {
-                        gv = GRAPHROW(g,v[ss-1],m);
-			s1 = (set*)wss + M*(ss-2);
-                        for (i = M; --i >= 0;) s1[i+M] = s1[i] & ~gv[i];
-                        v[ss] = v[ss-1];
-                    }
+                    gv = GRAPHROW(g,v[ss-1],m);
+                    s1 = (set*)wss + M*(ss-2);
+                    for (i = M; --i >= 0;) s1[i+M] = s1[i] & ~gv[i];
+                    v[ss] = v[ss-1];
                 }
             }
         }
+    }
 }
 
 /*****************************************************************************
@@ -1175,67 +1175,67 @@ void
 cliques(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
         int *invar, int invararg, boolean digraph, int m, int n)
 {
-        int i;
-        int wt;
-        set *gv;
-        int ss,setsize;
-        int v[MAXCLIQUE];
-        long wv[MAXCLIQUE];
-	set *ns;
+    int i;
+    int wt;
+    set *gv;
+    int ss,setsize;
+    int v[MAXCLIQUE];
+    long wv[MAXCLIQUE];
+    set *ns;
 
 #if !MAXN
-        DYNALLOC1(int,workshort,workshort_sz,n+2,"cliques");
-	DYNALLOC2(set,wss,wss_sz,m,MAXCLIQUE-1,"cliques");
+    DYNALLOC1(int,workshort,workshort_sz,n+2,"cliques");
+    DYNALLOC2(set,wss,wss_sz,m,MAXCLIQUE-1,"cliques");
 #else
-	set wss[MAXCLIQUE-1][MAXM];
+    set wss[MAXCLIQUE-1][MAXM];
 #endif
 
-        for (i = n; --i >= 0;) invar[i] = 0;
+    for (i = n; --i >= 0;) invar[i] = 0;
 
-        if (invararg <= 1 || digraph) return;
+    if (invararg <= 1 || digraph) return;
 
-        if (invararg > MAXCLIQUE) setsize = MAXCLIQUE;
-        else                      setsize = invararg;
+    if (invararg > MAXCLIQUE) setsize = MAXCLIQUE;
+    else                      setsize = invararg;
 
-        wt = 1;
-        for (i = 0; i < n; ++i)
+    wt = 1;
+    for (i = 0; i < n; ++i)
+    {
+        workshort[lab[i]] = FUZZ2(wt);
+        if (ptn[i] <= level) ++wt;
+    }
+
+    for (v[0] = 0; v[0] < n; ++v[0])
+    {
+        wv[0] = workshort[v[0]];
+        gv = GRAPHROW(g,v[0],m);
+        ns = (set*)wss;
+        for (i = M; --i >= 0;) ns[i] = gv[i];
+        ss = 1;
+        v[1] = v[0];
+        while (ss > 0)
         {
-            workshort[lab[i]] = FUZZ2(wt);
-            if (ptn[i] <= level) ++wt;
-        }
-
-        for (v[0] = 0; v[0] < n; ++v[0])
-        {
-            wv[0] = workshort[v[0]];
-            gv = GRAPHROW(g,v[0],m);
-	    ns = (set*)wss;
-            for (i = M; --i >= 0;) ns[i] = gv[i];
-            ss = 1;
-            v[1] = v[0];
-            while (ss > 0)
+            if (ss == setsize)
             {
-                if (ss == setsize)
+                wt = FUZZ1(wv[ss-1]);
+                for (i = ss; --i >= 0;) ACCUM(invar[v[i]],wt);
+                --ss;
+            }
+            else if ((v[ss] = nextelement((set*)wss+M*(ss-1),M,v[ss])) < 0)
+                --ss;
+            else
+            {
+                wv[ss] = wv[ss-1] + workshort[v[ss]];
+                ++ss;
+                if (ss < setsize)
                 {
-                    wt = FUZZ1(wv[ss-1]);
-                    for (i = ss; --i >= 0;) ACCUM(invar[v[i]],wt);
-                    --ss;
-                }
-                else if ((v[ss] = nextelement((set*)wss+M*(ss-1),M,v[ss])) < 0)
-                    --ss;
-                else
-                {
-                    wv[ss] = wv[ss-1] + workshort[v[ss]];
-                    ++ss;
-                    if (ss < setsize)
-                    {
-                        gv = GRAPHROW(g,v[ss-1],m);
-			ns = (set*)wss + M*(ss-2);
-                        for (i = M; --i >= 0;) ns[i+M] = ns[i] & gv[i];
-                        v[ss] = v[ss-1];
-                    }
+                    gv = GRAPHROW(g,v[ss-1],m);
+                    ns = (set*)wss + M*(ss-2);
+                    for (i = M; --i >= 0;) ns[i+M] = ns[i] & gv[i];
+                    v[ss] = v[ss-1];
                 }
             }
         }
+    }
 }
 
 /*****************************************************************************
@@ -1251,86 +1251,86 @@ void
 cellcliq(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
          int *invar, int invararg, boolean digraph, int m, int n)
 {
-        int i;
-        int wt;
-        set *gv;
-        int ss,setsize;
-        int v[MAXCLIQUE];
-        set *ns;
-        int *cellstart,*cellsize;
-        int iv,icell,bigcells,cell1,cell2;
-        int pc;
-        setword sw;
+    int i;
+    int wt;
+    set *gv;
+    int ss,setsize;
+    int v[MAXCLIQUE];
+    set *ns;
+    int *cellstart,*cellsize;
+    int iv,icell,bigcells,cell1,cell2;
+    int pc;
+    setword sw;
 
 #if !MAXN
-        DYNALLOC1(set,workset,workset_sz,m,"cellcliq");
-        DYNALLOC1(int,workshort,workshort_sz,n+2,"cellcliq");
-	DYNALLOC2(set,wss,wss_sz,m,MAXCLIQUE-1,"cellcliq");
+    DYNALLOC1(set,workset,workset_sz,m,"cellcliq");
+    DYNALLOC1(int,workshort,workshort_sz,n+2,"cellcliq");
+    DYNALLOC2(set,wss,wss_sz,m,MAXCLIQUE-1,"cellcliq");
 #endif
 
-        for (i = n; --i >= 0;) invar[i] = 0;
+    for (i = n; --i >= 0;) invar[i] = 0;
 
-        if (invararg <= 1 || digraph) return;
+    if (invararg <= 1 || digraph) return;
 
-        if (invararg > MAXCLIQUE) setsize = MAXCLIQUE;
-        else                      setsize = invararg;
+    if (invararg > MAXCLIQUE) setsize = MAXCLIQUE;
+    else                      setsize = invararg;
 
-        cellstart = workshort;
-        cellsize = workshort + (n/2);
-        getbigcells(ptn,level,setsize > 6 ? setsize : 6,&bigcells,
-                    cellstart,cellsize,n);
+    cellstart = workshort;
+    cellsize = workshort + (n/2);
+    getbigcells(ptn,level,setsize > 6 ? setsize : 6,&bigcells,
+                cellstart,cellsize,n);
 
-        for (icell = 0; icell < bigcells; ++icell)
+    for (icell = 0; icell < bigcells; ++icell)
+    {
+        cell1 = cellstart[icell];
+        cell2 = cell1 + cellsize[icell] - 1;
+
+        EMPTYSET(workset,m);
+        for (iv = cell1; iv <= cell2; ++iv) ADDELEMENT(workset,lab[iv]);
+
+        for (iv = cell1; iv <= cell2; ++iv)
         {
-            cell1 = cellstart[icell];
-            cell2 = cell1 + cellsize[icell] - 1;
+            v[0] = lab[iv];
+            gv = GRAPHROW(g,v[0],m);
+            ns = (set*)wss;
+            pc = 0;
 
-            EMPTYSET(workset,m);
-            for (iv = cell1; iv <= cell2; ++iv) ADDELEMENT(workset,lab[iv]);
-
-            for (iv = cell1; iv <= cell2; ++iv)
+            for (i = M; --i >= 0;)
             {
-                v[0] = lab[iv];
-                gv = GRAPHROW(g,v[0],m);
-		ns = (set*)wss;
-                pc = 0;
+                ns[i] = gv[i] & workset[i];
+                if ((sw = ns[i]) != 0) pc += POPCOUNT(sw);
+            }
+            if (pc <= 1 || pc >= cellsize[icell] - 2) continue;
 
-                for (i = M; --i >= 0;)
+            ss = 1;
+            v[1] = v[0];
+            while (ss > 0)
+            {
+                if (ss == setsize)
                 {
-                    ns[i] = gv[i] & workset[i];
-                    if ((sw = ns[i]) != 0) pc += POPCOUNT(sw);
+                    for (i = ss; --i >= 0;) ++invar[v[i]];
+                    --ss;
                 }
-                if (pc <= 1 || pc >= cellsize[icell] - 2) continue;
-
-                ss = 1;
-                v[1] = v[0];
-                while (ss > 0)
+                else if ((v[ss] 
+                            = nextelement((set*)wss+M*(ss-1),M,v[ss])) < 0)
+                    --ss;
+                else
                 {
-                    if (ss == setsize)
+                    ++ss;
+                    if (ss < setsize)
                     {
-                        for (i = ss; --i >= 0;) ++invar[v[i]];
-                        --ss;
-                    }
-                    else if ((v[ss] 
-				= nextelement((set*)wss+M*(ss-1),M,v[ss])) < 0)
-                        --ss;
-                    else
-                    {
-                        ++ss;
-                        if (ss < setsize)
-                        {
-                            gv = GRAPHROW(g,v[ss-1],m);
-			    ns = (set*)wss + M*(ss-2);
-                            for (i = M; --i >= 0;) ns[i+M] = ns[i] & gv[i];
-                            v[ss] = v[ss-1];
-                        }
+                        gv = GRAPHROW(g,v[ss-1],m);
+                        ns = (set*)wss + M*(ss-2);
+                        for (i = M; --i >= 0;) ns[i+M] = ns[i] & gv[i];
+                        v[ss] = v[ss-1];
                     }
                 }
             }
-            wt = invar[lab[cell1]];
-            for (iv = cell1 + 1; iv <= cell2; ++iv)
-                if (invar[lab[iv]] != wt) return;
         }
+        wt = invar[lab[cell1]];
+        for (iv = cell1 + 1; iv <= cell2; ++iv)
+            if (invar[lab[iv]] != wt) return;
+    }
 }
 
 /*****************************************************************************
@@ -1347,86 +1347,86 @@ void
 cellind(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
         int *invar, int invararg, boolean digraph, int m, int n)
 {
-        int i;
-        int wt;
-        set *gv;
-        int ss,setsize;
-        int v[MAXCLIQUE];
-        set *ns;
-        int *cellstart,*cellsize;
-        int iv,icell,bigcells,cell1,cell2;
-        int pc;
-        setword sw;
+    int i;
+    int wt;
+    set *gv;
+    int ss,setsize;
+    int v[MAXCLIQUE];
+    set *ns;
+    int *cellstart,*cellsize;
+    int iv,icell,bigcells,cell1,cell2;
+    int pc;
+    setword sw;
 
 #if !MAXN
-        DYNALLOC1(set,workset,workset_sz,m,"cellind");
-        DYNALLOC1(int,workshort,workshort_sz,n+2,"cellind");
-	DYNALLOC2(set,wss,wss_sz,m,MAXCLIQUE-1,"cellind");
+    DYNALLOC1(set,workset,workset_sz,m,"cellind");
+    DYNALLOC1(int,workshort,workshort_sz,n+2,"cellind");
+    DYNALLOC2(set,wss,wss_sz,m,MAXCLIQUE-1,"cellind");
 #endif
 
-        for (i = n; --i >= 0;) invar[i] = 0;
+    for (i = n; --i >= 0;) invar[i] = 0;
 
-        if (invararg <= 1 || digraph) return;
+    if (invararg <= 1 || digraph) return;
 
-        if (invararg > MAXCLIQUE) setsize = MAXCLIQUE;
-        else                      setsize = invararg;
+    if (invararg > MAXCLIQUE) setsize = MAXCLIQUE;
+    else                      setsize = invararg;
 
-        cellstart = workshort;
-        cellsize = workshort + (n/2);
-        getbigcells(ptn,level,setsize > 6 ? setsize : 6,&bigcells,
-                    cellstart,cellsize,n);
+    cellstart = workshort;
+    cellsize = workshort + (n/2);
+    getbigcells(ptn,level,setsize > 6 ? setsize : 6,&bigcells,
+                cellstart,cellsize,n);
 
-        for (icell = 0; icell < bigcells; ++icell)
+    for (icell = 0; icell < bigcells; ++icell)
+    {
+        cell1 = cellstart[icell];
+        cell2 = cell1 + cellsize[icell] - 1;
+
+        EMPTYSET(workset,m);
+        for (iv = cell1; iv <= cell2; ++iv) ADDELEMENT(workset,lab[iv]);
+
+        for (iv = cell1; iv <= cell2; ++iv)
         {
-            cell1 = cellstart[icell];
-            cell2 = cell1 + cellsize[icell] - 1;
+            v[0] = lab[iv];
+            gv = GRAPHROW(g,v[0],m);
+            ns = (set*)wss;
+            pc = 0;
 
-            EMPTYSET(workset,m);
-            for (iv = cell1; iv <= cell2; ++iv) ADDELEMENT(workset,lab[iv]);
-
-            for (iv = cell1; iv <= cell2; ++iv)
+            for (i = M; --i >= 0;)
             {
-                v[0] = lab[iv];
-                gv = GRAPHROW(g,v[0],m);
-	 	ns = (set*)wss;
-                pc = 0;
+                ns[i] = ~gv[i] & workset[i];
+                if ((sw = ns[i]) != 0) pc += POPCOUNT(sw);
+            }
+            if (pc <= 1 || pc >= cellsize[icell] - 2) continue;
 
-                for (i = M; --i >= 0;)
+            ss = 1;
+            v[1] = v[0];
+            while (ss > 0)
+            {
+                if (ss == setsize)
                 {
-                    ns[i] = ~gv[i] & workset[i];
-                    if ((sw = ns[i]) != 0) pc += POPCOUNT(sw);
+                    for (i = ss; --i >= 0;) ++invar[v[i]];
+                    --ss;
                 }
-                if (pc <= 1 || pc >= cellsize[icell] - 2) continue;
-
-                ss = 1;
-                v[1] = v[0];
-                while (ss > 0)
+                else if ((v[ss] 
+                       = nextelement((set*)wss+M*(ss-1),M,v[ss])) < 0)
+                    --ss;
+                else
                 {
-                    if (ss == setsize)
+                    ++ss;
+                    if (ss < setsize)
                     {
-                        for (i = ss; --i >= 0;) ++invar[v[i]];
-                        --ss;
-                    }
-                    else if ((v[ss] 
-			   = nextelement((set*)wss+M*(ss-1),M,v[ss])) < 0)
-                        --ss;
-                    else
-                    {
-                        ++ss;
-                        if (ss < setsize)
-                        {
-                            gv = GRAPHROW(g,v[ss-1],m);
-			    ns = (set*)wss + M*(ss-2);
-                            for (i = M; --i >= 0;) ns[i+M] = ns[i] & ~gv[i];
-                            v[ss] = v[ss-1];
-                        }
+                        gv = GRAPHROW(g,v[ss-1],m);
+                        ns = (set*)wss + M*(ss-2);
+                        for (i = M; --i >= 0;) ns[i+M] = ns[i] & ~gv[i];
+                        v[ss] = v[ss-1];
                     }
                 }
             }
-            wt = invar[lab[cell1]];
-            for (iv = cell1 + 1; iv <= cell2; ++iv)
-                if (invar[lab[iv]] != wt) return;
         }
+        wt = invar[lab[cell1]];
+        for (iv = cell1 + 1; iv <= cell2; ++iv)
+            if (invar[lab[iv]] != wt) return;
+    }
 }
 
 /*****************************************************************************
@@ -1442,34 +1442,34 @@ void
 adjacencies(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
             int *invar, int invararg, boolean digraph, int m, int n)
 {
-        int i,v,w;
-        int vwt,wwt;
-        set *gv;
+    int i,v,w;
+    int vwt,wwt;
+    set *gv;
 
 #if !MAXN
-        DYNALLOC1(int,workshort,workshort_sz,n+2,"adjacencies");
+    DYNALLOC1(int,workshort,workshort_sz,n+2,"adjacencies");
 #endif
 
-        vwt = 1;
-        for (i = 0; i < n; ++i)
-        {
-            workshort[lab[i]] = vwt;
-            if (ptn[i] <= level) ++vwt;
-            invar[i] = 0;
-        }
+    vwt = 1;
+    for (i = 0; i < n; ++i)
+    {
+        workshort[lab[i]] = vwt;
+        if (ptn[i] <= level) ++vwt;
+        invar[i] = 0;
+    }
 
-        for (v = 0, gv = (set*)g; v < n; ++v, gv += M)
+    for (v = 0, gv = (set*)g; v < n; ++v, gv += M)
+    {
+        vwt = FUZZ1(workshort[v]);
+        wwt = 0;
+        w = -1;
+        while ((w = nextelement(gv,M,w)) >= 0)
         {
-            vwt = FUZZ1(workshort[v]);
-            wwt = 0;
-            w = -1;
-            while ((w = nextelement(gv,M,w)) >= 0)
-            {
-                ACCUM(wwt,FUZZ2(workshort[w]));
-                ACCUM(invar[w],vwt);
-            }
-            ACCUM(invar[v],wwt);
+            ACCUM(wwt,FUZZ2(workshort[w]));
+            ACCUM(invar[w],vwt);
         }
+        ACCUM(invar[v],wwt);
+    }
 }
 
 /*****************************************************************************
@@ -1482,31 +1482,31 @@ adjacencies(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
 void
 nautinv_check(int wordsize, int m, int n, int version)
 {
-        if (wordsize != WORDSIZE)
-        {
-            fprintf(ERRFILE,"Error: WORDSIZE mismatch in nautinv.c\n");
-            exit(1);
-        }
+    if (wordsize != WORDSIZE)
+    {
+        fprintf(ERRFILE,"Error: WORDSIZE mismatch in nautinv.c\n");
+        exit(1);
+    }
 
 #if MAXN
-        if (m > MAXM)
-        {
-            fprintf(ERRFILE,"Error: MAXM inadequate in nautinv.c\n");
-            exit(1);
-        }
+    if (m > MAXM)
+    {
+        fprintf(ERRFILE,"Error: MAXM inadequate in nautinv.c\n");
+        exit(1);
+    }
 
-        if (n > MAXN)
-        {
-            fprintf(ERRFILE,"Error: MAXN inadequate in nautinv.c\n");
-            exit(1);
-        }
+    if (n > MAXN)
+    {
+        fprintf(ERRFILE,"Error: MAXN inadequate in nautinv.c\n");
+        exit(1);
+    }
 #endif
 
-        if (version < NAUTYREQUIRED)
-        {
-            fprintf(ERRFILE,"Error: nautinv.c version mismatch\n");
-            exit(1);
-        }
+    if (version < NAUTYREQUIRED)
+    {
+        fprintf(ERRFILE,"Error: nautinv.c version mismatch\n");
+        exit(1);
+    }
 }
 
 /*****************************************************************************
@@ -1519,22 +1519,22 @@ void
 nautinv_freedyn(void)
 {
 #if !MAXN
-	DYNFREE(workset,workset_sz);
-	DYNFREE(workshort,workshort_sz);
-	DYNFREE(ws1,ws1_sz);
-	DYNFREE(ws2,ws2_sz);
-	DYNFREE(vv,vv_sz);
-	DYNFREE(ww,ww_sz);
-	DYNFREE(w01,w01_sz);
-	DYNFREE(w02,w02_sz);
-	DYNFREE(w03,w03_sz);
-	DYNFREE(w12,w12_sz);
-	DYNFREE(w13,w13_sz);
-	DYNFREE(w23,w23_sz);
-	DYNFREE(pt0,pt0_sz);
-	DYNFREE(pt1,pt1_sz);
-	DYNFREE(pt2,pt2_sz);
-	DYNFREE(wss,wss_sz);
+    DYNFREE(workset,workset_sz);
+    DYNFREE(workshort,workshort_sz);
+    DYNFREE(ws1,ws1_sz);
+    DYNFREE(ws2,ws2_sz);
+    DYNFREE(vv,vv_sz);
+    DYNFREE(ww,ww_sz);
+    DYNFREE(w01,w01_sz);
+    DYNFREE(w02,w02_sz);
+    DYNFREE(w03,w03_sz);
+    DYNFREE(w12,w12_sz);
+    DYNFREE(w13,w13_sz);
+    DYNFREE(w23,w23_sz);
+    DYNFREE(pt0,pt0_sz);
+    DYNFREE(pt1,pt1_sz);
+    DYNFREE(pt2,pt2_sz);
+    DYNFREE(wss,wss_sz);
 #endif
 }
 
@@ -1558,195 +1558,195 @@ static int
 semirefine(graph *g, int *lab, int *ptn, int level, int *numcells,
            int strength, set *active, int m, int n)
 {
-	int i,c1,c2,labc1;
-	setword x;
-	set *set1,*set2;
-	int split1,split2,cell1,cell2;
-	int cnt,bmin,bmax;
-	long longcode;
-	set *gptr;
-	int maxcell,maxpos,hint;
+    int i,c1,c2,labc1;
+    setword x;
+    set *set1,*set2;
+    int split1,split2,cell1,cell2;
+    int cnt,bmin,bmax;
+    long longcode;
+    set *gptr;
+    int maxcell,maxpos,hint;
 
 #if !MAXN
-	DYNALLOC1(int,workperm,workperm_sz,n,"refine");
-	DYNALLOC1(set,workset,workset_sz,m,"refine");
-	DYNALLOC1(int,bucket,bucket_sz,n+2,"refine");
-	DYNALLOC1(int,count,count_sz,n,"refine");
+    DYNALLOC1(int,workperm,workperm_sz,n,"refine");
+    DYNALLOC1(set,workset,workset_sz,m,"refine");
+    DYNALLOC1(int,bucket,bucket_sz,n+2,"refine");
+    DYNALLOC1(int,count,count_sz,n,"refine");
 #endif
 
-	longcode = *numcells;
-	split1 = -1;
-	hint = 0;
-	while (*numcells < n && ((split1 = hint, ISELEMENT(active,split1))
-                             || (split1 = nextelement(active,M,split1)) >= 0
-	                     || (split1 = nextelement(active,M,-1)) >= 0))
-	{
-	    DELELEMENT(active,split1);
-	    for (split2 = split1; ptn[split2] > level; ++split2) {}
-	    longcode = MASH(longcode,split1+split2);
-	    if (split1 == split2)       /* trivial splitting cell */
-	    {
-	        gptr = GRAPHROW(g,lab[split1],M);
-	        for (cell1 = 0; cell1 < n; cell1 = cell2 + 1)
-	        {
-	            for (cell2 = cell1; ptn[cell2] > level; ++cell2) {}
-	            if (cell1 == cell2) continue;
-	            c1 = cell1;
-	            c2 = cell2;
-	            while (c1 <= c2)
-	            {
-	                labc1 = lab[c1];
-	                if (ISELEMENT(gptr,labc1))
-	                    ++c1;
-	                else
-	                {
-	                    lab[c1] = lab[c2];
-	                    lab[c2] = labc1;
-	                    --c2;
-	                }
-	            }
-	            if (c2 >= cell1 && c1 <= cell2)
-	            {
-	                ptn[c2] = level;
-	                longcode = MASH(longcode,FUZZ1(c2));
-	                ++*numcells;
-			if (ISELEMENT(active,cell1) || c2-cell1 >= cell2-c1)
-			{
-     			    ADDELEMENT(active,c1);
-			    if (c1 == cell2) hint = c1;
-			}
-			else
-			{
-     			    ADDELEMENT(active,cell1);
-			    if (c2 == cell1) hint = cell1;
-			}
-	            }
-	        }
-	    }
-	    else        /* nontrivial splitting cell */
-	    {
-	        EMPTYSET(workset,m);
-	        for (i = split1; i <= split2; ++i)
-	            ADDELEMENT(workset,lab[i]);
-	        longcode = MASH(longcode,FUZZ2(split2-split1+1));
+    longcode = *numcells;
+    split1 = -1;
+    hint = 0;
+    while (*numcells < n && ((split1 = hint, ISELEMENT(active,split1))
+                         || (split1 = nextelement(active,M,split1)) >= 0
+                         || (split1 = nextelement(active,M,-1)) >= 0))
+    {
+        DELELEMENT(active,split1);
+        for (split2 = split1; ptn[split2] > level; ++split2) {}
+        longcode = MASH(longcode,split1+split2);
+        if (split1 == split2)       /* trivial splitting cell */
+        {
+            gptr = GRAPHROW(g,lab[split1],M);
+            for (cell1 = 0; cell1 < n; cell1 = cell2 + 1)
+            {
+                for (cell2 = cell1; ptn[cell2] > level; ++cell2) {}
+                if (cell1 == cell2) continue;
+                c1 = cell1;
+                c2 = cell2;
+                while (c1 <= c2)
+                {
+                    labc1 = lab[c1];
+                    if (ISELEMENT(gptr,labc1))
+                        ++c1;
+                    else
+                    {
+                        lab[c1] = lab[c2];
+                        lab[c2] = labc1;
+                        --c2;
+                    }
+                }
+                if (c2 >= cell1 && c1 <= cell2)
+                {
+                    ptn[c2] = level;
+                    longcode = MASH(longcode,FUZZ1(c2));
+                    ++*numcells;
+                    if (ISELEMENT(active,cell1) || c2-cell1 >= cell2-c1)
+                    {
+                        ADDELEMENT(active,c1);
+                        if (c1 == cell2) hint = c1;
+                    }
+                    else
+                    {
+                        ADDELEMENT(active,cell1);
+                        if (c2 == cell1) hint = cell1;
+                    }
+                }
+            }
+        }
+        else        /* nontrivial splitting cell */
+        {
+            EMPTYSET(workset,m);
+            for (i = split1; i <= split2; ++i)
+                ADDELEMENT(workset,lab[i]);
+            longcode = MASH(longcode,FUZZ2(split2-split1+1));
 
-	        for (cell1 = 0; cell1 < n; cell1 = cell2 + 1)
-	        {
-	            for (cell2 = cell1; ptn[cell2] > level; ++cell2) {}
-	            if (cell1 == cell2) continue;
-	            i = cell1;
-	            set1 = workset;
-	            set2 = GRAPHROW(g,lab[i],m);
-	            cnt = 0;
-	            for (c1 = m; --c1 >= 0;)
-	                if ((x = ((*set1++) & (*set2++))) != 0)
-	                    cnt += POPCOUNT(x);
+            for (cell1 = 0; cell1 < n; cell1 = cell2 + 1)
+            {
+                for (cell2 = cell1; ptn[cell2] > level; ++cell2) {}
+                if (cell1 == cell2) continue;
+                i = cell1;
+                set1 = workset;
+                set2 = GRAPHROW(g,lab[i],m);
+                cnt = 0;
+                for (c1 = m; --c1 >= 0;)
+                    if ((x = ((*set1++) & (*set2++))) != 0)
+                        cnt += POPCOUNT(x);
 
-	            count[i] = bmin = bmax = cnt;
-	            bucket[cnt] = 1;
-	            while (++i <= cell2)
-	            {
-	                set1 = workset;
-	                set2 = GRAPHROW(g,lab[i],m);
-	                cnt = 0;
-	                for (c1 = m; --c1 >= 0;)
-	                    if ((x = ((*set1++) & (*set2++))) != 0)
-	                        cnt += POPCOUNT(x);
+                count[i] = bmin = bmax = cnt;
+                bucket[cnt] = 1;
+                while (++i <= cell2)
+                {
+                    set1 = workset;
+                    set2 = GRAPHROW(g,lab[i],m);
+                    cnt = 0;
+                    for (c1 = m; --c1 >= 0;)
+                        if ((x = ((*set1++) & (*set2++))) != 0)
+                            cnt += POPCOUNT(x);
 
-	                while (bmin > cnt) bucket[--bmin] = 0;
-	                while (bmax < cnt) bucket[++bmax] = 0;
-	                ++bucket[cnt];
-	                count[i] = cnt;
-	            }
-	            if (bmin == bmax)
-	            {
-	                longcode = MASH(longcode,FUZZ1(bmin+cell1));
-	                continue;
-	            }
-	            c1 = cell1;
-		    maxcell = -1;
-	            for (i = bmin; i <= bmax; ++i)
-	                if (bucket[i])
-	                {
-	                    c2 = c1 + bucket[i];
-	                    bucket[i] = c1;
-	                    longcode = MASH(longcode,i+c1);
-			    if (c2-c1 > maxcell)
-			    {
-				maxcell = c2-c1;
-				maxpos = c1;
-			    }
-	                    if (c1 != cell1)
-	                    {
-	                        ADDELEMENT(active,c1);
-			        if (c2-c1 == 1) hint = c1;
-	                        ++*numcells;
-	                    }
-	                    if (c2 <= cell2) ptn[c2-1] = level;
-	                    c1 = c2;
-	                }
-	            for (i = cell1; i <= cell2; ++i)
-	                workperm[bucket[count[i]]++] = lab[i];
-	            for (i = cell1; i <= cell2; ++i) lab[i] = workperm[i];
-		    if (!ISELEMENT(active,cell1))
-		    {
-     			ADDELEMENT(active,cell1);
-     			DELELEMENT(active,maxpos);     /* check maxpos is alwas defined */
-		    }
-	        }
-	    }
-	    if (--strength == 0) break;   /* negative is fine! */
-	}
+                    while (bmin > cnt) bucket[--bmin] = 0;
+                    while (bmax < cnt) bucket[++bmax] = 0;
+                    ++bucket[cnt];
+                    count[i] = cnt;
+                }
+                if (bmin == bmax)
+                {
+                    longcode = MASH(longcode,FUZZ1(bmin+cell1));
+                    continue;
+                }
+                c1 = cell1;
+                maxcell = -1;
+                for (i = bmin; i <= bmax; ++i)
+                    if (bucket[i])
+                    {
+                        c2 = c1 + bucket[i];
+                        bucket[i] = c1;
+                        longcode = MASH(longcode,i+c1);
+                        if (c2-c1 > maxcell)
+                        {
+                            maxcell = c2-c1;
+                            maxpos = c1;
+                        }
+                        if (c1 != cell1)
+                        {
+                            ADDELEMENT(active,c1);
+                            if (c2-c1 == 1) hint = c1;
+                            ++*numcells;
+                        }
+                        if (c2 <= cell2) ptn[c2-1] = level;
+                        c1 = c2;
+                    }
+                for (i = cell1; i <= cell2; ++i)
+                    workperm[bucket[count[i]]++] = lab[i];
+                for (i = cell1; i <= cell2; ++i) lab[i] = workperm[i];
+                if (!ISELEMENT(active,cell1))
+                {
+                    ADDELEMENT(active,cell1);
+                    DELELEMENT(active,maxpos);     /* check maxpos is alwas defined */
+                }
+            }
+        }
+        if (--strength == 0) break;   /* negative is fine! */
+    }
 
-	longcode = MASH(longcode,FUZZ2(*numcells));
-	return CLEANUP(longcode);
+    longcode = MASH(longcode,FUZZ2(*numcells));
+    return CLEANUP(longcode);
 }
 
 void 
 refinvar(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
           int *invar, int invararg, boolean digraph, int m, int n)
 {
-        int i,j;
-        int wt;
-        int icell,bigcells,cell1,cell2;
-        int *cellstart,*cellsize;
-	int newnumcells;
+    int i,j;
+    int wt;
+    int icell,bigcells,cell1,cell2;
+    int *cellstart,*cellsize;
+    int newnumcells;
 
 #if !MAXN
-        DYNALLOC1(int,workshort,workshort_sz,n+2,"refinvar");
-        DYNALLOC1(int,vv,vv_sz,n,"refinvar");
-        DYNALLOC1(int,ww,ww_sz,n,"refinvar");
-        DYNALLOC1(set,ws1,ws1_sz,n,"refinvar");
+    DYNALLOC1(int,workshort,workshort_sz,n+2,"refinvar");
+    DYNALLOC1(int,vv,vv_sz,n,"refinvar");
+    DYNALLOC1(int,ww,ww_sz,n,"refinvar");
+    DYNALLOC1(set,ws1,ws1_sz,n,"refinvar");
 #endif
 
-        for (i = n; --i >= 0;) invar[i] = 0;
+    for (i = n; --i >= 0;) invar[i] = 0;
 
-        cellstart = workshort;
-        cellsize = workshort + (n/2);
-        getbigcells(ptn,level,2,&bigcells,cellstart,cellsize,n);
+    cellstart = workshort;
+    cellsize = workshort + (n/2);
+    getbigcells(ptn,level,2,&bigcells,cellstart,cellsize,n);
 
-        for (icell = 0; icell < bigcells; ++icell)
+    for (icell = 0; icell < bigcells; ++icell)
+    {
+        cell1 = cellstart[icell];
+        cell2 = cell1 + cellsize[icell] - 1;
+        for (i = cell1; i <= cell2; ++i)
         {
-            cell1 = cellstart[icell];
-            cell2 = cell1 + cellsize[icell] - 1;
-            for (i = cell1; i <= cell2; ++i)
+            for (j = 0; j < n; ++j)
             {
-		for (j = 0; j < n; ++j)
-		{
-		    vv[j] = lab[j];
-		    ww[j] = ptn[j];
-		}
-		newnumcells = numcells + 1;
-		ww[cell1] = level;
-		EMPTYSET(ws1,m);
-		ADDELEMENT(ws1,cell1);
-		vv[i] = lab[cell1];
-		vv[cell1] = lab[i];
-		invar[lab[i]] = semirefine(g,vv,ww,level,&newnumcells,
-						invararg,ws1,m,n);
+                vv[j] = lab[j];
+                ww[j] = ptn[j];
             }
-            wt = invar[lab[cell1]];
-            for (i = cell1 + 1; i <= cell2; ++i)
-                if (invar[lab[i]] != wt) return;
+            newnumcells = numcells + 1;
+            ww[cell1] = level;
+            EMPTYSET(ws1,m);
+            ADDELEMENT(ws1,cell1);
+            vv[i] = lab[cell1];
+            vv[cell1] = lab[i];
+            invar[lab[i]] = semirefine(g,vv,ww,level,&newnumcells,
+                                            invararg,ws1,m,n);
         }
+        wt = invar[lab[cell1]];
+        for (i = cell1 + 1; i <= cell2; ++i)
+            if (invar[lab[i]] != wt) return;
+    }
 }

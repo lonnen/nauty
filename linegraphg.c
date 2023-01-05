@@ -63,8 +63,8 @@ linegraph(sparsegraph *g, sparsegraph *h)
                     else if  (ge[mid] < i) lo = mid+1;
                     else hi = mid-1;
                 }
-		if (lo > hi)
-		    gt_abort(">E linegraphg : binary search failed\n");
+                if (lo > hi)
+                    gt_abort(">E linegraphg : binary search failed\n");
                 eno[j] = eno[mid];
             }
         }
@@ -89,15 +89,15 @@ linegraph(sparsegraph *g, sparsegraph *h)
     for (i = 0; i < gnv; ++i)
     {
         for (jj = 0; jj < gd[i]-1; ++jj)
-	{
-	    j = gv[i] + jj;
+        {
+            j = gv[i] + jj;
             for (k = j+1; k < gv[i]+gd[i]; ++k)
             {
                 v = eno[j]; w = eno[k];
                 he[hv[v]+(hd[v]++)] = w;
                 he[hv[w]+(hd[w]++)] = v;
             }
-	}
+        }
     }
 }
 
@@ -150,8 +150,8 @@ totalgraph(sparsegraph *g, sparsegraph *h)
                     else if  (ge[mid] < i) lo = mid+1;
                     else hi = mid-1;
                 }
-		if (lo > hi)
-		    gt_abort(">E linegraphg : binary search failed\n");
+                if (lo > hi)
+                    gt_abort(">E linegraphg : binary search failed\n");
                 eno[j] = eno[mid];
             }
         }
@@ -180,26 +180,26 @@ totalgraph(sparsegraph *g, sparsegraph *h)
     for (i = 0; i < gnv; ++i)
     {
         for (j = gv[i]; j < gv[i]+gd[i]; ++j)
-	{
-	    v = eno[j];
-	    he[hv[i]+(hd[i]++)] = ge[j];
-	    he[hv[i]+(hd[i]++)] = v;
-	    he[hv[v]+(hd[v]++)] = i;
-	}
+        {
+            v = eno[j];
+            he[hv[i]+(hd[i]++)] = ge[j];
+            he[hv[i]+(hd[i]++)] = v;
+            he[hv[v]+(hd[v]++)] = i;
+        }
     }
 
     for (i = 0; i < gnv; ++i)
     {
         for (jj = 0; jj < gd[i]-1; ++jj)
-	{
-	    j = gv[i] + jj;
+        {
+            j = gv[i] + jj;
             for (k = j+1; k < gv[i]+gd[i]; ++k)
             {
                 v = eno[j]; w = eno[k];
                 he[hv[v]+(hd[v]++)] = w;
                 he[hv[w]+(hd[w]++)] = v;
             }
-	}
+        }
     }
 }
 
@@ -237,7 +237,7 @@ main(int argc, char *argv[])
             while (*arg != '\0')
             {
                 sw = *arg++;
-		     SWBOOLEAN('t',tswitch)
+                     SWBOOLEAN('t',tswitch)
                 else SWBOOLEAN('q',quiet)
                 else badargs = TRUE;
             }

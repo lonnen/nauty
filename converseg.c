@@ -64,17 +64,17 @@ isselfconverse(graph *g, int m, int n)
     gcode = 0;
     for (i = 0, gi = g; i < n; ++i, gi += m)
     {
-	deg = 0;
+        deg = 0;
         for (j = 0; j < m; ++j) deg += POPCOUNT(gi[j]);
-	gcode += (deg ^ fuzz[deg%5]);
+        gcode += (deg ^ fuzz[deg%5]);
     }
 
     gccode = 0;
     for (i = 0, gi = gc; i < n; ++i, gi += m)
     {
-	deg = 0;
+        deg = 0;
         for (j = 0; j < m; ++j) deg += POPCOUNT(gi[j]);
-	gccode += (deg ^ fuzz[deg%5]);
+        gccode += (deg ^ fuzz[deg%5]);
     }
     
     if (gcode != gccode) return FALSE;
@@ -90,7 +90,7 @@ isselfconverse(graph *g, int m, int n)
     densenauty(gc,lab,ptn,orbits,&options,&stats,m,n,hc);
 
     for (ij = 0; ij < n*(size_t)m; ++ij)
-	if (h[ij] != hc[ij]) return FALSE;
+        if (h[ij] != hc[ij]) return FALSE;
 
     return TRUE;
 }
@@ -155,12 +155,12 @@ main(int argc, char *argv[])
         fprintf(stderr,">A converseg");
         if (argnum > 0) fprintf(stderr," %s",infilename);
         if (argnum > 1) fprintf(stderr," %s",outfilename);
-	if (also || self)
-	{
-	    fprintf(stderr,"-");
-	    if (also) fprintf(stderr,"a");
-	    if (self) fprintf(stderr,"c");
-	}
+        if (also || self)
+        {
+            fprintf(stderr,"-");
+            if (also) fprintf(stderr,"a");
+            if (self) fprintf(stderr,"c");
+        }
         fprintf(stderr,"\n");
         fflush(stderr);
     }
@@ -192,7 +192,7 @@ main(int argc, char *argv[])
     {
         if (outcode == SPARSE6)       writeline(outfile,SPARSE6_HEADER);
         else if (outcode == DIGRAPH6) writeline(outfile,DIGRAPH6_HEADER);
-        else          	              writeline(outfile,GRAPH6_HEADER);
+        else                          writeline(outfile,GRAPH6_HEADER);
     }
 
     gtools_check(WORDSIZE,1,1,NAUTYVERSIONID);
@@ -205,36 +205,36 @@ main(int argc, char *argv[])
         ++nin;
 
         if (!digraph)
-	{
-	    writelast(outfile);
-	    ++nout;
-	}
-	else if (self)
-	{
-	    if (isselfconverse(g,m,n))
-	    {
-		writelast(outfile);
-		++nout;
-	    }
-	}
+        {
+            writelast(outfile);
+            ++nout;
+        }
+        else if (self)
+        {
+            if (isselfconverse(g,m,n))
+            {
+                writelast(outfile);
+                ++nout;
+            }
+        }
         else
         {
-	    if (also)
-	    {
-		writed6(outfile,g,m,n);
-		++nout;
-	    }
-	    conv(g,m,n);
-	    writed6(outfile,g,m,n);
-	    ++nout;
-	}
+            if (also)
+            {
+                writed6(outfile,g,m,n);
+                ++nout;
+            }
+            conv(g,m,n);
+            writed6(outfile,g,m,n);
+            ++nout;
+        }
         FREES(g);
     }
     t = CPUTIME - t;
 
     if (!quiet)
     {
-	if (self)
+        if (self)
             fprintf(stderr,">Z  " COUNTER_FMT 
                 " digraphs read from %s; " COUNTER_FMT
                 " self-converse written to %s in %3.2f sec.\n",

@@ -1,5 +1,5 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT
+AC_INIT([nauty],[2.8.6])
 AC_CONFIG_SRCDIR([nauty-h.in])
 
 # ======================================================================
@@ -183,16 +183,12 @@ CVT_YESNO(ac_cv_type_pid_t,have_pid_t)
 
 AC_CHECK_DECL([ftell],ftell_dec=1,ftell_dec=0)
 AC_SUBST(ftell_dec)
-
 AC_CHECK_DECL([popen],popen_dec=1,popen_dec=0)
 AC_SUBST(popen_dec)
-
 AC_CHECK_DECL([fdopen],fdopen_dec=1,fdopen_dec=0)
 AC_SUBST(fdopen_dec)
-
 AC_CHECK_DECL([putenv],putenv_dec=1,putenv_dec=0)
 AC_SUBST(putenv_dec)
-
 AC_CHECK_DECL([setenv],setenv_dec=1,setenv_dec=0)
 AC_SUBST(setenv_dec)
 
@@ -253,6 +249,10 @@ AC_CHECK_FUNC(time,have_time=1,have_time=0)
 AC_SUBST(have_time)
 AC_CHECK_FUNC(gettimeofday,have_gettimeofday=1,have_gettimeofday=0)
 AC_SUBST(have_gettimeofday)
+AC_CHECK_FUNC(clock_gettime,have_clock_gettime=1,have_clock_gettime=0)
+AC_SUBST(have_clock_gettime)
+AC_CHECK_FUNC(clock,have_clock=1,have_clock=0)
+AC_SUBST(have_clock)
 AC_CHECK_FUNC(times,have_times=1,have_times=0)
 AC_SUBST(have_times)
 AC_CHECK_FUNC(getrusage,have_getrusage=1,have_getrusage=0)
@@ -429,6 +429,7 @@ AC_SUBST(shortg_or_null)
 
 AC_CHECK_FUNC(getc_unlocked,have_getc_unlocked=1,have_getc_unlocked=0)
 AC_CHECK_FUNC(flockfile,have_flockfile=1,have_flockfile=0)
+AC_SUBST(have_flockfile)
 AS_IF([test $have_getc_unlocked -eq 1 && test $have_flockfile -eq 1],
       [stdio_nolock=1],[stdio_nolock=0])
 AC_SUBST(stdio_nolock)
@@ -465,7 +466,12 @@ AC_SUBST(edit_msg)
 AC_PROG_MKDIR_P
 AC_PROG_INSTALL
 
+dnl Existence of gunzip program
+AC_CHECK_PROGS(gunzip_prog,[gunzip],none)
+AS_IF([test "$gunzip_prog" = "gunzip"],[have_gunzip=1],[have_gunzip=0])
+AC_SUBST(have_gunzip)
+
 AC_CONFIG_FILES([makefile:makefile.in nauty.h:nauty-h.in
     naututil.h:naututil-h.in gtools.h:gtools-h.in
-    nauty.pc:nauty.pc.in])
+    nauty.pc:nauty-pc.in])
 AC_OUTPUT

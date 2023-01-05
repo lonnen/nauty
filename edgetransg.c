@@ -42,20 +42,20 @@ findarc(arc *a, int na, int from, int to)
 
     while (lo <= hi)
     {
-	mid = (lo + hi) / 2;
-	if (a[mid].from == from)
-	{
-	    if (a[mid].to == to)
-		return mid;
-	    else if (a[mid].to > to)
-		hi = mid - 1;
-	    else
-		lo = mid + 1;
-	}
-	else if (a[mid].from > from)
-	    hi = mid - 1;
-	else
-	    lo = mid + 1;
+        mid = (lo + hi) / 2;
+        if (a[mid].from == from)
+        {
+            if (a[mid].to == to)
+                return mid;
+            else if (a[mid].to > to)
+                hi = mid - 1;
+            else
+                lo = mid + 1;
+        }
+        else if (a[mid].from > from)
+            hi = mid - 1;
+        else
+            lo = mid + 1;
     }
     gt_abort(">E findarc error\n");
     return 0; /* never happens */
@@ -71,7 +71,7 @@ arcorbits(int ngens, int *p, int *orbs, int numorbs, int stab, int n)
     if (ngens == 1) for (i = 0; i < narcs; ++i) arcorbs[i] = i;
 
     for (i = 0; i < narcs; ++i)
-	arcperm[i] = findarc(arclist,narcs,p[arclist[i].from],p[arclist[i].to]);
+        arcperm[i] = findarc(arclist,narcs,p[arclist[i].from],p[arclist[i].to]);
     numarcorbs = orbjoin(arcorbs,arcperm,narcs);
 }
 
@@ -109,12 +109,12 @@ callnauty(sparsegraph *sg)
     k = 0;
     for (i = 0; i < n; ++i)
     {
-	for (j = v[i]; j < v[i]+d[i]; ++j)
-	{
-	    arclist[k].from = i;
-	    arclist[k].to = e[j];
-	    ++k;
-	}
+        for (j = v[i]; j < v[i]+d[i]; ++j)
+        {
+            arclist[k].from = i;
+            arclist[k].to = e[j];
+            ++k;
+        }
     }
     if (k != narcs) gt_abort(">E narcs wrong\n");
 
@@ -170,7 +170,7 @@ main(int argc, char *argv[])
             while (*arg != '\0')
             {
                 sw = *arg++;
-		     SWBOOLEAN('v',vswitch)
+                     SWBOOLEAN('v',vswitch)
                 else SWBOOLEAN('V',Vswitch)
                 else SWBOOLEAN('e',eswitch)
                 else SWBOOLEAN('E',Eswitch)
@@ -243,36 +243,36 @@ main(int argc, char *argv[])
     {
         ++nin;
 
-	if (g.nde == 0 || g.nv == 1)
-	    isvt = iset = isat = TRUE;
-	else
-	{
+        if (g.nde == 0 || g.nv == 1)
+            isvt = iset = isat = TRUE;
+        else
+        {
             norbs = callnauty(&g);
-	    isvt = (norbs == 1);
+            isvt = (norbs == 1);
 
-	    if (norbs == g.nv)
-		iset = isat = FALSE;
-	    else
-	    {
-		isat = (numarcorbs == 1);
-		if (isat)
-		    iset = TRUE;
-		else
-		{
-		    for (i = 0; i < narcs; ++i)
-			arcperm[i] = findarc(arclist,narcs,arclist[i].to,arclist[i].from);
-		    iset = orbjoin(arcorbs,arcperm,narcs) == 1;
-		}
-	    }
-	}
+            if (norbs == g.nv)
+                iset = isat = FALSE;
+            else
+            {
+                isat = (numarcorbs == 1);
+                if (isat)
+                    iset = TRUE;
+                else
+                {
+                    for (i = 0; i < narcs; ++i)
+                        arcperm[i] = findarc(arclist,narcs,arclist[i].to,arclist[i].from);
+                    iset = orbjoin(arcorbs,arcperm,narcs) == 1;
+                }
+            }
+        }
 
-	if ( ((vswitch && isvt) || (Vswitch && !isvt) || (!vswitch && !Vswitch))
-	  && ((eswitch && iset) || (Eswitch && !iset) || (!eswitch && !Eswitch))
-	  && ((aswitch && isat) || (Aswitch && !isat) || (!aswitch && !Aswitch)) )
-	{
-	    ++nout;
+        if ( ((vswitch && isvt) || (Vswitch && !isvt) || (!vswitch && !Vswitch))
+          && ((eswitch && iset) || (Eswitch && !iset) || (!eswitch && !Eswitch))
+          && ((aswitch && isat) || (Aswitch && !isat) || (!aswitch && !Aswitch)) )
+        {
+            ++nout;
             writelast(outfile);
-	}
+        }
     }
     t = CPUTIME - t;
 
