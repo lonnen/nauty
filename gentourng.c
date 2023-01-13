@@ -1408,7 +1408,7 @@ PLUGIN_INIT
                 (*outproc)(outfile,g,1);
             }
         }
-        else
+        else if (!connec || maxn != 2)
         {
             makeleveldata();
 
