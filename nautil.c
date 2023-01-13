@@ -1,8 +1,8 @@
 /*****************************************************************************
 *                                                                            *
-*  Auxiliary source file for version 2.7 of nauty.                           *
+*  Auxiliary source file for version 2.8 of nauty.                           *
 *                                                                            *
-*   Copyright (1984-2013) Brendan McKay.  All rights reserved.               *
+*   Copyright (1984-2020) Brendan McKay.  All rights reserved.               *
 *   Subject to waivers and disclaimers in nauty.h.                           *
 *                                                                            *
 *   CHANGE HISTORY                                                           *
@@ -58,6 +58,7 @@
 *       22-Sep-12 : change documentation of orbjoin()                        *
 *       18-Jan-12 : changes for version 2.6 :                                *
 *                 - declare nauty_kill_request                               *
+*        8-May-20 : add const declarations to prototypes                     *
 *                                                                            *
 *****************************************************************************/
 
@@ -107,18 +108,19 @@ volatile int nauty_kill_request = 0;   /* no TLS_ATTR on purpose */
 *****************************************************************************/
 
 int
-nextelement(set *set1, int m, int pos)
+nextelement(const set *set1, int m, int pos)
 {
     setword setwd;
-
-#if  MAXM==1
-    if (pos < 0) setwd = set1[0];
-    else         setwd = set1[0] & BITMASK(pos);
-
-    if (setwd == 0) return -1;
-    else            return FIRSTBITNZ(setwd);
-#else
     int w;
+
+    if (m == 1)
+    {
+        if (pos < 0) setwd = set1[0];
+        else         setwd = set1[0] & BITMASK(pos);
+
+        if (setwd == 0) return -1;
+        else            return FIRSTBITNZ(setwd);
+    }
 
     if (pos < 0)
     {
@@ -137,8 +139,6 @@ nextelement(set *set1, int m, int pos)
         if (++w == m) return -1;
         setwd = set1[w];
     }
-
-#endif
 }
 
 /*****************************************************************************
@@ -151,36 +151,36 @@ nextelement(set *set1, int m, int pos)
 *****************************************************************************/
 
 void
-permset(set *set1, set *set2, int m, int *perm)
+permset(const set *set1, set *set2, int m, int *perm)
 {
     setword setw;
     int pos,b;
-#if MAXM!=1
     int w;
-#endif
 
-    EMPTYSET(set2,m);
-
-#if MAXM==1
-    setw = set1[0];
-    while (setw  != 0)
+    if (m == 1)
     {
-        TAKEBIT(b,setw);
-        pos = perm[b];
-        ADDELEMENT(set2,pos);
-    }
-#else
-    for (w = 0; w < m; ++w)
-    {
-        setw = set1[w];
-        while (setw != 0)
+        *set2 = 0;
+        setw = set1[0];
+        while (setw  != 0)
         {
             TAKEBIT(b,setw);
-            pos = perm[TIMESWORDSIZE(w)+b];
-            ADDELEMENT(set2,pos);
+            *set2 |= bit[perm[b]];
         }
     }
-#endif
+    else
+    {
+        EMPTYSET0(set2,m);
+        for (w = 0; w < m; ++w)
+        {
+            setw = set1[w];
+            while (setw != 0)
+            {
+                TAKEBIT(b,setw);
+                pos = perm[TIMESWORDSIZE(w)+b];
+                ADDELEMENT0(set2,pos);
+            }
+        }
+    }
 }
 
 /*****************************************************************************
@@ -190,7 +190,7 @@ permset(set *set1, set *set2, int m, int *perm)
 *****************************************************************************/
 
 void
-putstring(FILE *f, char *s)
+putstring(FILE *f, const char *s)
 {
     while (*s != '\0')
     {
@@ -263,7 +263,7 @@ itos(int i, char *s)
 *****************************************************************************/
 
 int
-orbjoin(int *orbits, int *map, int n)
+orbjoin(int *orbits, const int *map, int n)
 {
     int i,j1,j2;
 
@@ -301,7 +301,7 @@ orbjoin(int *orbits, int *map, int n)
 *****************************************************************************/
 
 void
-writeperm(FILE *f, int *perm, boolean cartesian, int linelength, int n)
+writeperm(FILE *f, const int *perm, boolean cartesian, int linelength, int n)
 {
     int i,k,l,curlen,intlen;
     char s[30];
@@ -376,7 +376,7 @@ writeperm(FILE *f, int *perm, boolean cartesian, int linelength, int n)
 *****************************************************************************/
 
 void
-fmperm(int *perm, set *fix, set *mcr, int m, int n)
+fmperm(const int *perm, set *fix, set *mcr, int m, int n)
 {
     int i,k,l;
 
@@ -422,7 +422,7 @@ fmperm(int *perm, set *fix, set *mcr, int m, int n)
 *****************************************************************************/
 
 void
-fmptn(int *lab, int *ptn, int level, set *fix, set *mcr, int m, int n)
+fmptn(const int *lab, const int *ptn, int level, set *fix, set *mcr, int m, int n)
 {
     int i,lmin;
 
@@ -562,9 +562,9 @@ doref(graph *g, int *lab, int *ptn, int level, int *numcells,
 *****************************************************************************/
 
 void
-maketargetcell(graph *g, int *lab, int *ptn, int level, set *tcell,
-       int *tcellsize, int *cellpos, int tc_level, boolean digraph,
-       int hint,
+maketargetcell(graph *g, int *lab, int *ptn, int level,
+       set *tcell, int *tcellsize, int *cellpos, int tc_level,
+       boolean digraph, int hint,
        int (*targetcell)(graph*,int*,int*,int,int,boolean,int,int,int),
        int m, int n)
 {
@@ -590,7 +590,7 @@ maketargetcell(graph *g, int *lab, int *ptn, int level, set *tcell,
 *****************************************************************************/
 
 void
-shortprune(set *set1, set *set2, int m)
+shortprune(set *set1, const set *set2, int m)
 {
     int i;
 

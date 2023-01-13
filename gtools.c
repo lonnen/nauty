@@ -1,5 +1,5 @@
 /* gtools.c : Common routines for gtools programs. */
-/* Version 4.2, Oct 2017. */
+/* Version 4.4, Nov 2022. */
 
 /* Todo: size check if MAXN>0; option to free memory */
 
@@ -42,7 +42,7 @@ extern FILE *popen(const char*,const char*);
                Also fwrite() in place of fputs() for writeline().
   Version 1.6: i/o for sparsegraph; use of s6len; improve allocations
   Version 1.7: Add stringcounts()
-  	       Add very long size code (see formats.txt)
+               Add very long size code (see formats.txt)
   Version 1.8: Add gtools_check()
   Version 1.9: Add writepc_sg(), readpc_sg() and readpcle_sg()
                Add planar_code options to opengraphfile()
@@ -57,6 +57,8 @@ extern FILE *popen(const char*,const char*);
   Version 4.0: Procedures for digraph6 format.
   Version 4.1: Made encodegraphsize() external.
   Version 4.2: Fixes for null graphs; thanks to Kevin Ryde.
+  Version 4.4: Use fgets for gtools_getline() as it is faster except for
+                 very small graphs.
 */
 
 #define B(i) (1 << ((i)-1))
@@ -81,7 +83,7 @@ opengraphfile(filename,codetype,assumefixed,position)
                 Ignored if there is a sparse6 header or the first
                 graph has sparse6 format.  The most common example
                 is that graph6 and digraph6 records have lengths
-		that depend only on the number of vertices.
+                that depend only on the number of vertices.
   position = the number of the record to position to
                 (the first is number 1; 0 and -NOLIMIT also mean
                 to position at start).  planar_code files can only
@@ -161,7 +163,7 @@ opengraphfile(char *filename, int *codetype, int assumefixed, long position)
         if ((c = GETC(f)) == EOF || c != '>')
             bad_header = TRUE;
         if (!bad_header && ((c = GETC(f)) == EOF || 
-	         (c != 'g' && c != 's' && c != 'p' && c != 'd' && c != 'e')))
+                 (c != 'g' && c != 's' && c != 'p' && c != 'd' && c != 'e')))
             bad_header = TRUE;        
         if (!bad_header && c == 'g')
         {
@@ -233,33 +235,33 @@ opengraphfile(char *filename, int *codetype, int assumefixed, long position)
                 (c = GETC(f)) == EOF || c != 'o' ||
                 (c = GETC(f)) == EOF || c != 'd' ||
                 (c = GETC(f)) == EOF || c != 'e')
-		    bad_header = TRUE;
-	    else
-	    {
-		if ((c = GETC(f)) == EOF)
-		    bad_header = TRUE;
-		else if (c == ' ')
-		{
-		    if ((bl = GETC(f)) == EOF || (bl != 'l' && bl != 'b') ||
-			(c = GETC(f)) == EOF || c != 'e' ||
-			(c = GETC(f)) == EOF || c != '<' ||
-			(c = GETC(f)) == EOF || c != '<')
-			    bad_header = TRUE;
-		    else if (bl == 'l')
-                	*codetype = PLANARCODELE | HAS_HEADER;
-		    else
-                	*codetype = PLANARCODEBE | HAS_HEADER;
-		}
-		else if (c == '<')
-		{
-		    if ((c = GETC(f)) == EOF || c != '<')
-			    bad_header = TRUE;
+                    bad_header = TRUE;
+            else
+            {
+                if ((c = GETC(f)) == EOF)
+                    bad_header = TRUE;
+                else if (c == ' ')
+                {
+                    if ((bl = GETC(f)) == EOF || (bl != 'l' && bl != 'b') ||
+                        (c = GETC(f)) == EOF || c != 'e' ||
+                        (c = GETC(f)) == EOF || c != '<' ||
+                        (c = GETC(f)) == EOF || c != '<')
+                            bad_header = TRUE;
+                    else if (bl == 'l')
+                        *codetype = PLANARCODELE | HAS_HEADER;
+                    else
+                        *codetype = PLANARCODEBE | HAS_HEADER;
+                }
+                else if (c == '<')
+                {
+                    if ((c = GETC(f)) == EOF || c != '<')
+                            bad_header = TRUE;
                     else
                         *codetype = PLANARCODE | HAS_HEADER;
-		}
-		else
+                }
+                else
                     bad_header = TRUE;
-	    }
+            }
         }
 
         if (bad_header)
@@ -276,21 +278,21 @@ opengraphfile(char *filename, int *codetype, int assumefixed, long position)
 
     if (*codetype&PLANARCODEANY)
     {
-	fprintf(stderr,
+        fprintf(stderr,
       ">E opengraphfile: planar_code files can only be opened at the start\n");
-	*codetype = UNKNOWN_TYPE | HAS_HEADER;
+        *codetype = UNKNOWN_TYPE | HAS_HEADER;
             FUNLOCKFILE(f);
-	    fclose(f);
+            fclose(f);
             return NULL;
     }
 
     if (*codetype&EDGECODE)
     {
-	fprintf(stderr,
+        fprintf(stderr,
       ">E opengraphfile: edge_code files can only be opened at the start\n");
-	*codetype = UNKNOWN_TYPE | HAS_HEADER;
+        *codetype = UNKNOWN_TYPE | HAS_HEADER;
             FUNLOCKFILE(f);
-	    fclose(f);
+            fclose(f);
             return NULL;
     }
 
@@ -377,6 +379,44 @@ gtools_getline(FILE *f)     /* read a line with error checking */
 {
     DYNALLSTAT(char,s,s_sz);
     int c;
+    size_t i;
+    boolean eof;
+
+    DYNALLOC1(char,s,s_sz,5000,"gtools_getline");
+
+    FLOCKFILE(f);
+    i = 0;
+    eof = FALSE;
+    for (;;)
+    {
+        if (fgets(s+i,s_sz-i-4,f) == NULL)
+        {
+            if (feof(f)) eof = TRUE;
+            else gt_abort(">E file error when reading\n"); 
+        }
+        else
+            i += strlen(s+i);
+
+        if (eof || (i > 0 && s[i-1] == '\n')) break;
+        if (i >= s_sz-5)
+            DYNREALLOC(char,s,s_sz,3*(s_sz/2)+10000,"gtools_getline");
+    } 
+    FUNLOCKFILE(f);
+
+    if (i == 0 && eof) return NULL;
+    if (i == 0 || (i > 0 && s[i-1] != '\n')) s[i++] = '\n';
+    s[i] = '\0';
+
+    return s;
+}
+
+#if 0
+char*
+gtools_getline(FILE *f)     /* read a line with error checking */
+/* includes \n (if present) and \0.  Immediate EOF causes NULL return. */
+{
+    DYNALLSTAT(char,s,s_sz);
+    int c;
     long i;
 
     DYNALLOC1(char,s,s_sz,5000,"gtools_getline");
@@ -397,6 +437,7 @@ gtools_getline(FILE *f)     /* read a line with error checking */
     s[i] = '\0';
     return s;
 }
+#endif
 
 /****************************************************************************/
 
@@ -596,13 +637,13 @@ stringcounts(char *s, int *pn, size_t *pe)
                 v = j;
             else if (v < n)
                 ++count;
-	}
+        }
     }
     else  /* graph6 or digraph6 */
     {
-	count = 0;
-	for (; *p != '\n' && *p != '\0'; ++p)
-	    count += bytecount[*p - BIAS6];
+        count = 0;
+        for (; *p != '\n' && *p != '\0'; ++p)
+            count += bytecount[*p - BIAS6];
     }
 
     *pe = count;
@@ -686,61 +727,61 @@ stringtograph(char *s, graph *g, int m)
 
         k = 0;
         v = 0;
-	done = FALSE;
+        done = FALSE;
         while (!done)
         {
-	    if (k == 0)
-	    {
-		x = *(p++);
-		if (x == '\n' || x == '\0')
-		{
-		    done = TRUE; continue;
-		}
-		else
-		{
-		    x -= BIAS6; k = 6;
-		}
-	    }
-	    if ((x & B(k))) ++v;
-	    --k;
+            if (k == 0)
+            {
+                x = *(p++);
+                if (x == '\n' || x == '\0')
+                {
+                    done = TRUE; continue;
+                }
+                else
+                {
+                    x -= BIAS6; k = 6;
+                }
+            }
+            if ((x & B(k))) ++v;
+            --k;
 
-	    need = nb;
-	    j = 0;
-	    while (need > 0 && !done)
-	    {
-		if (k == 0)
-		{
-		    x = *(p++);
-		    if (x == '\n' || x == '\0')
-		    {
-		        done = TRUE; continue;
-		    }
-		    else
-		    {
-		       	x -= BIAS6; k = 6;
-		    }
-		}
-		if (need >= k)
-		{
-		    j = (j << k) | (x & M(k));
-		    need -= k; k = 0;
-		}
-		else
-		{
-		    k -= need;
-		    j = (j << need) | ((x >> k) & M(need));
-		    need = 0;
-		}
-	    }
-	    if (done) continue;
+            need = nb;
+            j = 0;
+            while (need > 0 && !done)
+            {
+                if (k == 0)
+                {
+                    x = *(p++);
+                    if (x == '\n' || x == '\0')
+                    {
+                        done = TRUE; continue;
+                    }
+                    else
+                    {
+                        x -= BIAS6; k = 6;
+                    }
+                }
+                if (need >= k)
+                {
+                    j = (j << k) | (x & M(k));
+                    need -= k; k = 0;
+                }
+                else
+                {
+                    k -= need;
+                    j = (j << need) | ((x >> k) & M(need));
+                    need = 0;
+                }
+            }
+            if (done) continue;
 
-	    if (j > v)
-		v = j;
-	    else if (v < n)
-	    {
-		ADDELEMENT(GRAPHROW(g,v,m),j);
-		ADDELEMENT(GRAPHROW(g,j,m),v);
-	    }
+            if (j > v)
+                v = j;
+            else if (v < n)
+            {
+                ADDELEMENT(GRAPHROW(g,v,m),j);
+                ADDELEMENT(GRAPHROW(g,j,m),v);
+            }
         }
     }
 }
@@ -769,9 +810,9 @@ stringtograph_inc(char *s, graph *g, int m,
 
     if (s[0] == ';')
     {
-	n = prevn;
-	if (n == 0) return;
-	p = s + 1;
+        n = prevn;
+        if (n == 0) return;
+        p = s + 1;
         for (ii = m*(size_t)n; --ii > 0;) g[ii] = prevg[ii];
         g[0] = prevg[0];
     }
@@ -841,61 +882,61 @@ stringtograph_inc(char *s, graph *g, int m,
 
         k = 0;
         v = 0;
-	done = FALSE;
+        done = FALSE;
         while (!done)
         {
-	    if (k == 0)
-	    {
-		x = *(p++);
-		if (x == '\n' || x == '\0')
-		{
-		    done = TRUE; continue;
-		}
-		else
-		{
-		    x -= BIAS6; k = 6;
-		}
-	    }
-	    if ((x & B(k))) ++v;
-	    --k;
+            if (k == 0)
+            {
+                x = *(p++);
+                if (x == '\n' || x == '\0')
+                {
+                    done = TRUE; continue;
+                }
+                else
+                {
+                    x -= BIAS6; k = 6;
+                }
+            }
+            if ((x & B(k))) ++v;
+            --k;
 
-	    need = nb;
-	    j = 0;
-	    while (need > 0 && !done)
-	    {
-		if (k == 0)
-		{
-		    x = *(p++);
-		    if (x == '\n' || x == '\0')
-		    {
-		        done = TRUE; continue;
-		    }
-		    else
-		    {
-		       	x -= BIAS6; k = 6;
-		    }
-		}
-		if (need >= k)
-		{
-		    j = (j << k) | (x & M(k));
-		    need -= k; k = 0;
-		}
-		else
-		{
-		    k -= need;
-		    j = (j << need) | ((x >> k) & M(need));
-		    need = 0;
-		}
-	    }
-	    if (done) continue;
+            need = nb;
+            j = 0;
+            while (need > 0 && !done)
+            {
+                if (k == 0)
+                {
+                    x = *(p++);
+                    if (x == '\n' || x == '\0')
+                    {
+                        done = TRUE; continue;
+                    }
+                    else
+                    {
+                        x -= BIAS6; k = 6;
+                    }
+                }
+                if (need >= k)
+                {
+                    j = (j << k) | (x & M(k));
+                    need -= k; k = 0;
+                }
+                else
+                {
+                    k -= need;
+                    j = (j << need) | ((x >> k) & M(need));
+                    need = 0;
+                }
+            }
+            if (done) continue;
 
-	    if (j > v)
-		v = j;
-	    else if (v < n)
-	    {
-		FLIPELEMENT(GRAPHROW(g,v,m),j);
-		if (j != v) FLIPELEMENT(GRAPHROW(g,j,m),v);
-	    }
+            if (j > v)
+                v = j;
+            else if (v < n)
+            {
+                FLIPELEMENT(GRAPHROW(g,v,m),j);
+                if (j != v) FLIPELEMENT(GRAPHROW(g,j,m),v);
+            }
         }
     }
 }
@@ -927,9 +968,9 @@ readgg(FILE *f, graph *g, int reqm, int *pm, int *pn, boolean *digraph)
     }
     else if (s[0] == '&')
     {
-	readg_code = DIGRAPH6;
+        readg_code = DIGRAPH6;
         *digraph = TRUE;
-	p = s + 1;
+        p = s + 1;
     }
     else
     {
@@ -1013,18 +1054,18 @@ checkgline(char *s)
 
     if (s[0] == ':' || s[0] == ';')
     {
-	t = SPARSE6;
-	p = s + 1;
+        t = SPARSE6;
+        p = s + 1;
     }
     else if (s[0] == '&')
     {
-	t = DIGRAPH6;
-	p = s + 1;
+        t = DIGRAPH6;
+        p = s + 1;
     }
     else
     {
-	t = GRAPH6;
-	p = s;
+        t = GRAPH6;
+        p = s;
     }
 
     while (*p >= BIAS6 && *p <= MAXBYTE)
@@ -1036,14 +1077,14 @@ checkgline(char *s)
 
     if (t == GRAPH6)
     {
-	n = graphsize(s);
-	if (p - s != G6LEN(n)) return 3;
+        n = graphsize(s);
+        if (p - s != G6LEN(n)) return 3;
     }
 
     if (t == DIGRAPH6)
     {
-	n = graphsize(s);
-	if (p - s != D6LEN(n)) return 3;
+        n = graphsize(s);
+        if (p - s != D6LEN(n)) return 3;
     }
 
     return 0;
@@ -1053,7 +1094,7 @@ checkgline(char *s)
 
 graph*                 /* read graph into nauty format */
 readgg_inc(FILE *f, graph *g, int reqm, int *pm, int *pn,
- 	  graph *prevg, int prevm, int prevn, boolean *digraph) 
+          graph *prevg, int prevm, int prevn, boolean *digraph) 
 /* graph6, digraph6 and sparse6 formats are supported 
    f = an open file 
    g = place to put the answer (NULL for dynamic allocation) 
@@ -1075,25 +1116,25 @@ readgg_inc(FILE *f, graph *g, int reqm, int *pm, int *pn,
     if (s[0] == ':')
     {
         readg_code = SPARSE6;
-	*digraph = FALSE;
+        *digraph = FALSE;
         p = s + 1;
     }
     else if (s[0] == ';')
     {
         readg_code = INCSPARSE6;
-	*digraph = FALSE;
+        *digraph = FALSE;
         p = s + 1;
     }
     else if (s[0] == '&')
     {
-	readg_code = DIGRAPH6;
-	*digraph = TRUE;
-	p = s + 1;
+        readg_code = DIGRAPH6;
+        *digraph = TRUE;
+        p = s + 1;
     }
     else
     {
         readg_code = GRAPH6;
-	*digraph = FALSE;
+        *digraph = FALSE;
         p = s;
     }
 
@@ -1106,9 +1147,9 @@ readgg_inc(FILE *f, graph *g, int reqm, int *pm, int *pn,
 
     if (readg_code == INCSPARSE6)
     {
-	if (prevg == NULL) gt_abort(">E readg_inc: missing prior\n");
-	n = prevn;
-	m = prevm;
+        if (prevg == NULL) gt_abort(">E readg_inc: missing prior\n");
+        n = prevn;
+        m = prevm;
     }
     else
     {
@@ -1144,7 +1185,7 @@ readgg_inc(FILE *f, graph *g, int reqm, int *pm, int *pn,
 
 graph*              /* read undirected graph into nauty format */
 readg_inc(FILE *f, graph *g, int reqm, int *pm, int *pn,
- 	  graph *prevg, int prevm, int prevn) 
+                            graph *prevg, int prevm, int prevn) 
 /* graph6 and sparse6 formats are supported 
    f = an open file 
    g = place to put the answer (NULL for dynamic allocation) 
@@ -1251,7 +1292,7 @@ stringtosparsegraph(char *s, sparsegraph *sg, int *nloops)
             }
         }
 
-	*nloops = 0;
+        *nloops = 0;
     }
     else if (s[0] == '&')    /* digraph6 */
     {
@@ -1285,7 +1326,7 @@ stringtosparsegraph(char *s, sparsegraph *sg, int *nloops)
         p = q;
         k = 1;
 
-	*nloops = 0;
+        *nloops = 0;
         for (j = 0; j < n; ++j)
         {
             for (i = 0; i < n; ++i)
@@ -1299,7 +1340,7 @@ stringtosparsegraph(char *s, sparsegraph *sg, int *nloops)
                 if ((x & TOPBIT6))
                 {
                     e[v[j]+d[j]++] = i;
-		    if (i == j) ++*nloops;
+                    if (i == j) ++*nloops;
                 }
                 x <<= 1;
             }
@@ -1314,7 +1355,7 @@ stringtosparsegraph(char *s, sparsegraph *sg, int *nloops)
         k = 0;
         vv = 0;
         done = FALSE;
-	loops = 0;
+        loops = 0;
         while (!done)
         {
             if (k == 0)
@@ -1368,7 +1409,7 @@ stringtosparsegraph(char *s, sparsegraph *sg, int *nloops)
             {
                 d[vv]++;
                 if (vv != j) d[j]++;
-		else         ++loops;
+                else         ++loops;
             }
         }
 
@@ -1381,7 +1422,7 @@ stringtosparsegraph(char *s, sparsegraph *sg, int *nloops)
         DYNALLOC1(int,sg->e,sg->elen,nde,"stringtosparsegraph");
         e = sg->e;
 
-	p = q;
+        p = q;
 
         k = 0;
         vv = 0;
@@ -1441,7 +1482,7 @@ stringtosparsegraph(char *s, sparsegraph *sg, int *nloops)
                 if (vv != j) e[v[j]+d[j]++] = vv;
             }
         }
-	*nloops = loops;
+        *nloops = loops;
     }
 }
 
@@ -1466,14 +1507,14 @@ read_sgg_loops(FILE *f, sparsegraph *sg, int *nloops, boolean *digraph)
     if (s[0] == ':')
     {
         readg_code = SPARSE6;
-	*digraph = FALSE;
+        *digraph = FALSE;
         p = s + 1;
     }
     else if (s[0] == '&')
     {
-	readg_code = DIGRAPH6;
+        readg_code = DIGRAPH6;
         *digraph = TRUE;
-	p = s + 1;
+        p = s + 1;
     }
     else
     {
@@ -1753,9 +1794,9 @@ ntos6(graph *g, int m, int n)
     if (k != 6)
     {
         if (k >= nb+1 && lastj == n-2 && n == (1<<nb))
-	    *p++ = (char)(BIAS6 + ((x << k) | ((1 << (k-1)) - 1)));
+            *p++ = (char)(BIAS6 + ((x << k) | ((1 << (k-1)) - 1)));
         else
-	    *p++ = (char)(BIAS6 + ((x << k) | ((1 << k) - 1)));
+            *p++ = (char)(BIAS6 + ((x << k) | ((1 << k) - 1)));
     }
 
     *p++ = '\n';
@@ -1800,14 +1841,14 @@ ntois6(graph *g, graph *prevg, int m, int n)
         gj = GRAPHROW(g,j,m);
         pgj = GRAPHROW(prevg,j,m); 
         nwords = SETWORDSNEEDED(j+1);
-	for (iw = 0; iw < nwords; ++iw)
+        for (iw = 0; iw < nwords; ++iw)
         {
-	    gdiff = gj[iw] ^ pgj[iw];
+            gdiff = gj[iw] ^ pgj[iw];
             if (TIMESWORDSIZE(iw+1) > j+1) gdiff &= ALLMASK(SETBT(j+1));
-	    while (gdiff)
-	    {
-		TAKEBIT(i,gdiff);
-		i += TIMESWORDSIZE(iw);
+            while (gdiff)
+            {
+                TAKEBIT(i,gdiff);
+                i += TIMESWORDSIZE(iw);
    
                 if (p >= plim)
                 {
@@ -1877,9 +1918,9 @@ ntois6(graph *g, graph *prevg, int m, int n)
     if (k != 6)
     {
         if (k >= nb+1 && lastj == n-2 && n == (1<<nb))
-	    *p++ = (char)(BIAS6 + ((x << k) | ((1 << (k-1)) - 1)));
+            *p++ = (char)(BIAS6 + ((x << k) | ((1 << (k-1)) - 1)));
         else
-	    *p++ = (char)(BIAS6 + ((x << k) | ((1 << k) - 1)));
+            *p++ = (char)(BIAS6 + ((x << k) | ((1 << k) - 1)));
     }
 
     *p++ = '\n';
@@ -1998,9 +2039,9 @@ sgtos6(sparsegraph *sg)
     if (k != 6)
     {
         if (k >= nb+1 && lastj == n-2 && n == (1<<nb))
-	    *p++ = (char)(BIAS6 + ((x << k) | ((1 << (k-1)) - 1)));
+            *p++ = (char)(BIAS6 + ((x << k) | ((1 << (k-1)) - 1)));
         else
-	    *p++ = (char)(BIAS6 + ((x << k) | ((1 << k) - 1)));
+            *p++ = (char)(BIAS6 + ((x << k) | ((1 << k) - 1)));
     }
 
     *p++ = '\n';
@@ -2039,13 +2080,13 @@ sgtog6(sparsegraph *sg)
 
     for (i = 0, org = 0; i < n;  org += i, ++i)
     {
-	ei = e + v[i];
-	for (j = 0; j < d[i]; ++j)
-	    if (ei[j] < i)
-	    {
-		ii = ei[j] + org;
-		p[ii/6] |= g6bit[ii%6];
-	    }
+        ei = e + v[i];
+        for (j = 0; j < d[i]; ++j)
+            if (ei[j] < i)
+            {
+                ii = ei[j] + org;
+                p[ii/6] |= g6bit[ii%6];
+            }
     }
 
     for (ii = 0; ii < bodylen; ++ii) p[ii] += BIAS6;
@@ -2084,12 +2125,12 @@ sgtod6(sparsegraph *sg)
 
     for (i = 0, org = 0; i < n;  org += n, ++i)
     {
-	ei = e + v[i];
-	for (j = 0; j < d[i]; ++j)
-	{
-	    ii = ei[j] + org;
-	    p[ii/6] |= g6bit[ii%6];
-	}
+        ei = e + v[i];
+        for (j = 0; j < d[i]; ++j)
+        {
+            ii = ei[j] + org;
+            p[ii/6] |= g6bit[ii%6];
+        }
     }
 
     for (ii = 0; ii < bodylen; ++ii) p[ii] += BIAS6;
@@ -2215,42 +2256,42 @@ writepc_sg(FILE *f, sparsegraph *sg)
 
     if (bytes == 1)
     {
-	j = 0;
-	BEPUT1(n);
-	for (i = 0; i < n; ++i)
-	{
-	    vi = v[i];
-	    di = d[i];
-	    for (k = 0; k < di; ++k) { BEPUT1(e[vi+k]+1); }
-	    BEPUT1(0);
-	}
+        j = 0;
+        BEPUT1(n);
+        for (i = 0; i < n; ++i)
+        {
+            vi = v[i];
+            di = d[i];
+            for (k = 0; k < di; ++k) { BEPUT1(e[vi+k]+1); }
+            BEPUT1(0);
+        }
     }
     else if (bytes == 2)
     {
-	j = 0;
-	BEPUT1(n);
-	BEPUT2(n);
-	for (i = 0; i < n; ++i)
-	{
-	    vi = v[i];
-	    di = d[i];
-	    for (k = 0; k < di; ++k) { BEPUT2(e[vi+k]+1); }
-	    BEPUT2(0);
-	}
+        j = 0;
+        BEPUT1(n);
+        BEPUT2(n);
+        for (i = 0; i < n; ++i)
+        {
+            vi = v[i];
+            di = d[i];
+            for (k = 0; k < di; ++k) { BEPUT2(e[vi+k]+1); }
+            BEPUT2(0);
+        }
     }
     else /* bytes==4 */
     {
-	j = 0;
-	BEPUT1(n);
-	BEPUT2(n);
-	BEPUT4(n);
-	for (i = 0; i < n; ++i)
-	{
-	    vi = v[i];
-	    di = d[i];
-	    for (k = 0; k < di; ++k) { BEPUT4(e[vi+k]+1); }
-	    BEPUT4(0);
-	}
+        j = 0;
+        BEPUT1(n);
+        BEPUT2(n);
+        BEPUT4(n);
+        for (i = 0; i < n; ++i)
+        {
+            vi = v[i];
+            di = d[i];
+            for (k = 0; k < di; ++k) { BEPUT4(e[vi+k]+1); }
+            BEPUT4(0);
+        }
     }
 
     if (fwrite((void*)buff,1,j,f) != j)
@@ -2281,24 +2322,24 @@ readpc_sg(FILE *f,sparsegraph *sg)
     BEGET1(n);
     if (n == EOF || n < 0) return NULL;
     else if (n > 0)
-	bytes = 1;
+        bytes = 1;
     else
     {
-	BEGET2(n);
-	if (n == EOF || n < 0)
-	    gt_abort(">E readpc_sg : error 1 on reading\n");
-	else if (n > 0)
-	    bytes = 2;
-	else
-	{
-	    BEGET4(n);
-	    if (n == EOF || n < 0)
-	        gt_abort(">E readpc_sg : error 2 on reading\n");
-	    else if (n > 0)
-		bytes = 4;
-	    else
-	        gt_abort(">E readpc_sg : error 3 on reading\n");
-	}
+        BEGET2(n);
+        if (n == EOF || n < 0)
+            gt_abort(">E readpc_sg : error 1 on reading\n");
+        else if (n > 0)
+            bytes = 2;
+        else
+        {
+            BEGET4(n);
+            if (n == EOF || n < 0)
+                gt_abort(">E readpc_sg : error 2 on reading\n");
+            else if (n > 0)
+                bytes = 4;
+            else
+                gt_abort(">E readpc_sg : error 3 on reading\n");
+        }
     }
  
     if (sg == NULL)
@@ -2314,30 +2355,30 @@ readpc_sg(FILE *f,sparsegraph *sg)
     vi = 0;
     for (i = 0; i < n; ++i)
     {
-	v[i] = vi;
-	di = 0;
-	do
-	{
-	    if      (bytes == 1) BEGET1(j)
+        v[i] = vi;
+        di = 0;
+        do
+        {
+            if      (bytes == 1) BEGET1(j)
             else if (bytes == 2) BEGET2(j)
             else                 BEGET4(j);
-	    if (j == EOF) gt_abort(">E readpc_sg : error 4 on reading\n");
+            if (j == EOF) gt_abort(">E readpc_sg : error 4 on reading\n");
 
-	    if (j > 0)
-	    {
-		if (vi == sg->elen)
-		{
-		    DYNREALLOC(int,sg->e,sg->elen,2*sg->elen,"readpc_sg");
-		    e = sg->e;
-		}
-	        e[vi++] = j-1;
-		++di;
-	    }
-	    else if (j == 0)
-		d[i] = di;
-	    else
-		gt_abort(">E readpc_sg : error 5 on reading\n");
-	} while (j != 0);
+            if (j > 0)
+            {
+                if (vi == sg->elen)
+                {
+                    DYNREALLOC(int,sg->e,sg->elen,2*sg->elen,"readpc_sg");
+                    e = sg->e;
+                }
+                e[vi++] = j-1;
+                ++di;
+            }
+            else if (j == 0)
+                d[i] = di;
+            else
+                gt_abort(">E readpc_sg : error 5 on reading\n");
+        } while (j != 0);
     }
 
     sg->nv = n;
@@ -2369,24 +2410,24 @@ readpcle_sg(FILE *f,sparsegraph *sg)
     LEGET1(n);
     if (n == EOF || n < 0) return NULL;
     else if (n > 0)
-	bytes = 1;
+        bytes = 1;
     else
     {
-	LEGET2(n);
-	if (n == EOF || n < 0)
-	    gt_abort(">E readpcle_sg : error 1 on reading\n");
-	else if (n > 0)
-	    bytes = 2;
-	else
-	{
-	    LEGET4(n);
-	    if (n == EOF || n < 0)
-	        gt_abort(">E readpcle_sg : error 2 on reading\n");
-	    else if (n > 0)
-		bytes = 4;
-	    else
-	        gt_abort(">E readpcle_sg : error 3 on reading\n");
-	}
+        LEGET2(n);
+        if (n == EOF || n < 0)
+            gt_abort(">E readpcle_sg : error 1 on reading\n");
+        else if (n > 0)
+            bytes = 2;
+        else
+        {
+            LEGET4(n);
+            if (n == EOF || n < 0)
+                gt_abort(">E readpcle_sg : error 2 on reading\n");
+            else if (n > 0)
+                bytes = 4;
+            else
+                gt_abort(">E readpcle_sg : error 3 on reading\n");
+        }
     }
  
     if (sg == NULL)
@@ -2402,30 +2443,30 @@ readpcle_sg(FILE *f,sparsegraph *sg)
     vi = 0;
     for (i = 0; i < n; ++i)
     {
-	v[i] = vi;
-	di = 0;
-	do
-	{
-	    if (bytes == 1)      LEGET1(j)
+        v[i] = vi;
+        di = 0;
+        do
+        {
+            if (bytes == 1)      LEGET1(j)
             else if (bytes == 2) LEGET2(j)
             else                 LEGET4(j);
-	    if (j == EOF) gt_abort(">E readpcle_sg : error 4 on reading\n");
+            if (j == EOF) gt_abort(">E readpcle_sg : error 4 on reading\n");
 
-	    if (j > 0)
-	    {
-		if (vi == sg->elen)
-		{
-		    DYNREALLOC(int,sg->e,sg->elen,2*sg->elen,"readpcle_sg");
-		    e = sg->e;
-		}
-	        e[vi++] = j-1;
-		++di;
-	    }
-	    else if (j == 0)
-		d[i] = di;
-	    else
-		gt_abort(">E readpcle_sg : error 5 on reading\n");
-	} while (j != 0);
+            if (j > 0)
+            {
+                if (vi == sg->elen)
+                {
+                    DYNREALLOC(int,sg->e,sg->elen,2*sg->elen,"readpcle_sg");
+                    e = sg->e;
+                }
+                e[vi++] = j-1;
+                ++di;
+            }
+            else if (j == 0)
+                d[i] = di;
+            else
+                gt_abort(">E readpcle_sg : error 5 on reading\n");
+        } while (j != 0);
     }
 
     sg->nv = n;
@@ -2476,7 +2517,7 @@ longvalue(char **ps, long *l)
     {
         last = sofar;
         sofar = sofar * 10 + (*s - '0');
-        if (sofar < last || sofar > MAXARG)
+        if (sofar < last || sofar > MAXLONGARG)
         {
             *ps = s;
             return ARG_TOOBIG;
@@ -2522,12 +2563,12 @@ doublevalue(char **ps, double *l)
  
     if (*s == '.')
     {
-	weight = 1.0;
-	for (++s; *s >= '0' && *s <= '9'; ++s)
-	{
-	    weight /= 10.0;
-	    sofar += weight * (*s - '0');
-	}
+        weight = 1.0;
+        for (++s; *s >= '0' && *s <= '9'; ++s)
+        {
+            weight /= 10.0;
+            sofar += weight * (*s - '0');
+        }
     }
 
     *ps = s;
@@ -2685,19 +2726,19 @@ arg_sequence(char **ps, char *sep,
             fprintf(stderr,">E %s: value too big\n",id);
             gt_abort(NULL);
         }
-	else if (code == ARG_MISSING)
+        else if (code == ARG_MISSING)
         {
             fprintf(stderr,">E %s: value missing\n",id);
             gt_abort(NULL);
         }
 
-	if (*s == '\0' || !strhaschar(sep,*s))
-	{
-	    *numvals = ival+1;
-	    *ps = s;
-	    return;
-	}
-	++s;
+        if (*s == '\0' || !strhaschar(sep,*s))
+        {
+            *numvals = ival+1;
+            *ps = s;
+            return;
+        }
+        ++s;
     }
     fprintf(stderr,">E %s: too many values\n",id);
     gt_abort(NULL);
@@ -2727,24 +2768,24 @@ arg_sequence_min(char **ps, char *sep,
             fprintf(stderr,">E %s: value too big\n",id);
             gt_abort(NULL);
         }
-	else if (code == ARG_MISSING)
+        else if (code == ARG_MISSING)
         {
             fprintf(stderr,">E %s: value missing\n",id);
             gt_abort(NULL);
         }
 
-	if (*s == '\0' || !strhaschar(sep,*s))
-	{
-	    *numvals = ival+1;
-	    *ps = s;
-	    if (*numvals < minvals)
-	    {
-		fprintf(stderr,">E %s: too few values\n",id);
-		gt_abort(NULL);
-	    }
-	    return;
-	}
-	++s;
+        if (*s == '\0' || !strhaschar(sep,*s))
+        {
+            *numvals = ival+1;
+            *ps = s;
+            if (*numvals < minvals)
+            {
+                fprintf(stderr,">E %s: too few values\n",id);
+                gt_abort(NULL);
+            }
+            return;
+        }
+        ++s;
     }
     fprintf(stderr,">E %s: too many values\n",id);
     gt_abort(NULL);
@@ -2803,7 +2844,7 @@ writerange(FILE *f, int c, long lo, long hi)    /* Write a range. */
     if (lo != -NOLIMIT) fprintf(f,"%ld",lo);
     if (lo != hi)
     {
-        fprintf(stderr,":");
+        fprintf(f,":");
         if (hi != NOLIMIT) fprintf(f,"%ld",hi);
     }
 }
@@ -2872,4 +2913,12 @@ gtools_check(int wordsize, int m, int n, int version)
         fprintf(ERRFILE,"Error: gtools.c version mismatch\n");
         exit(1);
     }
+
+#if !HAVE_TLS
+    if ((version & 1))
+    {
+        fprintf(ERRFILE,
+           "*** Warning: program with TLS calling gtools without TLS ***\n");
+    }
+#endif
 }

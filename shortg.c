@@ -80,6 +80,14 @@
  #error Forget it, either pipe(), wait() or fork() are not available
 #endif
 
+/* Define EXTRA at compile time to add arguments to the sort command.
+   It has to start with a comma and have double quotes around sort
+   arguments.  For example, if your sort command has the -S (buffer
+   size) parameter, you could use -DEXTRA=',"-S10%"'  . */
+#ifndef EXTRA
+#define EXTRA
+#endif
+
 #if !HAVE_PID_T
 typedef int pid_t;
 #endif
@@ -89,21 +97,21 @@ FILE *fdopen(int, const char*);
 #endif
 
 #if SORT_NEWKEY == 0
-#define SORTCOMMAND  SORTPROG,SORTPROG,"-u","+0","-1"
-#define VSORTCOMMAND1  SORTPROG,SORTPROG
+#define SORTCOMMAND  SORTPROG,SORTPROG EXTRA,"-u","+0","-1"
+#define VSORTCOMMAND1  SORTPROG,SORTPROG EXTRA
 #define VSORTCOMMAND2  SORTPROG,SORTPROG,"+0","-1","+2"
 
-#define SORTCOMMANDT  SORTPROG,SORTPROG,"-T",tempdir,"-u","+0","-1"
-#define VSORTCOMMANDT1  SORTPROG,SORTPROG,"-T",tempdir
-#define VSORTCOMMANDT2  SORTPROG,SORTPROG,"-T",tempdir,"+0","-1","+2"
+#define SORTCOMMANDT  SORTPROG,SORTPROG EXTRA,"-T",tempdir,"-u","+0","-1"
+#define VSORTCOMMANDT1  SORTPROG,SORTPROG EXTRA,"-T",tempdir
+#define VSORTCOMMANDT2  SORTPROG,SORTPROG EXTRA,"-T",tempdir,"+0","-1","+2"
 #else
-#define SORTCOMMAND  SORTPROG,SORTPROG,"-u","-k","1,1"
-#define VSORTCOMMAND1  SORTPROG,SORTPROG
-#define VSORTCOMMAND2  SORTPROG,SORTPROG,"-k","1,1","-k","3"
+#define SORTCOMMAND  SORTPROG,SORTPROG EXTRA,"-u","-k","1,1"
+#define VSORTCOMMAND1  SORTPROG,SORTPROG EXTRA
+#define VSORTCOMMAND2  SORTPROG,SORTPROG EXTRA,"-k","1,1","-k","3"
 
-#define SORTCOMMANDT  SORTPROG,SORTPROG,"-T",tempdir,"-u","-k","1,1"
-#define VSORTCOMMANDT1  SORTPROG,SORTPROG,"-T",tempdir
-#define VSORTCOMMANDT2  SORTPROG,SORTPROG,"-T",tempdir,"-k","1,1","-k","3"
+#define SORTCOMMANDT  SORTPROG,SORTPROG EXTRA,"-T",tempdir,"-u","-k","1,1"
+#define VSORTCOMMANDT1  SORTPROG,SORTPROG EXTRA,"-T",tempdir
+#define VSORTCOMMANDT2  SORTPROG,SORTPROG EXTRA,"-T",tempdir,"-k","1,1","-k","3"
 #endif
 
 static struct invarrec
@@ -142,7 +150,7 @@ beginsort(FILE **sortin, FILE **sortout, char *tempdir,
           boolean vdswitch, boolean keep)
 /* begin sort process, open streams for i/o to it, and return its pid */
 {
-    int pid;
+    pid_t pid;
     int inpipe[2],outpipe[2];
 
     if (pipe(inpipe) < 0 || pipe(outpipe) < 0)
@@ -467,24 +475,24 @@ main(int argc, char *argv[])
 
     if (Sswitch)
     {
-	SG_INIT(sg);
-	SG_INIT(sh);
+        SG_INIT(sg);
+        SG_INIT(sh);
         while (TRUE)
         {
-	    if (read_sgg_loops(infile,&sg,&loops,&digraph) == NULL) break;
+            if (read_sgg_loops(infile,&sg,&loops,&digraph) == NULL) break;
             dstr = readg_line;
             ++numread;
-	    n = sg.nv;
+            n = sg.nv;
 #if MAXN
-	    if (n > MAXN) gt_abort(">E shortg: graph larger than MAXN read\n");
+            if (n > MAXN) gt_abort(">E shortg: graph larger than MAXN read\n");
 #endif
             m = SETWORDSNEEDED(n);
             SG_ALLOC(sh,n,sg.nde,"shortg");
             fcanonise_inv_sg(&sg,m,n,&sh,format?fmt:NULL,
-		invarproc[inv].entrypoint_sg,
+                invarproc[inv].entrypoint_sg,
                 mininvarlevel,maxinvarlevel,invararg,loops>0||digraph);
             sortlists_sg(&sh);
-	    if (outcode == DIGRAPH6 || digraph) cdstr = sgtod6(&sh);
+            if (outcode == DIGRAPH6 || digraph) cdstr = sgtod6(&sh);
             else if (outcode == SPARSE6)        cdstr = sgtos6(&sh);
             else                                cdstr = sgtog6(&sh);
 
@@ -509,28 +517,28 @@ main(int argc, char *argv[])
             ++numread;
             n = sg.nv;
 #if MAXN
-	    if (n > MAXN) gt_abort(">E shortg: graph larger than MAXN read\n");
+            if (n > MAXN) gt_abort(">E shortg: graph larger than MAXN read\n");
 #endif
             DYNALLOC1(int,lab,lab_sz,n,"traces@shortg");
             DYNALLOC1(int,ptn,ptn_sz,n,"traces@shortg");
             DYNALLOC1(int,orbits,orbits_sz,n,"traces@shortg");
             SG_ALLOC(sh,n,sg.nde,"labelg");
-	    if (n == 0)
-	    {
-		sh.nv = 0;
-		sh.nde = 0;
-	    }
-	    else
-	    {
+            if (n == 0)
+            {
+                sh.nv = 0;
+                sh.nde = 0;
+            }
+            else
+            {
                 for (ii = 0; ii < n; ++ii) { lab[ii] = ii; ptn[ii] = 1; }
                 ptn[n-1] = 0;
                 Traces(&sg,lab,ptn,orbits,&traces_opts,&traces_stats,&sh);
                 sortlists_sg(&sh);
-	    }
-	    if (outcode == DIGRAPH6 || digraph) cdstr = sgtod6(&sh);
+            }
+            if (outcode == DIGRAPH6 || digraph) cdstr = sgtod6(&sh);
             else if (outcode == SPARSE6)        cdstr = sgtos6(&sh);
             else                                cdstr = sgtog6(&sh);
-	    tosort(sortin,cdstr,kswitch ? dstr : NULL,vswitch ? numread : 0);
+            tosort(sortin,cdstr,kswitch ? dstr : NULL,vswitch ? numread : 0);
         }
     }
     else
@@ -547,7 +555,7 @@ main(int argc, char *argv[])
             fcanonise_inv(g,m,n,h,format?fmt:NULL,
                 invarproc[inv].entrypoint,mininvarlevel,maxinvarlevel,
                 invararg, loops>0||digraph);
-	    if (outcode == DIGRAPH6 || digraph) cdstr = ntod6(h,m,n);
+            if (outcode == DIGRAPH6 || digraph) cdstr = ntod6(h,m,n);
             else if (outcode == SPARSE6)        cdstr = ntos6(h,m,n);
             else                                cdstr = ntog6(h,m,n);
 

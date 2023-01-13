@@ -158,7 +158,7 @@ main(int argc, char *argv[])
     {
         if (outcode == SPARSE6)       writeline(outfile,SPARSE6_HEADER);
         else if (outcode == DIGRAPH6) writeline(outfile,DIGRAPH6_HEADER);
-        else          	              writeline(outfile,GRAPH6_HEADER);
+        else                          writeline(outfile,GRAPH6_HEADER);
     }
 
     nauty_check(WORDSIZE,1,1,NAUTYVERSIONID);
@@ -182,12 +182,12 @@ main(int argc, char *argv[])
             for (ii = 0; ii < n; ++ii) if (ISELEMENT(g+m*ii,ii)) ++loops;
             if (Lswitch)
             {
-		loopsc = n - loops;
+                loopsc = n - loops;
                 nedc = nn + n - (ned-loops)/2;
             }
             else
             {
-		loopsc = loops;
+                loopsc = loops;
                 nedc = nn - (ned-3*loops)/2;
             }
 
@@ -200,10 +200,10 @@ main(int argc, char *argv[])
                     DYNALLOC2(graph,hc,hc_sz,n,m,"complg");
 #endif
                     fcanonise(gc,m,n,hc,NULL,digraph||loopsc>0);
-            	    gq = hc;
+                    gq = hc;
                 }
                 else
-            	    gq = gc;
+                    gq = gc;
             }
             else if (ned < nedc)
             {
@@ -213,10 +213,10 @@ main(int argc, char *argv[])
                     DYNALLOC2(graph,h,h_sz,n,m,"complg");
 #endif
                     fcanonise(g,m,n,h,NULL,digraph||loops>0);
-            	    gq = h;
+                    gq = h;
                 }
                 else
-            	    gq = g;
+                    gq = g;
             }
             else 
             {
@@ -228,19 +228,19 @@ main(int argc, char *argv[])
                 fcanonise(g,m,n,h,NULL,digraph||loops>0);
                 fcanonise(gc,m,n,hc,NULL,digraph||loopsc>0);
                 for (ii = 0; ii < gwords; ++ii)
-            	    if (h[ii] != hc[ii]) break;
+                    if (h[ii] != hc[ii]) break;
                 if (ii == gwords || hc[ii] < h[ii])
                 {
-            	    if (dolabel) gq = hc; else gq = gc;
+                    if (dolabel) gq = hc; else gq = gc;
                 }
                 else
                 {
-            	    if (dolabel) gq = h; else gq = g;
+                    if (dolabel) gq = h; else gq = g;
                 }
             }
         }
         else   /* Not restricted */
-        {		
+        {
             compl(g,m,n,gc,Lswitch);
             if (dolabel)
             {
@@ -254,8 +254,8 @@ main(int argc, char *argv[])
                 gq = gc;
         }
 
-	if (also)
-	{
+        if (also)
+        {
             if (outcode == SPARSE6)       writes6(outfile,g,m,n);
             else if (outcode == DIGRAPH6) writed6(outfile,g,m,n);
             else                          writeg6(outfile,g,m,n);

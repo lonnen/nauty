@@ -137,8 +137,8 @@ gtois6string(graph *g, graph *prevg, char **pp, int m, int n)
 
     if (!prevg) 
     {
-	gtos6string(g,pp,m,n);
-	return;
+        gtos6string(g,pp,m,n);
+        return;
     }
 
     **pp = ';';
@@ -324,9 +324,9 @@ gtos6string(graph *g, char **pp, int m, int n)
     if (k != 6)
     {
         if (k >= nb+1 && lastj == n-2 && n == (1<<nb))
-	    *p++ = (char)(BIAS6 + ((x << k) | ((1 << (k-1)) - 1)));
+            *p++ = (char)(BIAS6 + ((x << k) | ((1 << (k-1)) - 1)));
         else
-	    *p++ = (char)(BIAS6 + ((x << k) | ((1 << k) - 1)));
+            *p++ = (char)(BIAS6 + ((x << k) | ((1 << k) - 1)));
     }
 
     *p++ = '\n';
@@ -432,9 +432,9 @@ sgtos6string(sparsegraph *sg, char **pp)
     if (k != 6)
     {
         if (k >= nb+1 && lastj == n-2 && n == (1<<nb))
-	    *p++ = (char)(BIAS6 + ((x << k) | ((1 << (k-1)) - 1)));
+            *p++ = (char)(BIAS6 + ((x << k) | ((1 << (k-1)) - 1)));
         else
-	    *p++ = (char)(BIAS6 + ((x << k) | ((1 << k) - 1)));
+            *p++ = (char)(BIAS6 + ((x << k) | ((1 << k) - 1)));
     }
 
     *p++ = '\n';
@@ -468,13 +468,13 @@ sgtog6string(sparsegraph *sg, char **pp)
 
     for (i = 0, org = 0; i < n;  org += i, ++i)
     {
-	ei = e + v[i];
-	for (j = 0; j < d[i]; ++j)
-	    if (ei[j] < i)
-	    {
-		ii = ei[j] + org;
-		p[ii/6] |= g6bit[ii%6];
-	    }
+        ei = e + v[i];
+        for (j = 0; j < d[i]; ++j)
+            if (ei[j] < i)
+            {
+                ii = ei[j] + org;
+                p[ii/6] |= g6bit[ii%6];
+            }
     }
 
     for (ii = 0; ii < bodylen; ++ii) p[ii] += BIAS6;
@@ -509,12 +509,12 @@ sgtod6string(sparsegraph *sg, char **pp)
 
     for (i = 0, org = 0; i < n;  org += i, ++i)
     {
-	ei = e + v[i];
-	for (j = 0; j < d[i]; ++j)
-	{
-	    ii = ei[j] + org;
-	    p[ii/6] |= g6bit[ii%6];
-	}
+        ei = e + v[i];
+        for (j = 0; j < d[i]; ++j)
+        {
+            ii = ei[j] + org;
+            p[ii/6] |= g6bit[ii%6];
+        }
     }
 
     for (ii = 0; ii < bodylen; ++ii) p[ii] += BIAS6;

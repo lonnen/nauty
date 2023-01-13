@@ -1,9 +1,9 @@
 /*****************************************************************************
 *                                                                            *
-* miscellaneous utilities for use with nauty 2.7.                            *
+* miscellaneous utilities for use with nauty 2.8.                            *
 * None of these procedures are needed by nauty, but all are by dreadnaut.    *
 *                                                                            *
-*   Copyright (1984-2017) Brendan McKay.  All rights reserved.               *
+*   Copyright (1984-2022) Brendan McKay.  All rights reserved.               *
 *   Subject to waivers and disclaimers in nauty.h.                           *
 *                                                                            *
 *   CHANGE HISTORY                                                           *
@@ -138,11 +138,6 @@ int
 setinter(set *set1, set *set2, int m)
 {
     setword x;
-
-#if  MAXM==1
-    if ((x = *set1 & *set2) != 0) return POPCOUNT(x);
-    else                          return 0;
-#else
     int count,i;
 
     count = 0;
@@ -150,11 +145,10 @@ setinter(set *set1, set *set2, int m)
     {
         if ((x = (*set1 & *set2)) != 0) count += POPCOUNT(x);
         ++set1;
-	++set2;
+        ++set2;
     }
 
     return count;
-#endif
 }
 
 /*****************************************************************************
@@ -166,20 +160,67 @@ setinter(set *set1, set *set2, int m)
 int
 setsize(set *set1, int m)
 {
-
-#if  MAXM==1
-    if (set1 != 0) return POPCOUNT(*set1);
-    else           return 0;
-#else
     int count,i;
     setword x;
 
+    if (m == 1) return POPCOUNT(*set1);
+
     count = 0;
-    for (i = m; --i >= 0;)
-        if ((x = *set1++) != 0) count += POPCOUNT(x);
+    for (i = m; --i >= 0;) count += POPCOUNT(set1[i]);
 
     return count;
-#endif
+}
+
+/*****************************************************************************
+*                                                                            *
+*  setolist(set1,m,list)   Puts all the elements of the set into             *
+*  list[0...] and returns the number of elements as function value.          *
+*                                                                            *
+*****************************************************************************/
+
+int
+settolist(set *set1, int m, int *list)
+{
+    int i,j,k,v;
+    setword w;
+
+    k = 0;
+    for (i = 0, v = 0; i < m; ++i, v += WORDSIZE)
+    {
+        w = set1[i];
+        while (w)
+        {
+            TAKEBIT(j,w);
+            list[k++] = v + j;
+        }
+    }
+
+    return k;
+}
+
+/*****************************************************************************
+*                                                                            *
+*  listtoset(list,len,set1,m)  Sets set1[0..m-1] to the set {list[0..len-1]} *
+*                                                                            *
+*****************************************************************************/
+
+void
+listtoset(int *list, int len, set *set1, int m)
+{
+    int i;
+    setword w;
+
+    if (m == 1)
+    {
+        w = 0;
+        for (i = 0; i < len; ++i) w |= bit[list[i]];
+        *set1 = w;
+    }
+    else
+    {
+        EMPTYSET0(set1,m);
+        for (i = 0; i < len; ++i) ADDELEMENT0(set1,list[i]);
+    }
 }
 
 /*****************************************************************************
@@ -311,13 +352,13 @@ readstring(FILE *f, char *s, int slen)
 
     if (c == '"')
     {
-	c = getc(f);
-	while (c != '"' && c != '\n' && c != '\r' && c != EOF)
-	{
-	    if (s <= slim) *s++ = (char)c;
+        c = getc(f);
+        while (c != '"' && c != '\n' && c != '\r' && c != EOF)
+        {
+            if (s <= slim) *s++ = (char)c;
             c = getc(f);
         }
-	if (c != '"' && c != EOF) ungetc(c,f);
+        if (c != '"' && c != EOF) ungetc(c,f);
     }
     else
     {
@@ -457,7 +498,7 @@ putset_firstbold(FILE *f, set *set1, int *curlenp, int linelength,
             s[slen] = ':';
             slen += 1 + itos(j2+labelorg,&s[slen+1]);
         }
-	c = s[slen1];
+        c = s[slen1];
 
         if (linelength > 0 && *curlenp + slen + 1 >= linelength)
         {
@@ -466,7 +507,7 @@ putset_firstbold(FILE *f, set *set1, int *curlenp, int linelength,
         }
         if (bold)
         {
-	    s[slen1] = '\0';
+            s[slen1] = '\0';
             fprintf(f," \033[1m%s\033[0m",s);
             s[slen1] = c;
             fprintf(f,"%s",&s[slen1]);
@@ -648,11 +689,11 @@ ranreg_sg(sparsegraph *sg, int degree, int n)
         for (j = nde; j > 0; j -= 2)
         {   
             i = KRAN(j-1);
-	    k = p[i];
-	    if (k == p[j-1]) break;
-	    p[i] = p[j-2]; p[j-2] = k;
+            k = p[i];
+            if (k == p[j-1]) break;
+            p[i] = p[j-2]; p[j-2] = k;
         }
-	if (j > 0) { ok = FALSE; continue; }
+        if (j > 0) { ok = FALSE; continue; }
 
         for (i = 0; i < n; ++i) dd[i] = 0;
 
@@ -661,7 +702,7 @@ ranreg_sg(sparsegraph *sg, int degree, int n)
             v = p[--j];
             w = p[--j];
             if (v != w)
-	    {
+            {
                 for (i = dd[w]; --i >= 0;) if (ee[vv[w]+i] == v) break;
                 if (i >= 0) { ok = FALSE; break; }
             }
@@ -978,7 +1019,7 @@ readgraph_swg(FILE *f, sparsegraph *sg, boolean digraph, boolean prompt,
                     ec->edge[iec].v1 = vv;
                     ec->edge[iec].v2 = -1 - ww;
                     ec->edge[iec].wt = currwt;
-		    ++iec;
+                    ++iec;
                     currwt = defwt;
                     ++d[vv];
                     if (ww != vv) ++d[ww];
@@ -1019,7 +1060,7 @@ readgraph_swg(FILE *f, sparsegraph *sg, boolean digraph, boolean prompt,
                         ec->edge[iec].v1 = vv;
                         ec->edge[iec].v2 = ww;
                         ec->edge[iec].wt = currwt;
-			++iec;
+                        ++iec;
                         currwt = defwt;
                         ++d[vv];
                         if (ww != vv) ++d[ww];
@@ -1051,21 +1092,21 @@ readgraph_swg(FILE *f, sparsegraph *sg, boolean digraph, boolean prompt,
                 break;
             case 'w':
                 readinteger(f,&currwt);
-		if (currwt <= SG_MINWEIGHT)
-		{
-		    fprintf(ERRFILE,"Weight too small\n\n");
-		    currwt = 1;
-		}
-		break;
+                if (currwt <= SG_MINWEIGHT)
+                {
+                    fprintf(ERRFILE,"Weight too small\n\n");
+                    currwt = 1;
+                }
+                break;
             case 'W':
                 readinteger(f,&currwt);
-		if (currwt <= SG_MINWEIGHT)
-		{
-		    fprintf(ERRFILE,"Weight too small\n\n");
-		    currwt = 1;
-		}
-		defwt = currwt;
-		break;
+                if (currwt <= SG_MINWEIGHT)
+                {
+                    fprintf(ERRFILE,"Weight too small\n\n");
+                    currwt = 1;
+                }
+                defwt = currwt;
+                break;
             case '!':
                 do
                     c = getc(f);
@@ -1106,13 +1147,13 @@ readgraph_swg(FILE *f, sparsegraph *sg, boolean digraph, boolean prompt,
         {
             e[v[vv]+d[vv]] = ww;
             wt[v[vv]+d[vv]] = currwt;
-	    ++d[vv];
+            ++d[vv];
             if (ww != vv)
             {
-		e[v[ww]+d[ww]] = vv;
-		wt[v[ww]+d[ww]] = (digraph ? SG_MINWEIGHT : currwt);
-		++d[ww];
-	    }
+                e[v[ww]+d[ww]] = vv;
+                wt[v[ww]+d[ww]] = (digraph ? SG_MINWEIGHT : currwt);
+                ++d[ww];
+            }
         }
         else
         {
@@ -1149,18 +1190,18 @@ readgraph_swg(FILE *f, sparsegraph *sg, boolean digraph, boolean prompt,
         if (d[i] > 1)
         {
             evi = e + v[i];
-	    wvi = wt + v[i];
+            wvi = wt + v[i];
             j = 1;
             for (k = 1; k < d[i]; ++k)
             {
                 if (evi[k] != evi[j-1])
                 {
-		    evi[j] = evi[k];
-		    wvi[j] = wvi[k];
-		    ++j;
-		}
-		else if (wvi[k] > wvi[j-1])
-		    wvi[j-1] = wvi[k];
+                    evi[j] = evi[k];
+                    wvi[j] = wvi[k];
+                    ++j;
+                }
+                else if (wvi[k] > wvi[j-1])
+                    wvi[j-1] = wvi[k];
             }
             d[i] = j;
         }
@@ -1225,20 +1266,20 @@ putgraph_sg(FILE *f, sparsegraph *sg, int linelength)
 
         for (j = v[i]; j < v[i]+d[i]; ++j)
         {
-	    if (wt && wt[j] != 1)
-	    {
-		s[0] = 'w';
-		if (wt[j] == SG_MINWEIGHT)
-		{
-		    s[1] = 'X';
-		    s[2] = ' ';
-		    slen = 3;
-		}
-		else
-		{
-		    slen = 2 + itos(wt[j],s+1);
-		    s[slen-1] = ' ';
-		}
+            if (wt && wt[j] != 1)
+            {
+                s[0] = 'w';
+                if (wt[j] == SG_MINWEIGHT)
+                {
+                    s[1] = 'X';
+                    s[2] = ' ';
+                    slen = 3;
+                }
+                else
+                {
+                    slen = 2 + itos(wt[j],s+1);
+                    s[slen-1] = ' ';
+                }
                 slen += itos(e[j]+labelorg,s+slen);
             }
             else
@@ -1337,39 +1378,38 @@ putorbits(FILE *f, int *orbits, int linelength, int n)
     for (i = 0; i < n; ++i)
         if (orbits[i] == i)
         {
-	    sz = 0;
+            sz = 0;
             EMPTYSET(workset,m);
             j = i;
             do
             {
                 ADDELEMENT(workset,j);
                 j = workperm[j];
-		++sz;
+                ++sz;
             }
             while (j > 0);
             putset(f,workset,&curlen,linelength-1,m,TRUE);
-	    if (sz > 1)
-	    {
-	        s[0] = ' ';
-		s[1] = '(';
-		slen = 2 + itos(sz,s+2);
-		s[slen++] = ')';
-		s[slen] = '\0';
-		if (linelength > 0 && curlen + slen + 1 >= linelength)
-        	{
-            	    fprintf(f,"\n   ");
+            if (sz > 1)
+            {
+                s[0] = ' ';
+                s[1] = '(';
+                slen = 2 + itos(sz,s+2);
+                s[slen++] = ')';
+                s[slen] = '\0';
+                if (linelength > 0 && curlen + slen + 1 >= linelength)
+                {
+                    fprintf(f,"\n   ");
                     curlen = 3;
-        	}
-		fprintf(f,"%s",s);
-		curlen += slen;
-	    }
+                }
+                fprintf(f,"%s",s);
+                curlen += slen;
+            }
 
             PUTC(';',f);
             ++curlen;
         }
     PUTC('\n',f);
 }
-
 
 /*****************************************************************************
 *                                                                            *
@@ -1407,32 +1447,32 @@ putorbitsplus(FILE *f, int *orbits, int linelength, int n)
     for (i = 0; i < n; ++i)
         if (orbits[i] == i)
         {
-	    sz = 0;
+            sz = 0;
             EMPTYSET(workset,m);
             j = i;
             do
             {
                 ADDELEMENT(workset,j);
                 j = workperm[j];
-		++sz;
+                ++sz;
             }
             while (j > 0);
             putset_firstbold(f,workset,&curlen,linelength-1,m,TRUE);
-	    if (sz > 1)
-	    {
-	        s[0] = ' ';
-		s[1] = '(';
-		slen = 2 + itos(sz,s+2);
-		s[slen++] = ')';
-		s[slen] = '\0';
-		if (linelength > 0 && curlen + slen + 1 >= linelength)
-        	{
-            	    fprintf(f,"\n   ");
+            if (sz > 1)
+            {
+                s[0] = ' ';
+                s[1] = '(';
+                slen = 2 + itos(sz,s+2);
+                s[slen++] = ')';
+                s[slen] = '\0';
+                if (linelength > 0 && curlen + slen + 1 >= linelength)
+                {
+                    fprintf(f,"\n   ");
                     curlen = 3;
-        	}
-		fprintf(f,"%s",s);
-		curlen += slen;
-	    }
+                }
+                fprintf(f,"%s",s);
+                curlen += slen;
+            }
 
             PUTC(';',f);
             ++curlen;
@@ -1557,7 +1597,7 @@ putquotient(FILE *f, graph *g, int *lab, int *ptn, int level,
 
 void
 putquotient_sg(FILE *f, sparsegraph *g, int *lab, int *ptn,
-						int level, int linelength)
+                                                int level, int linelength)
 {
     int i,m,n;
     char s[50];
@@ -1617,8 +1657,8 @@ putquotient_sg(FILE *f, sparsegraph *g, int *lab, int *ptn,
         {
             w = workperm[jc];
             k = 0;
-	    for (j = vv[w]; j < vv[w]+dd[w]; ++j)
-		if (ISELEMENT(workset,ee[j])) ++k;
+            for (j = vv[w]; j < vv[w]+dd[w]; ++j)
+                if (ISELEMENT(workset,ee[j])) ++k;
 
             if (k == 0 || k == csize)
             {
@@ -1883,7 +1923,7 @@ unitptn(int *lab,int *ptn, int *numcells, int n)
 
 void
 individualise(int *lab,int *ptn, int level,
-				int v, int *pos, int *numcells, int n)
+                                int v, int *pos, int *numcells, int n)
 {
     int i,j;
 
@@ -1981,24 +2021,24 @@ sethash(set *s, int n, long seed, int key)
         l = SWCHUNK0(si);
         res = (((res << lsh) ^ ((res >> rsh) & lshmask) ^ l) + salt) 
                                                             & 0x7FFFFFFFUL;
-	res = FUZZ1(res);
+        res = FUZZ1(res);
         if ((j += 16) >= n) break;
 #if WORDSIZE > 16
         l = SWCHUNK1(si);
         res = (((res << lsh) ^ ((res >> rsh) & lshmask) ^ l) + salt) 
                                                            & 0x7FFFFFFFUL;
-	res = FUZZ1(res);
+        res = FUZZ1(res);
         if ((j += 16) >= n) break;
 #if WORDSIZE == 64    
         l = SWCHUNK2(si);
         res = (((res << lsh) ^ ((res >> rsh) & lshmask) ^ l) + salt) 
                                                             & 0x7FFFFFFFUL;
-	res = FUZZ1(res);
+        res = FUZZ1(res);
         if ((j += 16) >= n) break;
         l = SWCHUNK3(si);
         res = (((res << lsh) ^ ((res >> rsh) & lshmask) ^ l) + salt) 
                                                             & 0x7FFFFFFFUL;
-	res = FUZZ1(res);
+        res = FUZZ1(res);
         if ((j += 16) >= n) break;
 #endif
 #endif
@@ -2027,9 +2067,9 @@ listhash(int *x, int nx, long key)
     
     for (i = 0; i < nx; ++i)
     {
-	val = (unsigned long)x[i] & 0x7FFFFFFFUL;
-	val = (val + lkey) & 0x7FFFFFFFUL;
-	accum += FUZZ1(val);
+        val = (unsigned long)x[i] & 0x7FFFFFFFUL;
+        val = (val + lkey) & 0x7FFFFFFFUL;
+        accum += FUZZ1(val);
     }
 
     return  accum & 0x7FFFFFFFUL;
@@ -2059,14 +2099,14 @@ hashgraph_sg(sparsegraph *sg, long key)
 
     for (i = 0; i < n; ++i)
         if (d[i] == 0)
-	    accum += FUZZ1(i);
+            accum += FUZZ1(i);
         else
         {
-	    accum = (accum>>7) | ((accum<<24)&0x7FFFFFFFUL);
-	    val = listhash(e+v[i],d[i],key);
-	    val = (val + i) & 0x7FFFFFFFUL;
-	    accum += FUZZ2(val);
-	}
+            accum = (accum>>7) | ((accum<<24)&0x7FFFFFFFUL);
+            val = listhash(e+v[i],d[i],key);
+            val = (val + i) & 0x7FFFFFFFUL;
+            accum += FUZZ2(val);
+        }
 
    return (long)(accum & 0x7FFFFFFFUL);
 }
@@ -2090,9 +2130,9 @@ hashgraph(graph *g, int m, int n, long key)
     accum = n;
     for (i = 0, gi = g; i < n; ++i, gi += m)
     {
-	accum = (accum>>12) | ((accum<<19)&0x7FFFFFFFUL);
-	val = sethash(gi,n,key,(key&0xFL)+i);
-	val = (val + i) & 0x7FFFFFFFUL;
+        accum = (accum>>12) | ((accum<<19)&0x7FFFFFFFUL);
+        val = sethash(gi,n,key,(key&0xFL)+i);
+        val = (val + i) & 0x7FFFFFFFUL;
         accum += FUZZ2(val);
     }
 
@@ -2395,14 +2435,14 @@ subpartition(int *lab, int *ptn, int n, int *perm, int nperm)
     j = -1;
     for (i = 0; i < n; ++i)
     {
-	if (workperm[lab[i]] >= 0)
-	{      
-	    ++j;     
-	    lab[j] = workperm[lab[i]];
-	    ptn[j] = ptn[i];
-	}
-	else if (j >= 0 && ptn[i] < ptn[j])
-	    ptn[j] = ptn[i];
+        if (workperm[lab[i]] >= 0)
+        {      
+            ++j;     
+            lab[j] = workperm[lab[i]];
+            ptn[j] = ptn[i];
+        }
+        else if (j >= 0 && ptn[i] < ptn[j])
+            ptn[j] = ptn[i];
     }
 
     return countcells(ptn,0,nperm);
@@ -2469,7 +2509,7 @@ sublabel_sg(sparsegraph *sg, int *perm, int nperm, sparsegraph *workg)
                 ee[vv[i]+dd[i]] = workperm[e[v[j]+k]];
                 ++dd[i];
             }
-	kk += dd[i];
+        kk += dd[i];
     }
     tempsg->nv = nperm;
     tempsg->nde = newnde;
@@ -2573,10 +2613,10 @@ converse_sg(sparsegraph *g1, sparsegraph *g2)
 
     for (i = 0; i < n; ++i)
         for (j = v1[i]; j < v1[i]+d1[i]; ++j)
-	{
-	    k = e1[j];
-	    e2[v2[k] + (d2[k]++)] = i;
-	}
+        {
+            k = e1[j];
+            e2[v2[k] + (d2[k]++)] = i;
+        }
 }
 
 /*****************************************************************************
@@ -2601,8 +2641,8 @@ complement_sg(sparsegraph *g1, sparsegraph *g2)
 
     loops = 0;
     for (i = 0; i < n; ++i)
-	for (j = v1[i]; j < v1[i] + d1[i]; ++j)
-	    if (e1[j] == i) ++loops;
+        for (j = v1[i]; j < v1[i] + d1[i]; ++j)
+            if (e1[j] == i) ++loops;
 
     if (loops > 1) ndec = n*(size_t)n - g1->nde;
     else           ndec = n*(size_t)n - n - g1->nde; 
@@ -2621,14 +2661,14 @@ complement_sg(sparsegraph *g1, sparsegraph *g2)
 
     for (i = 0; i < n; ++i)
     {
-	EMPTYSET(workset,m);
-	for (j = v1[i]; j < v1[i]+d1[i]; ++j) ADDELEMENT(workset,e1[j]);
-	if (loops == 0) ADDELEMENT(workset,i);
+        EMPTYSET(workset,m);
+        for (j = v1[i]; j < v1[i]+d1[i]; ++j) ADDELEMENT(workset,e1[j]);
+        if (loops == 0) ADDELEMENT(workset,i);
 
-	v2[i] = ndec;
-	for (l = 0; l < n; ++l)
-	    if (!ISELEMENT(workset,l)) e2[ndec++] = l;
-	d2[i] = ndec - v2[i];
+        v2[i] = ndec;
+        for (l = 0; l < n; ++l)
+            if (!ISELEMENT(workset,l)) e2[ndec++] = l;
+        d2[i] = ndec - v2[i];
     }
     g2->nde = ndec;
 }
@@ -2666,35 +2706,35 @@ mathon_sg(sparsegraph *g1, sparsegraph *g2)
 
     for (i = 0; i < n2; ++i)
     {
-	v2[i] = i*(size_t)n1;
-	d2[i] = 0;
+        v2[i] = i*(size_t)n1;
+        d2[i] = 0;
     }
 
     for (i = 0; i < n1; ++i)
     {
         e2[v2[0]+(d2[0]++)] = i+1;
         e2[v2[i+1]+(d2[i+1]++)] = 0;
-	e2[v2[n1+1]+(d2[n1+1]++)] = i+n1+2;
-	e2[v2[i+n1+2]+(d2[i+n1+2]++)] = n1+1;
+        e2[v2[n1+1]+(d2[n1+1]++)] = i+n1+2;
+        e2[v2[i+n1+2]+(d2[i+n1+2]++)] = n1+1;
     }
 
     for (i = 0; i < n1; ++i)
     {
-	EMPTYSET(workset,m);
-	for (j = v1[i]; j < v1[i]+d1[i]; ++j)
-	{
-	    k = e1[j];
-	    if (k == i) continue;   /* ignore loops */
-	    ADDELEMENT(workset,k);
-	    e2[v2[i+1]+(d2[i+1]++)] = k+1;
-	    e2[v2[i+n1+2]+(d2[i+n1+2]++)] = k+n1+2;
-	}
-	for (k = 0; k < n1; ++k)
-	    if (k != i && !ISELEMENT(workset,k))
-	    {
-		e2[v2[i+1]+(d2[i+1]++)] = k+n1+2;
+        EMPTYSET(workset,m);
+        for (j = v1[i]; j < v1[i]+d1[i]; ++j)
+        {
+            k = e1[j];
+            if (k == i) continue;   /* ignore loops */
+            ADDELEMENT(workset,k);
+            e2[v2[i+1]+(d2[i+1]++)] = k+1;
+            e2[v2[i+n1+2]+(d2[i+n1+2]++)] = k+n1+2;
+        }
+        for (k = 0; k < n1; ++k)
+            if (k != i && !ISELEMENT(workset,k))
+            {
+                e2[v2[i+1]+(d2[i+1]++)] = k+n1+2;
                 e2[v2[k+n1+2]+(d2[k+n1+2]++)] = i+1;
-	    }
+            }
     }
 }
 
@@ -2853,36 +2893,36 @@ rangraph2_sg(sparsegraph *sg, boolean digraph, int p1, int p2, int n)
 
     if (!digraph)
     {
-	for (i = 0; i < n; ++i)
-	{
-	    ldeg = 0;
-	    for (j = i+1; j < n; ++j)
-	    if (KRAN(p2) < p1)
-	    {
-		nde += 2;
-		if (nde > sg->elen)
-		{
-		    DYNREALLOC(int,sg->e,sg->elen,sg->elen+inc,
-						"rangraph2_sg realloc");
-		    ee = sg->e;
-		}
-		ee[vv[i]+ldeg++] = j;
-		++dd[j];
-	    }
-	    if (i < n-1) vv[i+1] = vv[i] + dd[i] + ldeg;
-	    dd[i] = ldeg;
-	}
         for (i = 0; i < n; ++i)
-	    for (k = 0; k < dd[i]; ++k)
-	    {
-		j = ee[vv[i]+k];
-		if (j > i) ee[vv[j]+dd[j]++] = i;
-	    }
-	sg->nde = nde;	
+        {
+            ldeg = 0;
+            for (j = i+1; j < n; ++j)
+            if (KRAN(p2) < p1)
+            {
+                nde += 2;
+                if (nde > sg->elen)
+                {
+                    DYNREALLOC(int,sg->e,sg->elen,sg->elen+inc,
+                                                "rangraph2_sg realloc");
+                    ee = sg->e;
+                }
+                ee[vv[i]+ldeg++] = j;
+                ++dd[j];
+            }
+            if (i < n-1) vv[i+1] = vv[i] + dd[i] + ldeg;
+            dd[i] = ldeg;
+        }
+        for (i = 0; i < n; ++i)
+            for (k = 0; k < dd[i]; ++k)
+            {
+                j = ee[vv[i]+k];
+                if (j > i) ee[vv[j]+dd[j]++] = i;
+            }
+        sg->nde = nde;
     }
     else
     {
-	for (i = 0; i < n; ++i)
+        for (i = 0; i < n; ++i)
         {
             ldeg = 0;
             for (j = 0; j < n; ++j)
@@ -2897,10 +2937,10 @@ rangraph2_sg(sparsegraph *sg, boolean digraph, int p1, int p2, int n)
                 }
                 ee[vv[i]+ldeg++] = j;
             }
-	    if (i < n-1) vv[i+1] = vv[i] + ldeg;
+            if (i < n-1) vv[i+1] = vv[i] + ldeg;
             dd[i] = ldeg;
         }
-	sg->nde = nde;	
+        sg->nde = nde;
     }
 }
 
@@ -2960,13 +3000,13 @@ putnumbers(FILE *f, int *x, int linelength, int n)
         xval = x[v1];
 
         for (v2 = v1; v2 < n - 1 && x[v2+1] == xval; ++v2) {}
-	if (v2 > v1)
-	{
-	    j = itos(v2-v1+1,s);
-	    s[j++] = '*';
-	}
-	else
-	    j = 0;
+        if (v2 > v1)
+        {
+            j = itos(v2-v1+1,s);
+            s[j++] = '*';
+        }
+        else
+            j = 0;
 
         j += itos(xval,&s[j]);
         s[j] = ' ';

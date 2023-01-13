@@ -118,15 +118,15 @@ makeprism_sg(sparsegraph *sg, sparsegraph *sh)
     vvi = 0;
     for (i = 0; i < n; ++i)
     {
-	vi = v[i];
-	dd[2*i] = dd[2*i+1] = d[i] + 1;
-	vv[2*i] = vvi;
-	for (j = 0; j < d[i]; ++j) ee[vvi++] = 2*e[vi++];
-	ee[vvi++] = 2*i+1;
-	vi = v[i];
-	vv[2*i+1] = vvi;
-	for (j = 0; j < d[i]; ++j) ee[vvi++] = 2*e[vi++]+1;
-	ee[vvi++] = 2*i;
+        vi = v[i];
+        dd[2*i] = dd[2*i+1] = d[i] + 1;
+        vv[2*i] = vvi;
+        for (j = 0; j < d[i]; ++j) ee[vvi++] = 2*e[vi++];
+        ee[vvi++] = 2*i+1;
+        vi = v[i];
+        vv[2*i+1] = vvi;
+        for (j = 0; j < d[i]; ++j) ee[vvi++] = 2*e[vi++]+1;
+        ee[vvi++] = 2*i;
     }
 }
 
@@ -143,10 +143,10 @@ dumpdata(int id, int nblue, int nred, int n)
     for (i = 0; i < n; ++i)
     {
         printf("%2d: ",i);
-	for (j = 0; j < 4; ++j)
-	    printf(" %2d%c",eno[4*i+j],"wbr"[colour[eno[4*i+j]]]);
+        for (j = 0; j < 4; ++j)
+            printf(" %2d%c",eno[4*i+j],"wbr"[colour[eno[4*i+j]]]);
         printf("   b=%d r=%d bfe=%d rfe=%d\n",
-	    bluedeg[i],reddeg[i],bluefarend[i],redfarend[i]);
+            bluedeg[i],reddeg[i],bluefarend[i],redfarend[i]);
     }
 #endif
 }
@@ -177,33 +177,33 @@ initialise_g(int n, int *e)
 
     for (i = 0; i < n; ++i)
     {
-	j = KRAN(4);
-	k = e[4*i+j]; e[4*i+j] = e[4*i+3]; e[4*i+3] = k; 
-	j = KRAN(3);
-	k = e[4*i+j]; e[4*i+j] = e[4*i+2]; e[4*i+2] = k;
-	j = KRAN(2);
-	k = e[4*i+j]; e[4*i+j] = e[4*i+1]; e[4*i+1] = k;
+        j = KRAN(4);
+        k = e[4*i+j]; e[4*i+j] = e[4*i+3]; e[4*i+3] = k; 
+        j = KRAN(3);
+        k = e[4*i+j]; e[4*i+j] = e[4*i+2]; e[4*i+2] = k;
+        j = KRAN(2);
+        k = e[4*i+j]; e[4*i+j] = e[4*i+1]; e[4*i+1] = k;
     }
 
     ne = 0;
     for (i = 0; i < n; ++i)
     {
-	for (j = 0; j < 4; ++j)
-	{
-	    k = e[4*i+j];
-	    if (k > i)
-	    {
-		v1[ne] = i;
-		v2[ne] = k;
-		eno[4*i+j] = ne++;
+        for (j = 0; j < 4; ++j)
+        {
+            k = e[4*i+j];
+            if (k > i)
+            {
+                v1[ne] = i;
+                v2[ne] = k;
+                eno[4*i+j] = ne++;
             }
-	    else    /* Note: this code assumes a simple graph */
-	    {
-		for (l = 0; l < 4; ++l)
-		    if (e[4*k+l] == i) break;
-		eno[4*i+j] = eno[4*k+l];
-	    }
-	}
+            else    /* Note: this code assumes a simple graph */
+            {
+                for (l = 0; l < 4; ++l)
+                    if (e[4*k+l] == i) break;
+                eno[4*i+j] = eno[4*k+l];
+            }
+        }
     }
     if (ne != 2*n) gt_abort(">E ne is incorrect");
 
@@ -212,8 +212,8 @@ initialise_g(int n, int *e)
         printf("===== n=%d === ne=%d ===================\n",n,ne);
     
         for (ii = 0; ii < n; ++ii)
-	    printf("%2d: %2d %2d %2d %2d    %2d %2d %2d %2d\n",
-	       ii,e[4*ii],e[4*ii+1],e[4*ii+2],e[4*ii+3],
+            printf("%2d: %2d %2d %2d %2d    %2d %2d %2d %2d\n",
+               ii,e[4*ii],e[4*ii+1],e[4*ii+2],e[4*ii+3],
                   eno[4*ii],eno[4*ii+1],eno[4*ii+2],eno[4*ii+3]);
     }
 #endif
@@ -312,67 +312,67 @@ propagate(int n, int *e, int *nblue, int *nred)
 
     while (!STACKISEMPTY)
     {
-	POP(v);
+        POP(v);
 
         if (reddeg[v] == 2 && bluedeg[v] < 2)
         {
-	    for (i = 0; i < 4; ++i)
-	    {
-		j = eno[4*v+i];
-		if (colour[j] == WHITE)
-		{
-		    if (!makeblue(j,*nblue==n-1)) return FALSE;
-		    ++*nblue;
-		}
-	    }
+            for (i = 0; i < 4; ++i)
+            {
+                j = eno[4*v+i];
+                if (colour[j] == WHITE)
+                {
+                    if (!makeblue(j,*nblue==n-1)) return FALSE;
+                    ++*nblue;
+                }
+            }
         }
-	else if (bluedeg[v] == 2 && reddeg[v] < 2)
+        else if (bluedeg[v] == 2 && reddeg[v] < 2)
         {
-	    for (i = 0; i < 4; ++i)
-	    {
-		j = eno[4*v+i];
-		if (colour[j] == WHITE)
-		{
-		    if (!makered(j,*nred==n-1)) return FALSE;
-		    ++*nred;
-		}
-	    }
+            for (i = 0; i < 4; ++i)
+            {
+                j = eno[4*v+i];
+                if (colour[j] == WHITE)
+                {
+                    if (!makered(j,*nred==n-1)) return FALSE;
+                    ++*nred;
+                }
+            }
         }
 
-	if (bluedeg[v] == 1)
-	{
-	    w = bluefarend[v];
-	    for (i = 0; i < 4; ++i)
-	        if (e[4*v+i] == w) break;
+        if (bluedeg[v] == 1)
+        {
+            w = bluefarend[v];
+            for (i = 0; i < 4; ++i)
+                if (e[4*v+i] == w) break;
             if (i < 4)
-	    {
-		j = eno[4*v+i];
-		if (colour[j] == WHITE)
-		{
-		    if (*nblue == n-1)
-		    {
-			if (!makeblue(j,TRUE)) return FALSE;
-			++*nblue;
-		    }
-		    else
-		    {
-		        if (!makered(j,*nred==n-1)) return FALSE;
-		        ++*nred;
-		    }
-		}
-	    }
-	}
+            {
+                j = eno[4*v+i];
+                if (colour[j] == WHITE)
+                {
+                    if (*nblue == n-1)
+                    {
+                        if (!makeblue(j,TRUE)) return FALSE;
+                        ++*nblue;
+                    }
+                    else
+                    {
+                        if (!makered(j,*nred==n-1)) return FALSE;
+                        ++*nred;
+                    }
+                }
+            }
+        }
 
-	if (reddeg[v] == 1)
-	{
-	    w = redfarend[v];
-	    for (i = 0; i < 4; ++i)
-	        if (e[4*v+i] == w) break;
+        if (reddeg[v] == 1)
+        {
+            w = redfarend[v];
+            for (i = 0; i < 4; ++i)
+                if (e[4*v+i] == w) break;
             if (i < 4)
-	    {
-		j = eno[4*v+i];
-		if (colour[j] == WHITE)
-		{
+            {
+                j = eno[4*v+i];
+                if (colour[j] == WHITE)
+                {
                     if (*nred == n-1)
                     {
                         if (!makered(j,TRUE)) return FALSE;
@@ -383,8 +383,8 @@ propagate(int n, int *e, int *nblue, int *nred)
                         if (!makeblue(j,*nblue==n-1)) return FALSE;
                         ++*nblue;
                     }
-		}
-	    }
+                }
+            }
         }
     }
 
@@ -407,83 +407,83 @@ fishtail(int n, int *nblue, int *nred)
 
     for (i = 0; i < n; ++i)
     {
-	edge = -1;
+        edge = -1;
 
-	if (reddeg[i] == 1 && bluedeg[i] == 0 && *nblue < n-2)
-	{
-	    j = 4*i;
-	    if (colour[eno[j]] != WHITE) ++j;
-	    e1 = eno[j];
-	    w1 = (v1[e1] == i ? v2[e1] : v1[e1]);
-	    ++j;
-	    if (colour[eno[j]] != WHITE) ++j;
-	    e2 = eno[j];
-	    w2 = (v1[e2] == i ? v2[e2] : v1[e2]);
-	    ++j;
-	    if (colour[eno[j]] != WHITE) ++j;
-	    e3 = eno[j];
-	    w3 = (v1[e3] == i ? v2[e3] : v1[e3]);
+        if (reddeg[i] == 1 && bluedeg[i] == 0 && *nblue < n-2)
+        {
+            j = 4*i;
+            if (colour[eno[j]] != WHITE) ++j;
+            e1 = eno[j];
+            w1 = (v1[e1] == i ? v2[e1] : v1[e1]);
+            ++j;
+            if (colour[eno[j]] != WHITE) ++j;
+            e2 = eno[j];
+            w2 = (v1[e2] == i ? v2[e2] : v1[e2]);
+            ++j;
+            if (colour[eno[j]] != WHITE) ++j;
+            e3 = eno[j];
+            w3 = (v1[e3] == i ? v2[e3] : v1[e3]);
 
-	    if (bluedeg[w1] == 1 && bluefarend[w1] == w2)
-	    {
-		edge = e3;
+            if (bluedeg[w1] == 1 && bluefarend[w1] == w2)
+            {
+                edge = e3;
                 col = BLUE;
-	    }
-	    else if (bluedeg[w1] == 1 && bluefarend[w1] == w3)
-	    {
-		edge = e2;
+            }
+            else if (bluedeg[w1] == 1 && bluefarend[w1] == w3)
+            {
+                edge = e2;
                 col = BLUE;
-	    }
-	    else if (bluedeg[w2] == 1 && bluefarend[w2] == w3)
-	    {
-		edge = e1;
+            }
+            else if (bluedeg[w2] == 1 && bluefarend[w2] == w3)
+            {
+                edge = e1;
                 col = BLUE;
-	    }
-	}
-	else if (reddeg[i] == 0 && bluedeg[i] == 1 && *nred < n-2)
-	{
-	    j = 4*i;
-	    if (colour[eno[j]] != WHITE) ++j;
-	    e1 = eno[j];
-	    w1 = (v1[e1] == i ? v2[e1] : v1[e1]);
-	    ++j;
-	    if (colour[eno[j]] != WHITE) ++j;
-	    e2 = eno[j];
-	    w2 = (v1[e2] == i ? v2[e2] : v1[e2]);
-	    ++j;
-	    if (colour[eno[j]] != WHITE) ++j;
-	    e3 = eno[j];
-	    w3 = (v1[e3] == i ? v2[e3] : v1[e3]);
+            }
+        }
+        else if (reddeg[i] == 0 && bluedeg[i] == 1 && *nred < n-2)
+        {
+            j = 4*i;
+            if (colour[eno[j]] != WHITE) ++j;
+            e1 = eno[j];
+            w1 = (v1[e1] == i ? v2[e1] : v1[e1]);
+            ++j;
+            if (colour[eno[j]] != WHITE) ++j;
+            e2 = eno[j];
+            w2 = (v1[e2] == i ? v2[e2] : v1[e2]);
+            ++j;
+            if (colour[eno[j]] != WHITE) ++j;
+            e3 = eno[j];
+            w3 = (v1[e3] == i ? v2[e3] : v1[e3]);
 
-	    if (reddeg[w1] == 1 && redfarend[w1] == w2)
-	    {
-		edge = e3;
+            if (reddeg[w1] == 1 && redfarend[w1] == w2)
+            {
+                edge = e3;
                 col = RED;
-	    }
-	    else if (reddeg[w1] == 1 && redfarend[w1] == w3)
-	    {
-		edge = e2;
+            }
+            else if (reddeg[w1] == 1 && redfarend[w1] == w3)
+            {
+                edge = e2;
                 col = RED;
-	    }
-	    else if (reddeg[w2] == 1 && redfarend[w2] == w3)
-	    {
-		edge = e1;
+            }
+            else if (reddeg[w2] == 1 && redfarend[w2] == w3)
+            {
+                edge = e1;
                 col = RED;
-	    }
-	}
-	if (edge >= 0)
-	{
-	    if (col == BLUE)
-	    {
-		if (!makeblue(edge,*nblue == n-1)) return NO;
-		++*nblue;
-	    }
-	    else
-	    {
-		if (!makered(edge,*nred == n-1)) return NO;
-		++*nred;
-	    }
-	    ans = YES;
+            }
+        }
+        if (edge >= 0)
+        {
+            if (col == BLUE)
+            {
+                if (!makeblue(edge,*nblue == n-1)) return NO;
+                ++*nblue;
+            }
+            else
+            {
+                if (!makered(edge,*nred == n-1)) return NO;
+                ++*nred;
+            }
+            ans = YES;
 #if DEBUG
             printf("Fishtail: %d=(%d-%d) -> %c\n",
                                edge,v1[edge],v2[edge],"wbr"[col]);
@@ -527,22 +527,22 @@ searchnode(int level, int n, int *e, int nblue, int nred)
     bestscore = -1;
     nbest = 0;
     for (i = 0; i < 2*n; ++i)
-	if (colour[i] == WHITE)
+        if (colour[i] == WHITE)
         {
-	    score = (bluedeg[v1[i]] == 1) + (bluedeg[v2[i]] == 1) +
+            score = (bluedeg[v1[i]] == 1) + (bluedeg[v2[i]] == 1) +
                     (reddeg[v1[i]] == 1) + (reddeg[v2[i]] == 1);
-	    if (score > bestscore)
-	    {
-		bestscore = score;
-		beste[0] = i;
-		nbest = 1;
-	    }
-	    else if (score == bestscore)
-	        beste[nbest++] = i;
+            if (score > bestscore)
+            {
+                bestscore = score;
+                beste[0] = i;
+                nbest = 1;
+            }
+            else if (score == bestscore)
+                beste[nbest++] = i;
         }
 
     if (bestscore == 0 && nred + nblue > 0)
-	return FALSE;   /* Disconnected */
+        return FALSE;   /* Disconnected */
 
     ran = KRAN(2*nbest);
     best = beste[ran/2];
@@ -554,9 +554,9 @@ searchnode(int level, int n, int *e, int nblue, int nred)
 #if DEBUG
             printf("   setting %d(%d-%d) blue\n",best,v1[best],v2[best]);
 #endif
-	    status = searchnode(level+1,n,e,nblue+1,nred);
-	    if (status != NO) return status;
-	    while (valstacktop > valptr) UNSETVAL;
+            status = searchnode(level+1,n,e,nblue+1,nred);
+            if (status != NO) return status;
+            while (valstacktop > valptr) UNSETVAL;
         }
 
         if (++nodes == limit) return TIMEOUT;
@@ -566,9 +566,9 @@ searchnode(int level, int n, int *e, int nblue, int nred)
 #if DEBUG
             printf("   setting %d(%d-%d) red\n",best,v1[best],v2[best]);
 #endif
-	    status = searchnode(level+1,n,e,nblue,nred+1);
-	    if (status != NO) return status;
-	    while (valstacktop > valptr) UNSETVAL;
+            status = searchnode(level+1,n,e,nblue,nred+1);
+            if (status != NO) return status;
+            while (valstacktop > valptr) UNSETVAL;
         }
     }
     else
@@ -578,9 +578,9 @@ searchnode(int level, int n, int *e, int nblue, int nred)
 #if DEBUG
             printf("   setting %d(%d-%d) red\n",best,v1[best],v2[best]);
 #endif
-	    status = searchnode(level+1,n,e,nblue,nred+1);
-	    if (status != NO) return status;
-	    while (valstacktop > valptr) UNSETVAL;
+            status = searchnode(level+1,n,e,nblue,nred+1);
+            if (status != NO) return status;
+            while (valstacktop > valptr) UNSETVAL;
         }
 
         if (++nodes == limit) return TIMEOUT;
@@ -590,9 +590,9 @@ searchnode(int level, int n, int *e, int nblue, int nred)
 #if DEBUG
             printf("   setting %d(%d-%d) blue\n",best,v1[best],v2[best]);
 #endif
-	    status = searchnode(level+1,n,e,nblue+1,nred);
-	    if (status != NO) return status;
-	    while (valstacktop > valptr) UNSETVAL;
+            status = searchnode(level+1,n,e,nblue+1,nred);
+            if (status != NO) return status;
+            while (valstacktop > valptr) UNSETVAL;
         }
     }
 
@@ -625,25 +625,25 @@ dispatchsearch(int n, int *e, int nblue, int nred)
 
     for (i = 0; i < NUMLIMITS; ++i)
     {
-	if (totallimit > 0)
-	{
-	    limit = locallimit[i];
-            if (limit == 0 || limit > remaininglimit) limit = remaininglimit;
-	    remaininglimit -= limit;
-            if (limit == 0) limit = 1;
-	}
-	else
-	    limit = locallimit[i];
-
-	nodes = 0;
-
-	status = searchnode(1,n,e,nblue,nred);
-	if (status != TIMEOUT)
+        if (totallimit > 0)
         {
-	    ++nphases[i+1];
-	    return status;
-	}
-	while (valstacktop > valptr) UNSETVAL;
+            limit = locallimit[i];
+            if (limit == 0 || limit > remaininglimit) limit = remaininglimit;
+            remaininglimit -= limit;
+            if (limit == 0) limit = 1;
+        }
+        else
+            limit = locallimit[i];
+
+        nodes = 0;
+
+        status = searchnode(1,n,e,nblue,nred);
+        if (status != TIMEOUT)
+        {
+            ++nphases[i+1];
+            return status;
+        }
+        while (valstacktop > valptr) UNSETVAL;
     }
     
     ++ntimeouts;
@@ -667,7 +667,7 @@ isdecomposable(sparsegraph sg, int *ham1, int *ham2)
 
     nblue = nred = 0;
     if (!makeblue(e0,nblue==n-1))   /* make edge e0 blue */
-	return NO;
+        return NO;
     ++nblue;
 
 #if DEBUG
@@ -687,11 +687,11 @@ isdecomposable(sparsegraph sg, int *ham1, int *ham2)
     lastv = ham1[1] = v2[i0];
     for (i = 2; i < n; ++i)
     {
-	for (j = 0; j < 4; ++j)
-	    if (eno[4*lastv+j] != laste && colour[eno[4*lastv+j]] == BLUE)
-		break;
-	laste = eno[4*lastv+j];
-	lastv = ham1[i] = (v1[laste] == lastv ? v2[laste] : v1[laste]);
+        for (j = 0; j < 4; ++j)
+            if (eno[4*lastv+j] != laste && colour[eno[4*lastv+j]] == BLUE)
+                break;
+        laste = eno[4*lastv+j];
+        lastv = ham1[i] = (v1[laste] == lastv ? v2[laste] : v1[laste]);
     }
 
     for (i0 = 0; colour[i0] != RED; ++i0) {}
@@ -700,11 +700,11 @@ isdecomposable(sparsegraph sg, int *ham1, int *ham2)
     lastv = ham2[1] = v2[i0];
     for (i = 2; i < n; ++i)
     {
-	for (j = 0; j < 4; ++j)
-	    if (eno[4*lastv+j] != laste && colour[eno[4*lastv+j]] == RED)
-		break;
-	laste = eno[4*lastv+j];
-	lastv = ham2[i] = (v1[laste] == lastv ? v2[laste] : v1[laste]);
+        for (j = 0; j < 4; ++j)
+            if (eno[4*lastv+j] != laste && colour[eno[4*lastv+j]] == RED)
+                break;
+        laste = eno[4*lastv+j];
+        lastv = ham2[i] = (v1[laste] == lastv ? v2[laste] : v1[laste]);
     }
 
     return YES;
@@ -741,9 +741,9 @@ iscrossdecomposable(sparsegraph sg, int vertex)
 
     for (i = 0; i < n; ++i)
     {
-	c = colour[eno[4*i]];
-	for (j = 1; j < 4; ++j)
-	    if (colour[eno[4*i+j]] == c) cross[4*i+j] = 1;
+        c = colour[eno[4*i]];
+        for (j = 1; j < 4; ++j)
+            if (colour[eno[4*i+j]] == c) cross[4*i+j] = 1;
     }
 
     ans = 2;
@@ -754,34 +754,34 @@ iscrossdecomposable(sparsegraph sg, int vertex)
     for (i = imin; i <= imax; ++i)
     for (j = 1; j < 4; ++j)
         if (!cross[4*i+j])
-	{
-	    initialise_colouring(n);
-	    if (makeblue(eno[4*i],FALSE) && makeblue(eno[4*i+j],n==2))
-	    {
-		status = dispatchsearch(n,sg.e,2,0);
-		if (status == TIMEOUT) return 3;
-		if (status == YES)
-		{
-    		    for (k = 0; k < n; ++k)
-    		    {
-		        c = colour[eno[4*k]];
-		        for (l = 1; l < 4; ++l)
-	                if (colour[eno[4*k+l]] == c) cross[4*k+l] = 1;
+        {
+            initialise_colouring(n);
+            if (makeblue(eno[4*i],FALSE) && makeblue(eno[4*i+j],n==2))
+            {
+                status = dispatchsearch(n,sg.e,2,0);
+                if (status == TIMEOUT) return 3;
+                if (status == YES)
+                {
+                    for (k = 0; k < n; ++k)
+                    {
+                        c = colour[eno[4*k]];
+                        for (l = 1; l < 4; ++l)
+                        if (colour[eno[4*k+l]] == c) cross[4*k+l] = 1;
                     }
-		}
-		else
-		    ans = 1;
-	    }
-	    else
-	        ans = 1;
-	}
+                }
+                else
+                    ans = 1;
+            }
+            else
+                ans = 1;
+        }
 
     if (ans == 1)
         for (i = 0; i < n; ++i)
-	{
-	    if (cross[4*i+1] + cross[4*i+2] + cross[4*i+3] <= 1)
-		ans = 0;
-	}
+        {
+            if (cross[4*i+1] + cross[4*i+2] + cross[4*i+3] <= 1)
+                ans = 0;
+        }
 
     return ans;
 }
@@ -818,7 +818,7 @@ p4decomposition(sparsegraph sg, int vertex, boolean vertical)
     }
     else
     {
-	imin = 0; imax = n-1;
+        imin = 0; imax = n-1;
         DYNALLOC1(p4,p4list,p4list_sz,18*n,"malloc");
     }
 
@@ -826,62 +826,62 @@ p4decomposition(sparsegraph sg, int vertex, boolean vertical)
     for (v1 = imin; v1 <= imax; ++v1)
     for (j1 = 0; j1 < 4; ++j1)
     {
-	v2 = sg.e[4*v1+j1];
-	e1 = eno[4*v1+j1];
-	for (j2 = 0; j2 < 4; ++j2)
-	{
-	    v3 = sg.e[4*v2+j2];
-	    if (v3 == v1) continue;
-	    if (vertical && (v2|1) != (v3|1)) continue;
-	    e2 = eno[4*v2+j2];
-	    for (j3 = 0; j3 < 4; ++j3)
-	    {
-		v4 = sg.e[4*v3+j3];
-		if (v4 == v1 || v4 == v2) continue;
-		e3 = eno[4*v3+j3];
-		if (vertex >= 0 || v1 < v4)
-		{
-		    p4list[nump4].v1 = v1;
-		    p4list[nump4].v2 = v2;
-		    p4list[nump4].v3 = v3;
-		    p4list[nump4].v4 = v4;
-		    p4list[nump4].e1 = e1;
-		    p4list[nump4].e2 = e2;
-		    p4list[nump4].e3 = e3;
-		    p4list[nump4].ok = FALSE;
-		    ++nump4;
-		}
-	    }
-	}
+        v2 = sg.e[4*v1+j1];
+        e1 = eno[4*v1+j1];
+        for (j2 = 0; j2 < 4; ++j2)
+        {
+            v3 = sg.e[4*v2+j2];
+            if (v3 == v1) continue;
+            if (vertical && (v2|1) != (v3|1)) continue;
+            e2 = eno[4*v2+j2];
+            for (j3 = 0; j3 < 4; ++j3)
+            {
+                v4 = sg.e[4*v3+j3];
+                if (v4 == v1 || v4 == v2) continue;
+                e3 = eno[4*v3+j3];
+                if (vertex >= 0 || v1 < v4)
+                {
+                    p4list[nump4].v1 = v1;
+                    p4list[nump4].v2 = v2;
+                    p4list[nump4].v3 = v3;
+                    p4list[nump4].v4 = v4;
+                    p4list[nump4].e1 = e1;
+                    p4list[nump4].e2 = e2;
+                    p4list[nump4].e3 = e3;
+                    p4list[nump4].ok = FALSE;
+                    ++nump4;
+                }
+            }
+        }
     }
 
     for (i = 0; i < nump4; ++i)
         if (colour[p4list[i].e1] == colour[p4list[i].e2] &&
-	    colour[p4list[i].e1] == colour[p4list[i].e3])
-	    p4list[i].ok = TRUE;
+            colour[p4list[i].e1] == colour[p4list[i].e3])
+            p4list[i].ok = TRUE;
 
     for (i = 0; i < nump4; ++i)
         if (!p4list[i].ok)
-	{
-	    initialise_colouring(n);
-	    if (makeblue(p4list[i].e1,FALSE) &&
-	        makeblue(p4list[i].e2,n==2) &&
-		makeblue(p4list[i].e3,n==3))
-	    {
-		status = dispatchsearch(n,sg.e,3,0);
-		if (status == TIMEOUT) return -2;
-		if (status == YES)
-		{
-    		    for (k = 0; k < nump4; ++k)
-    		    {
-			if (p4list[k].ok) continue;
-			if (colour[p4list[k].e1] == colour[p4list[k].e2]
+        {
+            initialise_colouring(n);
+            if (makeblue(p4list[i].e1,FALSE) &&
+                makeblue(p4list[i].e2,n==2) &&
+                makeblue(p4list[i].e3,n==3))
+            {
+                status = dispatchsearch(n,sg.e,3,0);
+                if (status == TIMEOUT) return -2;
+                if (status == YES)
+                {
+                    for (k = 0; k < nump4; ++k)
+                    {
+                        if (p4list[k].ok) continue;
+                        if (colour[p4list[k].e1] == colour[p4list[k].e2]
                          && colour[p4list[k].e1] == colour[p4list[k].e3])
                            p4list[k].ok = TRUE;
                     }
-		}
-	    }
-	}
+                }
+            }
+        }
 
     ans = 0;
     for (i = 0; i < nump4; ++i) if (!p4list[i].ok) ++ans;
@@ -912,8 +912,7 @@ main(int argc, char *argv[])
 
     HELP; PUTVERSION;
 
-    INITSEED;
-    ran_init(seed);
+    INITRANBYTIME;
 
     sswitch = gswitch = yswitch = qswitch = vswitch = FALSE;
     tswitch = xswitch = Xswitch = Lswitch = pswitch = FALSE;
@@ -939,9 +938,9 @@ main(int argc, char *argv[])
                 else SWBOOLEAN('Y',Yswitch)
                 else SWBOOLEAN('X',Xswitch)
                 else SWBOOLEAN('v',vswitch)
-		else SWBOOLEAN('p',pswitch)
-		else SWLONG('L',Lswitch,Lvalue,"-L")
-		else SWINT('t',tswitch,tvalue,"-t")
+                else SWBOOLEAN('p',pswitch)
+                else SWLONG('L',Lswitch,Lvalue,"-L")
+                else SWINT('t',tswitch,tvalue,"-t")
                 else badargs = TRUE;
             }
         }
@@ -988,8 +987,8 @@ main(int argc, char *argv[])
         if (Yswitch) fprintf(stderr,"Y");
         if (pswitch) fprintf(stderr,"p");
         if (vswitch) fprintf(stderr,"v");
-	if (Lswitch) fprintf(stderr,"L%ld",Lvalue);
-	if (tswitch) fprintf(stderr,"t%d",tvalue);
+        if (Lswitch) fprintf(stderr,"L%ld",Lvalue);
+        if (tswitch) fprintf(stderr,"t%d",tvalue);
         if (argnum > 0) fprintf(stderr," %s",infilename);
         if (argnum > 1) fprintf(stderr," %s",outfilename);
         fprintf(stderr,"\n");
@@ -1034,7 +1033,7 @@ main(int argc, char *argv[])
     {
         ++nin;
         if (pswitch)
-	{
+        {
             n = sg.nv;
             for (i = 0; i < n; ++i)
                 if (sg.d[i] != 3) break;
@@ -1044,12 +1043,12 @@ main(int argc, char *argv[])
                         ">W input " COUNTER_FMT " is not cubic\n",nin);
                 continue;
             }
-	    makeprism_sg(&sg,&sh);
-	    n = sh.nv;
-	    this = &sh;
-	}
-	else
-	{
+            makeprism_sg(&sg,&sh);
+            n = sh.nv;
+            this = &sh;
+        }
+        else
+        {
             n = sg.nv;
             for (i = 0; i < n; ++i)
                 if (sg.d[i] != 4) break;
@@ -1063,136 +1062,136 @@ main(int argc, char *argv[])
                 if (sg.v[i] != 4*i) break;
             if (i != n)
                 gt_abort("readg6_sg() result is not in standard form");
-	    this = &sg;
-	}
+            this = &sg;
+        }
 
-	if (xswitch || Xswitch)
-	{
-	    xstatus = iscrossdecomposable(*this,tvalue);
-	    if ((xswitch && xstatus < 2) || (Xswitch && xstatus < 1))
-	    {
-		if (outcode == SPARSE6) writes6_sg(outfile,&sg);   
+        if (xswitch || Xswitch)
+        {
+            xstatus = iscrossdecomposable(*this,tvalue);
+            if ((xswitch && xstatus < 2) || (Xswitch && xstatus < 1))
+            {
+                if (outcode == SPARSE6) writes6_sg(outfile,&sg);   
                 else if (outcode == GRAPH6) writeg6_sg(outfile,&sg);
                 ++nout;
 
-		if (vswitch)
-		{
-		    if (xstatus < 0)
-		    {
+                if (vswitch)
+                {
+                    if (xstatus < 0)
+                    {
                         fprintf(stderr,">H Graph " COUNTER_FMT
                                      " is indecomposable\n",nin);
-		    }
-		    else
-		    {
-		        fprintf(stderr,">X" COUNTER_FMT ": ",nin);
-			if (tswitch) { imin = imax = tvalue; }
-			else         { imin = 0; imax = n-1; }
-		        for (i = imin; i <= imax; ++i)
-		        for (j = 1; j < 4; ++j)
-			    if (!cross[4*i+j])
-			    {
-			        fprintf(stderr," %d-%d-%d",
-			            (v1[eno[4*i]] == i
+                    }
+                    else
+                    {
+                        fprintf(stderr,">X" COUNTER_FMT ": ",nin);
+                        if (tswitch) { imin = imax = tvalue; }
+                        else         { imin = 0; imax = n-1; }
+                        for (i = imin; i <= imax; ++i)
+                        for (j = 1; j < 4; ++j)
+                            if (!cross[4*i+j])
+                            {
+                                fprintf(stderr," %d-%d-%d",
+                                    (v1[eno[4*i]] == i
                                        ? v2[eno[4*i]] : v1[eno[4*i]]),
-			            i,
-			            (v1[eno[4*i+j]] == i
+                                    i,
+                                    (v1[eno[4*i+j]] == i
                                        ? v2[eno[4*i+j]] : v1[eno[4*i+j]]));
-		            }
-		        fprintf(stderr,"\n");
-		    }
-		}
-	    }
-	    else if (xstatus == 3)
-	    {
-		fprintf(stderr,">H Graph " COUNTER_FMT
+                            }
+                        fprintf(stderr,"\n");
+                    }
+                }
+            }
+            else if (xstatus == 3)
+            {
+                fprintf(stderr,">H Graph " COUNTER_FMT
                                      " timed out\n",nin);
-		if (outcode == SPARSE6) writes6_sg(outfile,&sg);
+                if (outcode == SPARSE6) writes6_sg(outfile,&sg);
                 else if (outcode == GRAPH6) writeg6_sg(outfile,&sg);
                 ++nout;
-	    }
-	}
-	else if (yswitch || Yswitch)
+            }
+        }
+        else if (yswitch || Yswitch)
         {
-	    ystatus = p4decomposition(*this,tvalue,Yswitch);
-	    if (ystatus != 0)
-	    {
-		if (outcode == SPARSE6) writes6_sg(outfile,&sg);   
+            ystatus = p4decomposition(*this,tvalue,Yswitch);
+            if (ystatus != 0)
+            {
+                if (outcode == SPARSE6) writes6_sg(outfile,&sg);   
                 else if (outcode == GRAPH6) writeg6_sg(outfile,&sg);
                 ++nout;
-	    }
+            }
 
-	    if (ystatus == -2)
-	    {
-		fprintf(stderr,">H Graph " COUNTER_FMT
+            if (ystatus == -2)
+            {
+                fprintf(stderr,">H Graph " COUNTER_FMT
                                      " timed out\n",nin);
-	    }
-	    else if (vswitch)
-	    {
-		if (ystatus == -1)
-		{
+            }
+            else if (vswitch)
+            {
+                if (ystatus == -1)
+                {
                     fprintf(stderr,">H Graph " COUNTER_FMT
                                      " is indecomposable\n",nin);
-		}
-		else if (ystatus > 0)
-		{
-		    fprintf(stderr,">X" COUNTER_FMT ": ",nin);
-		    for (i = j = 0; j < ystatus; ++i)
-		        if (!p4list[i].ok)
-			{
-			    ++j;
-			    fprintf(stderr," %d-%d-%d-%d",
-				p4list[i].v1,p4list[i].v2,
-				p4list[i].v3,p4list[i].v4);
-		        }
-		    fprintf(stderr,"\n");
-		}
-	    }
+                }
+                else if (ystatus > 0)
+                {
+                    fprintf(stderr,">X" COUNTER_FMT ": ",nin);
+                    for (i = j = 0; j < ystatus; ++i)
+                        if (!p4list[i].ok)
+                        {
+                            ++j;
+                            fprintf(stderr," %d-%d-%d-%d",
+                                p4list[i].v1,p4list[i].v2,
+                                p4list[i].v3,p4list[i].v4);
+                        }
+                    fprintf(stderr,"\n");
+                }
+            }
         }
-	else
-	{
+        else
+        {
             if (vswitch)
             {
-	        DYNALLOC1(int,ham1,ham1_sz,n,"malloc");
-	        DYNALLOC1(int,ham2,ham2_sz,n,"malloc");
+                DYNALLOC1(int,ham1,ham1_sz,n,"malloc");
+                DYNALLOC1(int,ham2,ham2_sz,n,"malloc");
                 status = isdecomposable(*this,ham1,ham2);
             }
-	    else
-	        status = isdecomposable(*this,NULL,NULL);
+            else
+                status = isdecomposable(*this,NULL,NULL);
     
             if (status != YES)
             {
                 if (outcode == SPARSE6) writes6_sg(outfile,&sg);
                 else if (outcode == GRAPH6) writeg6_sg(outfile,&sg);
 
-		if (status == TIMEOUT)
-		    fprintf(stderr,">H Graph " COUNTER_FMT
+                if (status == TIMEOUT)
+                    fprintf(stderr,">H Graph " COUNTER_FMT
                                      " timed out\n",nin);
                 else if (vswitch)
                     fprintf(stderr,">H Graph " COUNTER_FMT
                                      " is indecomposable\n",nin);
-	        ++nout;
+                ++nout;
             }
             else if (vswitch)
             {
 #if DEBUG
-	        dumpdata(0,0,0,n);
+                dumpdata(0,0,0,n);
 #endif
                 fprintf(stderr,">H" COUNTER_FMT ": ",nin);
-	        for (i = 0; i < n; ++i) fprintf(stderr," %d",ham1[i]);
-	        fprintf(stderr,"\n ");
-	        for (i = 0; i < n; ++i) fprintf(stderr," %d",ham2[i]);
-	        fprintf(stderr,"\n");
+                for (i = 0; i < n; ++i) fprintf(stderr," %d",ham1[i]);
+                fprintf(stderr,"\n ");
+                for (i = 0; i < n; ++i) fprintf(stderr," %d",ham2[i]);
+                fprintf(stderr,"\n");
             }
-	}
+        }
     }
     t = CPUTIME - t;
 
     if (!qswitch)
     {
-	fprintf(stderr,">T to=" COUNTER_FMT " phases=",ntimeouts);
-	for (i = 0; i <= NUMLIMITS; ++i)
-	    fprintf(stderr," " COUNTER_FMT,nphases[i]);
-	fprintf(stderr,"\n");
+        fprintf(stderr,">T to=" COUNTER_FMT " phases=",ntimeouts);
+        for (i = 0; i <= NUMLIMITS; ++i)
+            fprintf(stderr," " COUNTER_FMT,nphases[i]);
+        fprintf(stderr,"\n");
 
         fprintf(stderr,
                 ">Z " COUNTER_FMT " graphs read from %s, "

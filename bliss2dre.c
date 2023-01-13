@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
-/* Reads a graph in Bliss format from stdin and writes it in dreadnaut
- * format to stdout.  If there is an argument, it is written to the
- * output before the graph.  If there are two arguments, they are
- * written to the output before and after the graph.
+/* Reads a graph in Bliss/DIMACS format from stdin and writes it in
+ * dreadnaut format to stdout.  If there is an argument, it is written
+ * to the output before the graph.  If there are two arguments, they
+ * are written to the output before and after the graph.
  */
 
 typedef struct 
@@ -47,42 +47,42 @@ main(int argc, char *argv[])
     j = 0;
     while ((c = nextchar()) >= 0)
     {
-	switch (c)
-	{
-	case 'c':
-	    putchar('"');
-	    while ((c = getchar()) != '\n' && c != EOF) putchar(c);
-	    printf("\\n\"\n");
-	    break;
+        switch (c)
+        {
+        case 'c':
+            putchar('"');
+            while ((c = getchar()) != '\n' && c != EOF) putchar(c);
+            printf("\\n\"\n");
+            break;
 
-	case 'p':
-	    if (haven)
-	    {
-		fprintf(stderr,"Duplicate p line\n");
-		exit(1);
-	    }
-	    if (scanf(" edge %d %lu",&n,&ne) != 2)
-	    {
-		fprintf(stderr,"Bad p line\n");
-		exit(1);
-	    }
-	    if ((elist = (vpair*)malloc(ne*sizeof(vpair))) == NULL
+        case 'p':
+            if (haven)
+            {
+                fprintf(stderr,"Duplicate p line\n");
+                exit(1);
+            }
+            if (scanf(" edge %d %lu",&n,&ne) != 2)
+            {
+                fprintf(stderr,"Bad p line\n");
+                exit(1);
+            }
+            if ((elist = (vpair*)malloc(ne*sizeof(vpair))) == NULL
                || (vlist = (vpair*)malloc(n*sizeof(vpair))) == NULL)
-	    {
-		fprintf(stderr,"Malloc failed\n");
-		exit(1);
-	    }
-	    haven = 1;
-	    for (i = 0; i < n; ++i)
-	    {
-		vlist[i].v = 0;  /* default colour */
-		vlist[i].w = i+1;
-	    }
-	    break;
+            {
+                fprintf(stderr,"Malloc failed\n");
+                exit(1);
+            }
+            haven = 1;
+            for (i = 0; i < n; ++i)
+            {
+                vlist[i].v = 0;  /* default colour */
+                vlist[i].w = i+1;
+            }
+            break;
 
-	case 'n':
-	    if (!haven)
-	    {
+        case 'n':
+            if (!haven)
+            {
                 fprintf(stderr,"Missing p line\n");
                 exit(1);
             }  
@@ -91,28 +91,28 @@ main(int argc, char *argv[])
                 fprintf(stderr,"Bad n line\n");
                 exit(1);
             }
-	    vlist[w-1].v = v;
-	    break;
+            vlist[w-1].v = v;
+            break;
 
-	case 'e':
-	    if (!haven || j == ne)
-	    {
-		fprintf(stderr,"Missing p line or too many e lines\n");
-		exit(1);
-	    }
-	    if (scanf("%d%d",&v,&w) != 2 || v < 1 || w < 1 || v > n || w > n)
-	    {
-		fprintf(stderr,"Bad e line\n");
-		exit(1);
-	    }
-	    elist[j].v = v; elist[j].w = w;
-	    ++j;
-	    break;
+        case 'e':
+            if (!haven || j == ne)
+            {
+                fprintf(stderr,"Missing p line or too many e lines\n");
+                exit(1);
+            }
+            if (scanf("%d%d",&v,&w) != 2 || v < 1 || w < 1 || v > n || w > n)
+            {
+                fprintf(stderr,"Bad e line\n");
+                exit(1);
+            }
+            elist[j].v = v; elist[j].w = w;
+            ++j;
+            break;
 
-	default:
-	    fprintf(stderr,"Unknown line %c\n",c);
-	    exit(1);
-	}
+        default:
+            fprintf(stderr,"Unknown line %c\n",c);
+            exit(1);
+        }
     }
 
     if (j != ne)
@@ -131,27 +131,27 @@ main(int argc, char *argv[])
     {
         if (elist[j].v != v)
         {
-    	    v = elist[j].v;
-    	    if (j > 0) printf("\n");
-	    printf("%d:",v);
-	}
-	printf(" %d",elist[j].w);
+            v = elist[j].v;
+            if (j > 0) printf("\n");
+            printf("%d:",v);
+        }
+        printf(" %d",elist[j].w);
     }
     printf(".\n");
 
     qsort(vlist,n,sizeof(vpair),comparedge);
     for (i = 1; i < n; ++i)
-	if (vlist[i].v != vlist[i-1].v) break;
+        if (vlist[i].v != vlist[i-1].v) break;
     if (i < n)
     {
-	printf("f=[");
-	for (i = 0; i < n; ++i)
-	{
-	   if (i > 0 && vlist[i].v != vlist[i-1].v)
-		printf("\n |");
-	   printf(" %d",vlist[i].w);
-	}
-	printf("]\n");
+        printf("f=[");
+        for (i = 0; i < n; ++i)
+        {
+           if (i > 0 && vlist[i].v != vlist[i-1].v)
+                printf("\n |");
+           printf(" %d",vlist[i].w);
+        }
+        printf("]\n");
     }
 
     printf("$$\n");

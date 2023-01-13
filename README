@@ -1,4 +1,4 @@
-README file for nauty 2.7 
+README file for nauty 2.8
 
 Brendan McKay, bdm@cs.anu.edu.au
 Adolfo Piperno, piperno@di.uniroma1.it
@@ -8,7 +8,7 @@ Adolfo Piperno, piperno@di.uniroma1.it
 The most recent distribution of nauty and Traces can be found at
 http://cs.anu.edu.au/~bdm/nauty and http://pallini.di.uniroma1.it .
 
-The manual nug27.pdf is available at that site and is also included
+The manual nug28.pdf is available at that site and is also included
 in the distribution package.
 
 Note that nauty and Traces are copyright but free to use for most
@@ -26,7 +26,7 @@ followed by
    make 
 to compile nauty and Traces for your system.
 
-If that succeeds without problem, you will have have the
+If that succeeds without problem, you will have the
 program dreadnaut ready to run.
 
 There are some options that can be specified at the ./configure
@@ -77,17 +77,6 @@ sumlines.c  -  This is a program designed to digest the outputs from
 
 sorttemplates.c  - Some carefully tuned generic quicksort procedures.
 
-bliss2dre.c - A program which reads one file in Bliss format and writes
-  it in dreadnaut format.
-
-blisstog.c - A program which reads one or more files in Bliss format
-  and writes all the graphs in sparse6 format.
-
-poptest.c - A program for testing the POPCOUNT macro.
-
-dretodot.c - A program that reads files in dreadaut format and writes
-  dot files suitable for drawing with graphviz.
-
 ------------------------------------------------------------
 
 Windows.
@@ -114,5 +103,5 @@ they are called ia32-libs and libc6-dev-i386.
 
 RECENT CHANGES.
 
-See the file changes24-27.txt for a longer list.
+See the file changes24-28.txt for a longer list.
 See the file README_24 for a list of older changes.

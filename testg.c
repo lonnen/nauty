@@ -1,6 +1,6 @@
 /* testg.c : Find properties of graphs.  This is the source file for
    both pickg (select by property) and countg (count by property).
-   Version 2.1 of September, 2018. */
+   Version 2.2 of June 2022. */
 /* TODO - write a header if input has one;
           Fix clunky practice of storing a pointer in a long long. */
 
@@ -40,7 +40,9 @@
      which match all constraints are counted or selected.\n\
 \n\
      -n#  number of vertices           -e#  number of edges\n\
+     -ee# number of non-edges (including loops for digraphs)\n\
      -L#  number of loops              -C   strongly connected\n\
+     -LL# number of 2-cycles           -cc# number of components\n\
      -d#  minimum (out-)degree         -D#  maximum (out-)degree\n\
      -m#  vertices of min (out-)degree -M#  vertices of max (out-)degree\n\
      -u#  minimum (in-)degree          -U#  maximum (in-)degree\n\
@@ -50,13 +52,16 @@
      -g#  girth (0=acyclic)            -Y#  total number of cycles\n\
      -h#  maximum independent set      -k#  maximum clique\n\
      -T#  number of triangles          -K#  number of maximal cliques\n\
+     -TT# number independent sets of size 3\n\
      -B#  smallest possible first side of a bipartition (0 if nonbipartite)\n\
-     -H#  number of induced cycles\n\
+     -H#  number of induced cycles     -W#  number of 4-cycles\n\
      -E   Eulerian (all degrees are even, connectivity not required)\n\
      -a#  group size  -o# orbits  -F# fixed points  -t vertex-transitive\n\
      -c#  connectivity (only implemented for 0,1,2).\n\
      -i#  min common nbrs of adjacent vertices;     -I# maximum\n\
      -j#  min common nbrs of non-adjacent vertices; -J# maximum\n\
+     -x#  number of sources            -xx#  number of sinks\n\
+     -WW# number of diamonds\n\
 \n\
   Sort keys:\n\
      Counts are made for all graphs passing the constraints.  Counts\n\
@@ -65,6 +70,7 @@
      '--' and uses one of the letters known as constraints.  These can\n\
      be combined:  --n --e  --r  is the same as --ne --r and --ner.\n\
      The order of sort keys is significant.\n\
+     A comma can be used as a separator.\n\
   The sort key ':' has a special purpose: the values of sort keys\n\
   following ':' are given as ranges rather than creating a separate\n\
   line for each value. For example --e:zZ will give the ranges of\n\
@@ -78,7 +84,7 @@
 #include "nautycliquer.h"
 
 /*
-Available letters: wxy AGNOPW
+Available letters: wy AGNOP
 
 How to add a new property:
 
@@ -86,7 +92,7 @@ How to add a new property:
     If several things are computed at the same time, link them
     together such as for z and Z.  It doesn't matter which is
     first, provided the prereq field points to the first one.
-   
+
  2. Add code to compute() to compute the value(s) of the parameter.
     Probably this means calling an external procedure then setting
     some VAL() and COMPUTED() values.
@@ -116,7 +122,7 @@ How the program tells if it is a picker or counter or both:
 
 #if defined(USERDEF) && defined(LUSERDEF)
 #error It is not allowed to define both USERDEF and LUSERDEF.
-#endif 
+#endif
 
 #ifdef USERDEF
 int USERDEF(graph*,int,int);
@@ -158,9 +164,13 @@ typedef long value_t;
 #undef CMASK
 #define CMASK(i) (((value_t)1) << (i))
 
+/* Constraints are indicated by a single letter or a letter doubled.
+   The difference is shown by the doubleletter field. */
+
 static struct constraint_st    /* Table of Constraints */
 {
     char symbol;
+    boolean doubleletter;  /* Is a doubled letter, such as LL */
     boolean digraphok;   /* Can be computed for digraphs */
     boolean rangeonly;   /* Display a range */
     int needed;     /* 1 = sortkey, 2 = constraint; 3 = both */
@@ -174,83 +184,100 @@ static struct constraint_st    /* Table of Constraints */
     value_t val;
 } constraint[] = {
 #define I_n 0
-   {'n',TRUE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"n",INTTYPE,0}, /* always known */
+   {'n',FALSE,TRUE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"n",INTTYPE,0}, /* always known */
 #define I_e 1
-   {'e',TRUE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"e",INTTYPE,0},
+   {'e',FALSE,TRUE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"e",INTTYPE,0},
 #define I_L 2
-   {'L',TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"loops",INTTYPE,0},
+   {'L',FALSE,TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"loops",INTTYPE,0},
 #define I_d 3
-   {'d',TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"mindeg",INTTYPE,0},
+   {'d',FALSE,TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"mindeg",INTTYPE,0},
 #define I_D 4
-   {'D',TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"maxdeg",INTTYPE,0},
+   {'D',FALSE,TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"maxdeg",INTTYPE,0},
 #define I_u 5
-   {'u',TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"minindeg",INTTYPE,0},
+   {'u',FALSE,TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"minindeg",INTTYPE,0},
 #define I_U 6
-   {'U',TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"maxindeg",INTTYPE,0},
+   {'U',FALSE,TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"maxindeg",INTTYPE,0},
 #define I_m 7
-   {'m',TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"minverts",INTTYPE,0},
+   {'m',FALSE,TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"minverts",INTTYPE,0},
 #define I_M 8
-   {'M',TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"maxverts",INTTYPE,0},
+   {'M',FALSE,TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"maxverts",INTTYPE,0},
 #define I_s 9
-   {'s',TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"mininverts",INTTYPE,0},
+   {'s',FALSE,TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"mininverts",INTTYPE,0},
 #define I_S 10
-   {'S',TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"maxinverts",INTTYPE,0},
+   {'S',FALSE,TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"maxinverts",INTTYPE,0},
 #define I_E 11
-   {'E',TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"eulerian",BOOLTYPE,0},
+   {'E',FALSE,TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"eulerian",BOOLTYPE,0},
 #define I_r 12
-   {'r',TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"regular",BOOLTYPE,0},
+   {'r',FALSE,TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"regular",BOOLTYPE,0},
 #define I_B 13
-   {'B',FALSE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"bipside",INTTYPE,0},
+   {'B',FALSE,FALSE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"bipside",INTTYPE,0},
 #define I_z 14
-   {'z',TRUE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"radius",INTTYPE,0},
+   {'z',FALSE,TRUE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"radius",INTTYPE,0},
 #define I_Z 15
-   {'Z',TRUE,FALSE,0,FALSE,FALSE,CMASK(I_z),-NOLIMIT,NOLIMIT,"diameter",INTTYPE,0},
+   {'Z',FALSE,TRUE,FALSE,0,FALSE,FALSE,CMASK(I_z),-NOLIMIT,NOLIMIT,"diameter",INTTYPE,0},
 #define I_a 16
-   {'a',TRUE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"groupsize",GROUPSIZE,0},
+   {'a',FALSE,TRUE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"groupsize",GROUPSIZE,0},
 #define I_o 17
-   {'o',TRUE,FALSE,0,FALSE,FALSE,CMASK(I_a),-NOLIMIT,NOLIMIT,"orbits",INTTYPE,0},
+   {'o',FALSE,TRUE,FALSE,0,FALSE,FALSE,CMASK(I_a),-NOLIMIT,NOLIMIT,"orbits",INTTYPE,0},
 #define I_t 18
-   {'t',TRUE,FALSE,0,FALSE,FALSE,CMASK(I_o),-NOLIMIT,NOLIMIT,"transitive",BOOLTYPE,0},
+   {'t',FALSE,TRUE,FALSE,0,FALSE,FALSE,CMASK(I_o),-NOLIMIT,NOLIMIT,"transitive",BOOLTYPE,0},
 #define I_c 19
-   {'c',FALSE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"connectivity",INTTYPE,0},
+   {'c',FALSE,FALSE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"connectivity",INTTYPE,0},
 #define I_F 20
-   {'F',TRUE,FALSE,0,FALSE,FALSE,CMASK(I_a),-NOLIMIT,NOLIMIT,"fixedpts",INTTYPE,0},
+   {'F',FALSE,TRUE,FALSE,0,FALSE,FALSE,CMASK(I_a),-NOLIMIT,NOLIMIT,"fixedpts",INTTYPE,0},
 #define I_g 21
-   {'g',FALSE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"girth",INTTYPE,0},
+   {'g',FALSE,FALSE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"girth",INTTYPE,0},
 #define I_Y 22
-   {'Y',FALSE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"cycles",INTTYPE,0},
+   {'Y',FALSE,FALSE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"cycles",INTTYPE,0},
 #define I_i 23
-   {'i',FALSE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"minadjcn",INTTYPE,0},
+   {'i',FALSE,FALSE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"minadjcn",INTTYPE,0},
 #define I_I 24
-   {'I',FALSE,FALSE,0,FALSE,FALSE,CMASK(I_i),-NOLIMIT,NOLIMIT,"maxadjcn",INTTYPE,0},
+   {'I',FALSE,FALSE,FALSE,0,FALSE,FALSE,CMASK(I_i),-NOLIMIT,NOLIMIT,"maxadjcn",INTTYPE,0},
 #define I_j 25
-   {'j',FALSE,FALSE,0,FALSE,FALSE,CMASK(I_i),-NOLIMIT,NOLIMIT,"minnoncn",INTTYPE,0},
+   {'j',FALSE,FALSE,FALSE,0,FALSE,FALSE,CMASK(I_i),-NOLIMIT,NOLIMIT,"minnoncn",INTTYPE,0},
 #define I_J 26
-   {'J',FALSE,FALSE,0,FALSE,FALSE,CMASK(I_i),-NOLIMIT,NOLIMIT,"maxnoncn",INTTYPE,0},
+   {'J',FALSE,FALSE,FALSE,0,FALSE,FALSE,CMASK(I_i),-NOLIMIT,NOLIMIT,"maxnoncn",INTTYPE,0},
 #define I_T 27
-   {'T',TRUE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"triang",INTTYPE,0},
+   {'T',FALSE,TRUE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"triang",INTTYPE,0},
 #define I_K 28
-   {'K',FALSE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"maxlcliq",INTTYPE,0},
+   {'K',FALSE,FALSE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"maxlcliq",INTTYPE,0},
 #define I_H 29
-   {'H',FALSE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"induced cycles",INTTYPE,0},
+   {'H',FALSE,FALSE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"induced cycles",INTTYPE,0},
 #define I_b 30
-   {'b',FALSE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"bipartite",BOOLTYPE,0},
+   {'b',FALSE,FALSE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"bipartite",BOOLTYPE,0},
 #define I_C 31
-   {'C',TRUE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"strong",BOOLTYPE,0},
+   {'C',FALSE,TRUE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"strong",BOOLTYPE,0},
 #define I_h 32
-   {'h',FALSE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"maxindset",INTTYPE,0},
+   {'h',FALSE,FALSE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"maxindset",INTTYPE,0},
 #define I_k 33
-   {'k',FALSE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"maxclique",INTTYPE,0},
-#define I_Q 34
+   {'k',FALSE,FALSE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"maxclique",INTTYPE,0},
+#define I_LL 34
+   {'L',TRUE,TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"digons",INTTYPE,0},
+#define I_cc 35
+   {'c',TRUE,FALSE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"components",INTTYPE,0},
+#define I_ee 36
+   {'e',TRUE,TRUE,FALSE,0,FALSE,FALSE,CMASK(I_e),-NOLIMIT,NOLIMIT,"nonedges",INTTYPE,0},
+#define I_TT 37
+   {'T',TRUE,FALSE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"ind3sets",INTTYPE,0},
+#define I_x 38
+   {'x',FALSE,TRUE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"sources",INTTYPE,0},
+#define I_xx 39
+   {'x',TRUE,TRUE,FALSE,0,FALSE,FALSE,CMASK(I_x),-NOLIMIT,NOLIMIT,"sinks",INTTYPE,0},
+#define I_W 40
+   {'W',FALSE,FALSE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"squares",INTTYPE,0},
+#define I_WW 41
+   {'W',TRUE,FALSE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,"diamonds",INTTYPE,0},
+#define I_Q 42
 #if defined(USERDEF) || defined(LUSERDEF)
-   {'Q',QDIGRAPH,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,USERDEFNAME,INTTYPE,0}
+   {'Q',FALSE,QDIGRAPH,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,USERDEFNAME,INTTYPE,0}
 #else
-   {' ',FALSE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,USERDEFNAME,INTTYPE,0}
+   {' ',FALSE,FALSE,FALSE,0,FALSE,FALSE,0,-NOLIMIT,NOLIMIT,USERDEFNAME,INTTYPE,0}
 #endif
 };
 
 #define NUMCONSTRAINTS (sizeof(constraint)/sizeof(struct constraint_st))
 #define SYMBOL(i) (constraint[i].symbol)
+#define ISDOUBLED(i) (constraint[i].doubleletter)
 #define ISNEEDED(i) (constraint[i].needed > 0)
 #define NEEDED(i) (constraint[i].needed)
 #define ISKEY(i) ((constraint[i].needed & 1) != 0)
@@ -374,8 +401,8 @@ compare_count_node(count_node *a, count_node *b)
         {
             sza = (group_node*)a->val[i].lo;
             szb = (group_node*)b->val[i].lo;
-	    cmp = compare_groupnodes(sza,szb);
-	    if (cmp != 0) return cmp;
+            cmp = compare_groupnodes(sza,szb);
+            if (cmp != 0) return cmp;
         }
         else if (a->val[i].lo < b->val[i].lo) return -1;
         else if (a->val[i].lo > b->val[i].lo) return 1;
@@ -403,16 +430,16 @@ add_count(count_node *newval, count_node *oldval)
         {
             sza = (group_node*)newval->val[i].lo;
             szb = (group_node*)oldval->val[i].lo;
-	    if (compare_groupnodes(sza,szb) < 0)
+            if (compare_groupnodes(sza,szb) < 0)
                 oldval->val[i].lo = newval->val[i].lo;
             szb = (group_node*)oldval->val[i].hi;
-	    if (compare_groupnodes(sza,szb) > 0)
+            if (compare_groupnodes(sza,szb) > 0)
                 oldval->val[i].hi = newval->val[i].lo;
         }
         else if (newval->val[i].lo < oldval->val[i].lo)
-	    oldval->val[i].lo = newval->val[i].lo;
+            oldval->val[i].lo = newval->val[i].lo;
         else if (newval->val[i].lo > oldval->val[i].hi)
-	    oldval->val[i].hi = newval->val[i].lo;
+            oldval->val[i].hi = newval->val[i].lo;
     }
 
     return 0;
@@ -481,16 +508,16 @@ add_one(void)
 
 static void
 printthesevals(FILE *f)
-{       
+{
     int i,ki;
-    
+
     if (oneswitch)
     {
         for (i = 0; i < numkeys; ++i)
-        {   
+        {
             ki = key[i];
-	    if (i > 0) fprintf(f," ");
-            
+            if (i > 0) fprintf(f," ");
+
             if (VALTYPE(ki) == BOOLTYPE)
             {
                 if (!VAL(ki)) fprintf(f,"0");
@@ -505,10 +532,10 @@ printthesevals(FILE *f)
     else
     {
         for (i = 0; i < numkeys; ++i)
-        {   
+        {
             ki = key[i];
             if (i > 0) fprintf(f,"; ");
-            
+
             if (VALTYPE(ki) == BOOLTYPE)
             {
                 if (!VAL(ki)) fprintf(f,"not %s",ID(ki));
@@ -521,7 +548,7 @@ printthesevals(FILE *f)
             }
             else
                 fprintf(f,"%s=" VALUE_FMT,ID(ki),VAL(ki));
-	}
+        }
     }
 }
 
@@ -552,7 +579,7 @@ printkeyvals(FILE *f, nauty_counter count, range *val)
         {
             ki = key[i];
             if (i > 0) fprintf(f," ");
-    
+
             if (VALTYPE(ki) == BOOLTYPE)
             {
                 if (!val[i].lo) fprintf(f,"0");
@@ -560,31 +587,31 @@ printkeyvals(FILE *f, nauty_counter count, range *val)
             }
             else if (VALTYPE(ki) == GROUPSIZE)
             {
-	        sza = (group_node*)val[i].lo;
+                sza = (group_node*)val[i].lo;
                 write_group_size(f,sza);
-	        if (i >= numsplitkeys)
-	        {
-		    szb = (group_node*)val[i].hi;
-	            fprintf(f," ");
+                if (i >= numsplitkeys)
+                {
+                    szb = (group_node*)val[i].hi;
+                    fprintf(f," ");
                     write_group_size(f,szb);
-	        }
+                }
             }
             else if (i >= numsplitkeys)
                 fprintf(f,VALUE_FMT " " VALUE_FMT,val[i].lo,val[i].hi);
-	    else
+            else
                 fprintf(f,VALUE_FMT,val[i].lo);
         }
-	if (!twoswitch) fprintf(f," " COUNTER_FMT"\n",count);
-	else            fprintf(f,"\n");
+        if (!twoswitch) fprintf(f," " COUNTER_FMT"\n",count);
+        else            fprintf(f,"\n");
     }
     else
     {
-	fprintf(f," %10" COUNTER_FMT_RAW " graphs : ",count);
+        fprintf(f," %10" COUNTER_FMT_RAW " graphs : ",count);
         for (i = 0; i < numkeys; ++i)
         {
             ki = key[i];
             if (i > 0) fprintf(f,"; ");
-    
+
             if (VALTYPE(ki) == BOOLTYPE)
             {
                 if (!val[i].lo) fprintf(f,"not %s",ID(ki));
@@ -593,25 +620,25 @@ printkeyvals(FILE *f, nauty_counter count, range *val)
             else if (VALTYPE(ki) == GROUPSIZE)
             {
                 fprintf(f,"%s=",ID(ki));
-	        sza = (group_node*)val[i].lo;
+                sza = (group_node*)val[i].lo;
                 write_group_size(f,sza);
-	        if (i >= numsplitkeys)
-	        {
-		    szb = (group_node*)val[i].hi;
-		    if (compare_groupnodes(sza,szb))
-		    {
-	                fprintf(f,":");
+                if (i >= numsplitkeys)
+                {
+                    szb = (group_node*)val[i].hi;
+                    if (compare_groupnodes(sza,szb))
+                    {
+                        fprintf(f,":");
                         write_group_size(f,szb);
-		    }
-	        }
+                    }
+                }
             }
             else if (i >= numsplitkeys && val[i].lo != val[i].hi)
                 fprintf(f,"%s=" VALUE_FMT ":" VALUE_FMT,
                           ID(ki),val[i].lo,val[i].hi);
-	    else
+            else
                 fprintf(f,"%s=" VALUE_FMT,ID(ki),val[i].lo);
         }
-	fprintf(f,"\n");
+        fprintf(f,"\n");
     }
 }
 
@@ -619,7 +646,7 @@ printkeyvals(FILE *f, nauty_counter count, range *val)
 
 static void
 groupstats(graph *g, boolean digraph, int m, int n, group_node *sz,
-       int *numorbits, int *fixedpts)  
+       int *numorbits, int *fixedpts)
 /* Find the automorphism group of the undirected graph g.
    Return the group size and number of orbits and fixed points. */
 {
@@ -644,11 +671,11 @@ groupstats(graph *g, boolean digraph, int m, int n, group_node *sz,
 
     if (n == 0)
     {
-	sz->groupsize1 = 1.0;
-	sz->groupsize2 = 0;
-	*numorbits = 0;
-	*fixedpts = 0;
-	return;
+        sz->groupsize1 = 1.0;
+        sz->groupsize2 = 0;
+        *numorbits = 0;
+        *fixedpts = 0;
+        return;
     }
 
 #if !MAXN
@@ -680,7 +707,7 @@ groupstats(graph *g, boolean digraph, int m, int n, group_node *sz,
     {
         *numorbits = numcells;
         *fixedpts = (numcells == n ? n : n-2);
-        sz->groupsize1 = n + 1.0 - numcells; 
+        sz->groupsize1 = n + 1.0 - numcells;
         sz->groupsize2 = 0;
     }
     else
@@ -725,6 +752,7 @@ compute(graph *g, int m, int n, int code, boolean digraph)
     group_node sz;
     int norbs,fixedpts;
     int minadj,maxadj,minnon,maxnon;
+    int sources,sinks;
 
     switch (code)
     {
@@ -749,6 +777,24 @@ compute(graph *g, int m, int n, int code, boolean digraph)
             COMPUTED(I_E) = COMPUTED(I_r) = TRUE;
             COMPUTED(I_m) = COMPUTED(I_M) = TRUE;
             COMPUTED(I_u) = COMPUTED(I_U) = TRUE;
+            break;
+
+        case I_ee:
+            if (digraph)
+                VAL(I_ee) = (long)n*(long)n - VAL(I_e);
+            else
+                VAL(I_ee) = (long)n*(long)(n-1)/2L - VAL(I_e);
+            COMPUTED(I_ee) = TRUE;
+            break;
+
+        case I_LL:
+            VAL(I_LL) = digoncount(g,m,n);
+            COMPUTED(I_LL) = TRUE;
+            break;
+
+        case I_cc:
+            VAL(I_cc) = numcomponents(g,m,n);
+            COMPUTED(I_cc) = TRUE;
             break;
 
         case I_b:
@@ -783,7 +829,7 @@ compute(graph *g, int m, int n, int code, boolean digraph)
             VAL(I_z) = rad;
             VAL(I_Z) = diam;
             COMPUTED(I_z) = COMPUTED(I_Z) = TRUE;
-            break;          
+            break;
 
         case I_a:
             if (!COMPUTED(I_L))
@@ -835,6 +881,28 @@ compute(graph *g, int m, int n, int code, boolean digraph)
             if (digraph) VAL(I_T) = numdirtriangles(g,m,n);
             else         VAL(I_T) = numtriangles(g,m,n);
             COMPUTED(I_T) = TRUE;
+            break;
+
+        case I_W:
+            VAL(I_W) = numsquares(g,m,n);
+            COMPUTED(I_W) = TRUE;
+            break;
+
+        case I_WW:
+            VAL(I_WW) = numdiamonds(g,m,n);
+            COMPUTED(I_WW) = TRUE;
+            break;
+
+        case I_TT:
+            VAL(I_TT) = numind3sets(g,m,n);
+            COMPUTED(I_TT) = TRUE;
+            break;
+
+        case I_x:
+        case I_xx:
+            sources_sinks(g,m,n,&sources,&sinks);
+            VAL(I_x) = sources;
+            VAL(I_xx) = sinks;
             break;
 
         case I_i:
@@ -911,7 +979,7 @@ group_in_range(group_node *sz, value_t lo, value_t hi)
     {
         sz1 = sz->groupsize1;
         sz2 = sz->groupsize2;
-       
+
         while (sz2 >= 0 && sz1 <= hi)
         {
             --sz2;
@@ -965,31 +1033,38 @@ decodekeys(char *s)
 
     for (i = 0; s[i] != '\0'; ++i)
     {
-	if (s[i] == ':')
-	{
-	    if (rangemarkerseen)
-	    {
-		fprintf(stderr,">E --: is only allowed once\n");
-		exit(1);
-	    }
-	    rangemarkerseen = TRUE;
-	    continue;
-	}
+        if (s[i] == ':')
+        {
+            if (rangemarkerseen)
+            {
+                fprintf(stderr,">E --: is only allowed once\n");
+                exit(1);
+            }
+            rangemarkerseen = TRUE;
+            continue;
+        }
+
+        if (s[i] == ',') continue;
 
         for (j = 0; j < NUMCONSTRAINTS; ++j)
-            if (s[i] == SYMBOL(j)) break;
+            if (s[i] == SYMBOL(j) &&
+                     (!ISDOUBLED(j) && s[i+1] != SYMBOL(j)
+                   || (ISDOUBLED(j) && s[i+1] == SYMBOL(j))))
+                break;
+
         if (j == NUMCONSTRAINTS)
         {
             fprintf(stderr,">E unknown sort key %c\n",s[i]);
             exit(1);
         }
+        if (ISDOUBLED(j)) ++i;
 
-	if (rangemarkerseen && VALTYPE(j) == BOOLTYPE)
-	{
-	    fprintf(stderr,
+        if (rangemarkerseen && VALTYPE(j) == BOOLTYPE)
+        {
+            fprintf(stderr,
                     ">W ignoring unsplit boolean property %c\n",s[i]);
-	    continue;
-	}
+            continue;
+        }
 
         for (k = 0; k < numkeys; ++k) if (key[k] == j) break;
 
@@ -1003,12 +1078,32 @@ decodekeys(char *s)
             }
             key[numkeys++] = j;
             NEEDED(j) |= 1;
-	    if (!rangemarkerseen) ++numsplitkeys;
+            if (!rangemarkerseen) ++numsplitkeys;
         }
     }
 }
 
 /**********************************************************************/
+
+static void
+writeparamrange(FILE *f, char c, boolean doubled, long lo, long hi)
+  /* Write a parameter range. */
+{
+    if (c != '\0')
+    {
+        if (doubled) fprintf(f,"%c%c",c,c);
+        else         fprintf(f,"%c",c);
+    }
+
+    if (lo != -NOLIMIT) fprintf(f,"%ld",lo);
+    if (lo != hi)
+    {
+        fprintf(f,":");
+        if (hi != NOLIMIT) fprintf(f,"%ld",hi);
+    }
+}
+
+/***********************************************************************/
 
 int
 main(int argc, char *argv[])
@@ -1105,15 +1200,21 @@ main(int argc, char *argv[])
                     }
                         else neg = FALSE;
 
+                    if (sw == ',') continue;
+
                     for (i = 0; i < NUMCONSTRAINTS; ++i)
-                        if (sw == SYMBOL(i))
+                    {
+                        if (sw == SYMBOL(i) &&
+                              ((ISDOUBLED(i) && *arg == sw)
+                            || !ISDOUBLED(i) && *arg != sw))
                         {
+                            if (ISDOUBLED(i)) ++arg;
                             NEEDED(i) |= 2;
                             if (VALTYPE(i) == INTTYPE
                              || VALTYPE(i) == GROUPSIZE)
                             {
                                 arg_range(&arg,":-",&arglo,&arghi,ID(i));
-				LO(i) = arglo;
+                                LO(i) = arglo;
                                 HI(i) = arghi;
                             }
                             else
@@ -1122,6 +1223,7 @@ main(int argc, char *argv[])
                             havecon = TRUE;
                             break;
                         }
+                    }
                     if (i == NUMCONSTRAINTS) badargs = TRUE;
                 }
             }
@@ -1163,7 +1265,7 @@ main(int argc, char *argv[])
             digbad = j;
             break;
         }
-    
+
     if (vswitch)
     {
         for (j = 0; j < NUMCONSTRAINTS; ++j)
@@ -1178,16 +1280,26 @@ main(int argc, char *argv[])
         if (fswitch) fprintf(stderr,"f");
         if (oneswitch) fprintf(stderr,"1");
         if (twoswitch) fprintf(stderr,"2");
-        if (pswitch) writerange(stderr,'p',pval1,pval2);
+        if (pswitch) writeparamrange(stderr,'p',FALSE,pval1,pval2);
 
         if (numkeys > 0)
         {
             fprintf(stderr," --");
             for (j = 0; j < numkeys; ++j)
-		if (j == numsplitkeys && j != 0)
-                    fprintf(stderr,":%c",SYMBOL(key[j]));
-		else
-                    fprintf(stderr,"%c",SYMBOL(key[j]));
+                if (j == numsplitkeys && j != 0)
+                {
+                    if (ISDOUBLED(key[j]))
+                        fprintf(stderr,":%c%c",SYMBOL(key[j]),SYMBOL(key[j]));
+                    else
+                        fprintf(stderr,":%c",SYMBOL(key[j]));
+                }
+                else
+                {
+                    if (ISDOUBLED(key[j]))
+                        fprintf(stderr,"%c%c",SYMBOL(key[j]),SYMBOL(key[j]));
+                    else
+                        fprintf(stderr,"%c",SYMBOL(key[j]));
+                }
         }
 
         if (havecon) fprintf(stderr," -");
@@ -1195,10 +1307,20 @@ main(int argc, char *argv[])
         if (ISCONSTRAINT(j))
         {
             if (INVERSE(j)) fprintf(stderr,"~");
-            if (VALTYPE(j) == BOOLTYPE)
-                fprintf(stderr,"%c",SYMBOL(j));
+            if (ISDOUBLED(j))
+            {
+                if (VALTYPE(j) == BOOLTYPE)
+                    fprintf(stderr,"%c%c",SYMBOL(j),SYMBOL(j));
+                else
+                    writeparamrange(stderr,SYMBOL(j),TRUE,LO(j),HI(j));
+            }
             else
-                writerange(stderr,(int)SYMBOL(j),LO(j),HI(j));
+            {
+                if (VALTYPE(j) == BOOLTYPE)
+                    fprintf(stderr,"%c",SYMBOL(j));
+                else
+                    writeparamrange(stderr,(int)SYMBOL(j),FALSE,LO(j),HI(j));
+            }
         }
 
         if (argnum > 0) fprintf(stderr," %s",infilename);
@@ -1249,7 +1371,12 @@ main(int argc, char *argv[])
         ++nin;
         if (digraph && digbad >= 0)
         {
-            fprintf(stderr,
+            if (ISDOUBLED(digbad))
+                fprintf(stderr,
+                    ">E %s: option %c%c is not implemented for digraphs\n",
+                    argv[0],SYMBOL(digbad),SYMBOL(digbad));
+            else
+                fprintf(stderr,
                     ">E %s: option %c is not implemented for digraphs\n",
                     argv[0],SYMBOL(digbad));
             gt_abort(NULL);
@@ -1262,9 +1389,9 @@ main(int argc, char *argv[])
         {
             if (dofilter)
             {
-		if (nout == 0 && (codetype&HAS_HEADER))
-		{
-		    if (outcode == SPARSE6)
+                if (nout == 0 && (codetype&HAS_HEADER))
+                {
+                    if (outcode == SPARSE6)
                         writeline(outfile,SPARSE6_HEADER);
                     else if (outcode == DIGRAPH6)
                         writeline(outfile,DIGRAPH6_HEADER);
@@ -1310,7 +1437,7 @@ main(int argc, char *argv[])
         }
     }
 
-    if (!qswitch && dofilter) 
+    if (!qswitch && dofilter)
         fprintf(stderr,
             ">Z " COUNTER_FMT " graphs read from %s; "
                       COUNTER_FMT " written to %s; %.2f sec\n",

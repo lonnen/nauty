@@ -85,7 +85,7 @@ main(int argc, char *argv[])
     if (!quiet)
     {
         fprintf(stderr,">A deledgeg");
-	if (dolabel || zswitch) fprintf(stderr," -");
+        if (dolabel || zswitch) fprintf(stderr," -");
         if (dolabel) fprintf(stderr,"l");
         if (zswitch) fprintf(stderr,"z");
         if (dswitch) fprintf(stderr," -d%d",mindeg);
@@ -148,8 +148,8 @@ main(int argc, char *argv[])
 
         if (actmindeg < mindeg) continue;
 
-	if (zswitch || digraph)
-	{
+        if (zswitch || digraph)
+        {
             for (v = 0, gv = g; v < n; ++v, gv += m)
             {
                 if (deg[v] <= mindeg) continue;
@@ -173,8 +173,8 @@ main(int argc, char *argv[])
                 }
             }
         }
-	else
-	{
+        else
+        {
             for (v = 0, gv = g; v < n; ++v, gv += m)
             {
                 if (deg[v] <= mindeg) continue;

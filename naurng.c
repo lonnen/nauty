@@ -1,6 +1,4 @@
 /* naurng.c
- * This is thread-safe version of rng.c if thread-local support
- * is available.
  *
    This file contains the code for a high-quality random number
    generator written by Don Knuth.  The auxilliary routine
@@ -23,7 +21,7 @@
           variable var to a better random number from 0..k-1.
 
     Brendan McKay, July 2002.  Fixed Nov 2002 on advice of DEK.
-
+                   Nov 2022.  Added ran_init_time().
 */
 
 /*    This program by D E Knuth is in the public domain and freely copyable
@@ -105,10 +103,32 @@ ran_start(long seed)
 }
 
 void
-ran_init(long seed)    /* Added by BDM: use instead of ran_start. */
-                       /*  But this is less important with this version */
+ran_init(long seed)
+/* Added by BDM: use instead of ran_start. */
 {
     ran_start((unsigned long)seed % (MM-2));
+}
+
+long
+ran_init_time(long extra)
+/* Added by BDM: use the real time and the argument to initialise.
+   Returns the value of the seed, so the same sequence can be
+   obtained again by calling ran_init(seed).
+*/
+{
+    double t;
+    nauty_counter ul;  /* 64-bit unsigned */
+    long seed;
+    REALTIMEDEFS
+
+    t = NAUTYREALTIME;
+    if (t > 1660000000.0) ul = (nauty_counter)(t*2100001.0);
+    else                  ul = (nauty_counter)(t+212300021.0);
+    ul ^= (nauty_counter)(extra) * 997;
+    seed = (long)ul;
+    ran_init(seed);
+
+    return seed;
 }
 
 static long

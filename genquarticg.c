@@ -37,26 +37,22 @@ static setword workspace[50];
 static statsblk(stats);
 
 
-
-
-
-// badan -c#: (-c1 --> only connected ones ) (-c2 --> only biconnected ones)
 #define USAGE "genquarticg [-ugs -h -c -l] n [res/mod] [file]"
 
 
 #define HELPTEXT \
 "  generate all non-isomorphic quartic graphs of a given order \n\
 \n\
-n     : the number of the vertices\n\
-file  : the name of the output file (default stdout)\n\
--u    : do not output any graphs, just generate and count them\n\
--g    : use graph6 format for output (default)\n\
--s    : use sparse6 format for output\n\
--h      write a header (only with -g or -s). \n\
--c    : only write connected graphs\n\
--C    : only write biconnected graphs\n\
-res/mod : only generate subset res out of subsets 0..mod-1\n\
--l    : canonically label output graphs.\n" //??????? is it a good feature to add?
+    n     : the number of the vertices\n\
+    file  : the name of the output file (default stdout)\n\
+    -u    : do not output any graphs, just generate and count them\n\
+    -g    : use graph6 format for output (default)\n\
+    -s    : use sparse6 format for output\n\
+    -h      write a header (only with -g or -s). \n\
+    -c    : only write connected graphs\n\
+    -C    : only write biconnected graphs\n\
+    res/mod : only generate subset res out of subsets 0..mod-1\n\
+    -l    : canonically label output graphs.\n"
 
 
 
@@ -74,7 +70,7 @@ boolean     canonise;                       /* presence of -l */  //????????
 
 typedef struct
 {
-	int first;
+        int first;
     int sec;
     setword fn;
     setword sn;
@@ -85,18 +81,18 @@ typedef struct
 
 typedef struct
 {
-	int first;
+        int first;
     int sec;
     int multp;
 } pairstruct;
 
 typedef struct
 {
-	int base;
-	int first1;
-	int sec1;
-	int first2;
-	int sec2;
+        int base;
+        int first1;
+        int sec1;
+        int first2;
+        int sec2;
 } dovistruct;
 
 typedef   enum
@@ -236,14 +232,14 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
     int   firsttime[MAXN], firsttimey[MAXN], multar1[MAXN],
           col00[MAXN], col00w1[MAXN], doviorbit[3*MAXN],
           epairorbit1[MAXP], l[MAXN], lab[MAXN], ptn[MAXN], orbits[MAXN];
-    int 		antipair[MAXE][MAXE], antiedge[MAXN][MAXN], antidovi[MAXN][MAXN];
+    int  antipair[MAXE][MAXE], antiedge[MAXN][MAXN], antidovi[MAXN][MAXN];
     setword     x, y, z, bitj1, bitj2, biti2;
     setword     yi[MAXN], zar1[MAXN];
-    CHOISE	colours; 
-    pairstruct 	epair1[MAXP];
-    edgestruct 	edge1[MAXE];
+    CHOISE      colours;
+    pairstruct  epair1[MAXP];
+    edgestruct  edge1[MAXE];
     graph       gi[MAXN];
-    dovistruct 	dovi[3*MAXN];
+    dovistruct  dovi[3*MAXN];
     dovistruct  dovimax;
     register    setword    gi1, gi2, gj1, gj2;
     boolean     conf;
@@ -292,9 +288,9 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
             zval[n] = z; eqcol0 = bit[n]; neqn = 0;
             xn = g[n]|bit[n];
 
-            b = n-1;		
+            b = n-1;
             while( (!got_one)  &&   (b >= 0) )
-            {					
+            {
 
                if(  !((g[b]|bit[b]) & xn )   &&  (multar[b] < 9 ) )
                 {
@@ -344,8 +340,8 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
                     }
                 }
                 else
-                        col00w1[b] = col00[b] = 0;	
-                b--; 	
+                        col00w1[b] = col00[b] = 0;
+                b--;
             }
 
 
@@ -373,32 +369,32 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
                 }
             }
 
-            if (  !got_one	) 	
+            if (!got_one)
             {
-                numcells = init_refinex( col00, lab, ptn, &active, n);		
+                numcells = init_refinex( col00, lab, ptn, &active, n);
 
-                refinex(g, lab, ptn, 0, &numcells, count, &active, TRUE, &code, 1, n+1);	
+                refinex(g, lab, ptn, 0, &numcells, count, &active, TRUE, &code, 1, n+1);
 
                 if( code == -1 )
                     got_one = 1;
 
-                if (	  !got_one	)
+                if (  !got_one)
                     mcol1 =  ((col00[vm1] + col00[vm2] ) * (col00[vm3] + col00[vm4]));
             }
 
 
             numdovi = 0;
-            j = n;				
+            j = n;
             while(  (!got_one)       &&       (  (j==n)  || (ptn[j])  )     )
-            {			  			
+            {
                 b = lab[j];
                 if( b != n)
-                {				
+                {
                     x = g[b];
-                    TAKEBIT(i1,x);				
+                    TAKEBIT(i1,x);
                     TAKEBIT(j1,x);
                     TAKEBIT(i2,x);
-                    TAKEBIT(j2,x);  			
+                    TAKEBIT(j2,x);
                     for(i=0; i < 3 && !got_one; i++)
                     {
                         if(i == 0)
@@ -430,10 +426,10 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
                             temp = vt3;
                             vt3 = vt4;
                             vt4 = temp;
-                        }						
+                        }
 
                         if( (!(g[vt1] & bit[vt2]))  &&   (!(g[vt3] & bit[vt4]))   &&  (!got_one) )
-                        {	
+                        {
                             tcol =  ((col00[vt1] + col00[vt2] ) * (col00[vt3] + col00[vt4]));
                             dcol1 = ((g[vt1]&g[vt2])!=bit[b]) + ((g[vt3]&g[vt4])!=bit[b]);
                             if( dcol1 < dcol0 || (dcol1 == dcol0 && tcol < mcol1 ))
@@ -447,21 +443,21 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
                                     dovi[numdovi].first2 = vt3;
                                     dovi[numdovi].sec2 = vt4;
                                     antidovi[b][vt2] =numdovi;
-                                    numdovi++;				
-                            }	
+                                    numdovi++;
+                            }
                         }
-                    }							
+                    }
                 }
 
                 j--;
                 if(j<0)
-                    break; 	
+                    break;
             }
 
 
 
             if( (!(g[vm1] & bit[vm3]))  &&   (!(g[vm2] & bit[vm4]))   &&  (!got_one) )
-            {   	
+            {
                 if( vm2 < vm4 )
                 {
                     tcol =  ((col00[vm1] + col00[vm3] ) * (col00[vm2] + col00[vm4]));
@@ -476,7 +472,7 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
                             dovi[numdovi].first2 = vm2;
                             dovi[numdovi].sec2 = vm4;
                             antidovi[n][vm3] =numdovi;
-                            numdovi++;  			
+                            numdovi++;
                     }
 
                 }
@@ -486,7 +482,7 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
 
                     dcol1 = ((g[vm1]&g[vm3])!=bit[n]) + ((g[vm2]&g[vm4])!=bit[n]);
                     if (dcol1 < dcol0 || (dcol1 == dcol0 &&  tcol < mcol1 ))
-                        got_one = 1; 				
+                        got_one = 1;
                     else if( dcol1 == dcol0 && tcol == mcol1 )
                     {
                             dovi[numdovi].base = n;
@@ -495,13 +491,13 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
                             dovi[numdovi].first2 = vm4;
                             dovi[numdovi].sec2 = vm2;
                             antidovi[n][vm3] =numdovi;
-                            numdovi++;								
+                            numdovi++;
                     }
-                }	
+                }
             }
 
             if( (!(g[vm1] & bit[vm4]))  &&   (!(g[vm2] & bit[vm3]))   &&  (!got_one) )
-            {   	
+            {
                 if( vm2 < vm3 )
                 {
                     tcol = ((col00[vm1] + col00[vm4] ) * (col00[vm2] + col00[vm3]));
@@ -516,12 +512,12 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
                             dovi[numdovi].first2 = vm2;
                             dovi[numdovi].sec2 = vm3;
                             antidovi[n][vm4] =numdovi;
-                            numdovi++;		
+                            numdovi++;
                     }
 
                 }
                 else
-                {	
+                {
                     tcol =  ((col00[vm1] + col00[vm4] ) * (col00[vm3] + col00[vm2]));
                     dcol1 = ((g[vm1]&g[vm4])!=bit[n]) + ((g[vm2]&g[vm3])!=bit[n]);
                     if (dcol1 < dcol0 || (dcol1 == dcol0 && tcol < mcol1 ))
@@ -534,15 +530,15 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
                             dovi[numdovi].first2 = vm3;
                             dovi[numdovi].sec2 = vm2;
                             antidovi[n][vm4] =numdovi;
-                            numdovi++;       	
+                            numdovi++;
                     }
                 }
-            }					
+            }
 
 
             if( got_one == 1 )
                 colours = reject;
-            if(   (!got_one) 	&&	 (!numdovi)   	)
+            if(   (!got_one) &&  (!numdovi) )
                 colours = accept;
             if( (!got_one) && (numdovi) )
             {
@@ -553,8 +549,8 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
                 dovi[numdovi].first2 = vm3;
                 dovi[numdovi].sec2 = vm4;
                 antidovi[n][vm2] =numdovi;
-                numdovi++;	                              	
-            }				
+                numdovi++;
+            }
 
 /*****************************************************************************/
             if( n+1 == nmax )
@@ -574,20 +570,20 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
                     }
 
                     if (colours == undef)
-                    {  	
+                    {
                         for (i = 0; i < numdovi; i++)
                             doviorbit[i] = i;
 
                         pdoviorbit = doviorbit;
                         pdovi = dovi;
                         pantidovi = antidovi;
-                        pCNT = &numdovi;					
+                        pCNT = &numdovi;
 
                         options.userautomproc = userautom2;
                         options.getcanon = TRUE;
                         options.defaultptn = FALSE;   ///// 1.badan in FALSE SHAVAD, 2.COULR AVALI TARIF SHAD, 3.lab o ptn initialize shavand
 
-                        nauty( g, lab, ptn, NULL, orbits, &options, &stats, workspace, 50, m, n+1, gi);				
+                        nauty( g, lab, ptn, NULL, orbits, &options, &stats, workspace, 50, m, n+1, gi);
 
                         for (i = 0; i < n+1; i++)
                             l[lab[i]] = i;
@@ -662,7 +658,7 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
 /*****************************************************************************/
 
             else
-            {		        						                   								
+            {
                 if( colours != reject)
                 {
                     epairorbit1[0] = 0;
@@ -682,7 +678,7 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
                                 j = FIRSTBITNZ(y);
 
                                 edge1[numedge].first = i;
-                                edge1[numedge].sec = j;	
+                                edge1[numedge].sec = j;
                                 edge1[numedge].fn = (g[i] & (~bit[j]) );
                                 edge1[numedge].sn = (g[j] & (~bit[i]) );
                                 edge1[numedge].intersect = ( (g[i] & g[j]) != 0 ) ;
@@ -694,7 +690,7 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
                         }
 
                         for (e1 = 0; e1 < numedge; e1++)
-                        {						
+                        {
                             i1 = edge1[e1].first;
                             j1 = edge1[e1].sec;
                             gi1 = edge1[e1].fn;
@@ -740,7 +736,7 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
                                         }
 
 
-                                        rely = got_one = 0;						
+                                        rely = got_one = 0;
                                         if( mult > multm  )
                                         {
                                             if(  edge1[e1].cond   &&   edge1[e2].cond )
@@ -755,8 +751,8 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
                                                 }
                                                 if(  !( (bit[i1]&yi[i]) && (bit[j1]&yi[i]) )    &&   !( (bit[i2]&yi[i]) && (bit[j2]&yi[i]) )   )
                                                 {
-                                                    rely++;  							                                  								
-                                                    if(  mult > multar1[n-i]  &&  multar1[n-i] != 0 )	
+                                                    rely++;
+                                                    if(  mult > multar1[n-i]  &&  multar1[n-i] != 0 )
                                                         got_one = 1;
                                                 }
                                             }
@@ -773,10 +769,10 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
                                             numpair1++;
                                         }
 
-                                    }						
+                                    }
 
-                            }	
-                        }													                    								
+                            }
+                        }
 
                         pepair = epair1;
                         pedge = edge1;
@@ -789,10 +785,10 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
 
                     if( colours == accept )
                     {
-                        options.userautomproc = userautom1;			
+                        options.userautomproc = userautom1;
                         options.getcanon = FALSE;
                         options.defaultptn = FALSE;
-                        nauty(g, lab, ptn, NULL, orbits, &options, &stats, workspace, 50, m, n+1, NULL); 	
+                        nauty(g, lab, ptn, NULL, orbits, &options, &stats, workspace, 50, m, n+1, NULL);
                         if( connec1 )
                         {
                             conf = TRUE;
@@ -802,9 +798,9 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
                         extend(n+1, g, edge1, epair1, numpair1, epairorbit1, multar1, zar1, col00w1, conf);
                     }
                     else
-                    {												
+                    {
                         for (i = 0; i < numdovi; i++)
-                         	doviorbit[i] = i ;
+                          doviorbit[i] = i ;
 
                         pdoviorbit = doviorbit;
                         pdovi = dovi;
@@ -815,7 +811,7 @@ extend(int n, graph *g, edgestruct *edge, pairstruct *epair, int numpair,
                         options.userautomproc = userautom3;
                         options.getcanon = TRUE;
                         options.defaultptn = FALSE;
-                        nauty( g, lab, ptn, 0, orbits, &options, &stats, workspace, 50, m, n+1, gi);  	
+                        nauty( g, lab, ptn, 0, orbits, &options, &stats, workspace, 50, m, n+1, gi);
                         for (i = 0; i < n+1; i++)
                             l[lab[i]]=i;
 
@@ -957,7 +953,7 @@ userautom1(int count, int *perm, int *orbits, int numorbits, int stabvertex, int
 
         e1 = pantiedge[vn1][vn2];
         e2 = pantiedge[vn3][vn4];
-        epairperm[i] = pantipair[e1][e2];  			
+        epairperm[i] = pantipair[e1][e2];
     }
     orbjoin(pepairorbit,epairperm,*pnumpair);
 }
@@ -971,7 +967,7 @@ userautom1(int count, int *perm, int *orbits, int numorbits, int stabvertex, int
 static void
 userautom2(int count, int *perm, int *orbits, int numorbits, int stabvertex, int n)
 {
-    int 	doviperm[3*MAXN];
+    int doviperm[3*MAXN];
     int             vn1, vn2, vn3, vn4, vnb, i, etmp;
 
     for (i = 0; i < *pCNT; i++)
@@ -1004,11 +1000,11 @@ userautom2(int count, int *perm, int *orbits, int numorbits, int stabvertex, int
             etmp = vn2;
             vn2 = vn4;
             vn4 = etmp;
-        }			
+        }
 
-        doviperm[i] = pantidovi[vnb][vn2]; 	
-    } 						 		
-    orbjoin(pdoviorbit,doviperm,*pCNT); 										
+        doviperm[i] = pantidovi[vnb][vn2];
+    }
+    orbjoin(pdoviorbit,doviperm,*pCNT);
 }
 
 /*****************************************************************************
@@ -1021,8 +1017,8 @@ static void
 userautom3( int count, int *perm, int *orbits, int numorbits, int stabvertex, int n)
 {
 
-    int 	doviperm[3*MAXN], epairperm[MAXP];
-    int             vn1, vn2, vn3, vn4, vnb, i, etmp, e1, e2;
+    int doviperm[3*MAXN], epairperm[MAXP];
+    int vn1, vn2, vn3, vn4, vnb, i, etmp, e1, e2;
 
     for (i = 0; i < *pCNT; i++)
     {
@@ -1055,10 +1051,10 @@ userautom3( int count, int *perm, int *orbits, int numorbits, int stabvertex, in
             vn4 = etmp;
         }
 
-        doviperm[i] = pantidovi[vnb][vn2];  	
+        doviperm[i] = pantidovi[vnb][vn2];
 
-    }					 		
-    orbjoin(pdoviorbit,doviperm,*pCNT);		
+    }
+    orbjoin(pdoviorbit,doviperm,*pCNT);
 
     epairperm[0] = 0;
     for (i = 1; i < *pnumpair; i++)
@@ -1099,7 +1095,7 @@ userautom3( int count, int *perm, int *orbits, int numorbits, int stabvertex, in
         e2 = pantiedge[vn3][vn4];
         epairperm [i] = pantipair[e1][e2];
     }
-    orbjoin(pepairorbit,epairperm,*pnumpair);   		
+    orbjoin(pepairorbit,epairperm,*pnumpair);
 }
 
 /*****************************************************************************
@@ -1112,32 +1108,32 @@ userautom3( int count, int *perm, int *orbits, int numorbits, int stabvertex, in
 static int
 init_refinex( int *clr, int *lb, int *p, set *active, int n)
 {
-    register int	i, j, ci, ncell;
-	
-	ncell = 1;
-	*active = bit[0];
+    register int i, j, ci, ncell;
+
+        ncell = 1;
+        *active = bit[0];
     for (i = 0; i < n; i++)
-	{
+        {
         ci = clr[i];
         for (j = i-1; (j >= 0)  &&    (clr[lb[j]] > ci) ; j--)
             lb[j+1] = lb[j];
         lb[j+1] = i;
     }
-	lb[n] = n;
+        lb[n] = n;
     for (i = 0; i < n; i++)
-	{
+        {
         if( clr[lb[i]] != clr[lb[i+1]] )
-		{
-			p[i] = 0;
-			ncell++;
-			*active |= bit[i+1];
-		}
-		else
-			p[i] = 1;
+                {
+                        p[i] = 0;
+                        ncell++;
+                        *active |= bit[i+1];
+                }
+                else
+                        p[i] = 1;
 
     }
-	p[n] = 0;
-	return ncell;
+        p[n] = 0;
+        return ncell;
 }
 
 /*****************************************************************************
@@ -1288,13 +1284,13 @@ refinex(graph *g, int *lab, int *ptn, int level, int *numcells, int *count,
 int main(int argc, char *argv[])
 {
     //argc = #entered arguments by the user + 1;
-    int 	n, cntr, numpair, numedge, i, j, i1, i2, j1, j2, multm, e1, e2, argnum, sw; //char  sw??
+    int  n, cntr, numpair, numedge, i, j, i1, i2, j1, j2, multm, e1, e2, argnum, sw; //char  sw??
     int         multar[MAXN], col00w[MAXN], epairorbit[MAXP], lab[MAXN], ptn[MAXN], orbits[MAXN];
-    int 	antipair[MAXE][MAXE], antiedge[MAXN][MAXN];
-    setword 	x;
-    pairstruct 	epair[MAXP];
-    edgestruct  edge[MAXE];	
-    graph 	g[MAXN];
+    int  antipair[MAXE][MAXE], antiedge[MAXN][MAXN];
+    setword  x;
+    pairstruct  epair[MAXP];
+    edgestruct  edge[MAXE];
+    graph  g[MAXN];
     double      timebefore, timeafter;
     setword     zar[MAXN];
     boolean     badargs, gotf, gotmr, quiet;
@@ -1469,9 +1465,9 @@ int main(int argc, char *argv[])
 
     if (header)
     {
-	if (SPARSE6)
+        if (SPARSE6)
             writeline(outfile,SPARSE6_HEADER);        // No enter after the header is ok?
-	else
+        else
             writeline(outfile,GRAPH6_HEADER);
         fflush(outfile);
     }
@@ -1596,12 +1592,12 @@ int main(int argc, char *argv[])
 
     if (!quiet)
     {
-	if (nooutput)
-	    fprintf(stderr,">Z " COUNTER_FMT " graphs generated in %3.2f seconds\n",
-		numwritten,timeafter-timebefore);
-	else
-	    fprintf(stderr,">Z " COUNTER_FMT " graphs written to %s in %3.2f seconds\n",
-		numwritten,outfilename,timeafter-timebefore);
+        if (nooutput)
+            fprintf(stderr,">Z " COUNTER_FMT " graphs generated in %3.2f seconds\n",
+                numwritten,timeafter-timebefore);
+        else
+            fprintf(stderr,">Z " COUNTER_FMT " graphs written to %s in %3.2f seconds\n",
+                numwritten,outfilename,timeafter-timebefore);
     }
 
     exit(0);

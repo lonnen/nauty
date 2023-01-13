@@ -1,5 +1,5 @@
 1-12:2 
- 1 cell; code = 3; cpu time = 0.0000000 seconds
+ 1 cell; code = 3; cpu time = 0.0000010 seconds
 unit partition
 (2 12)(3 11)(4 10)(5 9)(6 8)
 level 2:  7 orbits; 5 fixed; index 2

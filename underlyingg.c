@@ -111,19 +111,6 @@ main(int argc, char *argv[])
         gt_abort(NULL);
     }
 
-/*
-    if      (codetype&SPARSE6)  outcode = SPARSE6;
-    else if (codetype&DIGRAPH6) outcode = DIGRAPH6;
-    else                        outcode = GRAPH6;
-
-    if (codetype&HAS_HEADER)
-    {
-        if (outcode == SPARSE6)       writeline(outfile,SPARSE6_HEADER);
-        else if (outcode == DIGRAPH6) writeline(outfile,DIGRAPH6_HEADER);
-        else          	              writeline(outfile,GRAPH6_HEADER);
-    }
-*/
-
     gtools_check(WORDSIZE,1,1,NAUTYVERSIONID);
 
     nin = 0;
@@ -134,12 +121,12 @@ main(int argc, char *argv[])
         ++nin;
 
         if (!digraph)
-	    writelast(outfile);
+            writelast(outfile);
         else
         {
-	    underlying(g,m,n);
-	    writes6(outfile,g,m,n);
-	}
+            underlying(g,m,n);
+            writes6(outfile,g,m,n);
+        }
         FREES(g);
     }
     t = CPUTIME - t;

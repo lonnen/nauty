@@ -1,7 +1,7 @@
 /******************************************************************************
  *                                                                            *
  * This is the header file for traces() version 2.2, which is included into   *
- *   nauty() version 2.7.                                                     *
+ *   nauty() version 2.8.6.                                                   *
  *                                                                            *
  *   nauty is Copyright (1984-2018) Brendan McKay.  All rights reserved.      *
  *   Traces is Copyright Adolfo Piperno, 2008-2018.  All rights reserved.     *
@@ -21,7 +21,10 @@
  *       01-Sep-15 : add weighted edges (not active)                          *
  *       28-Jan-16 : version ready for nauty and Traces v.2.6 distribution    *
  *       12-Jul-16 : bug correction (reaching degree 2 vertices)              *
-*****************************************************************************/
+ *       07-Jun-18 : bug correction (finalnumcells, thanks R.Kralovic)        *
+ *       07-Jun-18 : bug correction (index computation when findperm)         *
+ *       10-Nov-22 : bug correction (cycles in degree 2 subgraphs)            *
+******************************************************************************/
 
 #include "gtools.h"
 #include "schreier.h" 

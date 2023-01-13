@@ -5,6 +5,8 @@
  * Unix-style compilation command would be:
      gcc -o callgeng -O3 -DMAXN=WORDSIZE -DOUTPROC=myoutproc -DGENG_MAIN=geng_main \
        callgeng.c geng.c nauty.a
+ * You will get best performance if you add machine-specific optimization arguments
+ * such as -march=native.
  */
 
 #include "gtools.h"
@@ -25,25 +27,29 @@ GENG_MAIN(int argc, char *argv[]);
 int
 main(int argc, char *argv[])
 {
-    int geng_argc;
-    char *geng_argv[6];
+    int n,geng_argc;
+    char nstring[6]; /* string to put n into */
+    char *geng_argv[6]; /* At least one bigger than geng_argc. */
 
   /* Set up geng argument list.  The 0-th argument is the command name.
    * There must be a NULL at the end.  This example is for connected
-   * bipartite graphs of order 10 and maximum degree at most 4. */
+   * bipartite graphs of maximum degree at most 4 for 3-10 vertices. */
 
-    geng_argv[0] = "geng";
-    geng_argv[1] = "-q";
-    geng_argv[2] = "-cb";
-    geng_argv[3] = "-D4";
-    geng_argv[4] = "10";
-    geng_argv[5] = NULL;
-    geng_argc = 5;
+    for (n = 3; n <= 10; ++n)
+    {
+        sprintf(nstring,"%d",n);
+        geng_argv[0] = "geng";
+        geng_argv[1] = "-q";    /* stops geng writing stuff to stderr */
+        geng_argv[2] = "-cb";
+        geng_argv[3] = "-D4";
+        geng_argv[4] = nstring;
+        geng_argv[5] = NULL;
+        geng_argc = 5;
 
-    counter = 0;
-    GENG_MAIN(geng_argc,geng_argv);
+        counter = 0;
+        GENG_MAIN(geng_argc,geng_argv);
+        printf("Number of graphs with %d vertices = %lu.\n",n,counter);
+    }
 
-    printf("Number of graphs = %lu.\n",counter);
-
-    return 0;
+    exit(0);
 }

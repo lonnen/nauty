@@ -137,7 +137,7 @@ static TLS_ATTR int invarsuclevel;
  /* working variables: <the "bsf leaf" is the leaf which is best guess so
                             far at the canonical leaf>  */
 static TLS_ATTR int gca_first, /* level of greatest common ancestor of
-				  current node and first leaf */
+                                  current node and first leaf */
     gca_canon,     /* ditto for current node and bsf leaf */
     noncheaplevel, /* level of greatest ancestor for which cheapautom==FALSE */
     allsamelevel,  /* level of least ancestor of first leaf for
@@ -197,7 +197,7 @@ static TLS_ATTR set active[MAXM];     /* used to contain index to cells now
 #endif
 
 static TLS_ATTR set *workspace,*worktop;  /* first and just-after-last
-		     addresses of work area to hold automorphism data */
+                     addresses of work area to hold automorphism data */
 static TLS_ATTR set *fmptr;                   /* pointer into workspace */
 
 static TLS_ATTR schreier *gp;       /* These two for Schreier computations */
@@ -501,9 +501,9 @@ nauty(graph *g_arg, int *lab, int *ptn, set *active_arg,
 #endif  
 
     if (retval == NAUTY_ABORTED)
-	stats->errstatus = NAUABORTED;
+        stats->errstatus = NAUABORTED;
     else if (retval == NAUTY_KILLED)
-	stats->errstatus = NAUKILLED;
+        stats->errstatus = NAUKILLED;
     else
     {
         if (getcanon)
@@ -532,8 +532,8 @@ nauty(graph *g_arg, int *lab, int *ptn, set *active_arg,
 
     if (doschreier)
     {
-	freeschreier(&gp,&gens);
-	if (n >= 320) schreier_freedyn();
+        freeschreier(&gp,&gens);
+        if (n >= 320) schreier_freedyn();
     }
 }
 
@@ -623,14 +623,14 @@ firstpathnode(int *lab, int *ptn, int level, int numcells)
     {
         firstterminal(lab,level);
         OPTCALL(userlevelproc)(lab,ptn,level,orbits,stats,0,1,1,n,0,n);
-	if (getcanon && usercanonproc != NULL)
-	{
+        if (getcanon && usercanonproc != NULL)
+        {
             (*dispatch.updatecan)(g,canong,canonlab,samerows,M,n);
             samerows = n;
-	    if ((*usercanonproc)(g,canonlab,canong,stats->canupdates,
+            if ((*usercanonproc)(g,canonlab,canong,stats->canupdates,
                                 (int)canoncode[level],M,n))
-	        return NAUTY_ABORTED;
-	}
+                return NAUTY_ABORTED;
+        }
         return level-1;
     }
 
@@ -844,9 +844,9 @@ othernode(int *lab, int *ptn, int level, int numcells)
         }
         if (tv == tv1)
         {
-	    longprune(tcell,fixedpts,workspace,fmptr,M);
-	    if (doschreier) pruneset(fixedpts,gp,&gens,tcell,M,n);
-	}
+            longprune(tcell,fixedpts,workspace,fmptr,M);
+            if (doschreier) pruneset(fixedpts,gp,&gens,tcell,M,n);
+        }
 
         recover(ptn,level);
     }
@@ -1021,14 +1021,14 @@ processnode(int *lab, int *ptn, int level, int numcells)
         comp_canon = 0;
         canoncode[level+1] = 077777;
         samerows = sr;
-	if (getcanon && usercanonproc != NULL)
-	{
+        if (getcanon && usercanonproc != NULL)
+        {
             (*dispatch.updatecan)(g,canong,canonlab,samerows,M,n);
             samerows = n;
-	    if ((*usercanonproc)(g,canonlab,canong,stats->canupdates,
+            if ((*usercanonproc)(g,canonlab,canong,stats->canupdates,
                                 (int)canoncode[level],M,n))
-	        return NAUTY_ABORTED;
-	}
+                return NAUTY_ABORTED;
+        }
         break;
 
     case 4:                /* non-automorphism terminal node */
@@ -1175,6 +1175,14 @@ nauty_check(int wordsize, int m, int n, int version)
         fprintf(ERRFILE,"Error: nauty.c version mismatch\n");
         exit(1);
     }
+
+#if !HAVE_TLS
+    if ((version & 1))
+    {
+        fprintf(ERRFILE,
+          "*** Warning: program with TLS calling nauty without TLS ***\n");
+    }
+#endif
 }
 
 /*****************************************************************************

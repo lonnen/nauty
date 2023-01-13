@@ -21,7 +21,7 @@
     -e#   : empty graph (digraph with loops only) on n vertices.\n\
     -k#   : complete graph (with loops) on n vertices\n\
     -b#,#[,#] : complete bipartite graph (directed l->r) on n vertices\n\
-	           minus a matching of given size if present\n\
+                   minus a matching of given size if present\n\
     -f#   : flower snark on 4*# vertices\n\
     -P#,# : generalized Petersen graph; usual one is -P5,2\n\
     -Q#   : hypercube on 2^n vertices and degree n.\n\
@@ -80,13 +80,13 @@ writedread(FILE *f, sparsegraph *sg, boolean digraph)
 
     for (i = 0; i < n; ++i)
     {
-	for (j = 0; j < d[i]; ++j)
+        for (j = 0; j < d[i]; ++j)
         {
-	    k = e[v[i]+j];
-	    if (k >= i || digraph) fprintf(f," %d",k);
-	}
-	if (i == n-1) fprintf(f,".\n$$\n");
-	else          fprintf(f,";\n");
+            k = e[v[i]+j];
+            if (k >= i || digraph) fprintf(f," %d",k);
+        }
+        if (i == n-1) fprintf(f,".\n$$\n");
+        else          fprintf(f,";\n");
     }
 } 
 
@@ -182,36 +182,36 @@ makepath(long n, boolean digraph, sparsegraph *sg)
 
     if (digraph || n == 1)
     {
-	sg->nv = n;
-	sg->nde = n-1;
+        sg->nv = n;
+        sg->nde = n-1;
 
-	for (i = 0; i < n-1; ++i)
+        for (i = 0; i < n-1; ++i)
         {
-	    d[i] = 1;
-	    v[i] = i;
-	    e[i] = i+1;
+            d[i] = 1;
+            v[i] = i;
+            e[i] = i+1;
         }
-	d[n-1] = 0;
-	v[n-1] = 0;
+        d[n-1] = 0;
+        v[n-1] = 0;
     }
     else
     {
-	sg->nv = n;
-	sg->nde = 2*n-2;
+        sg->nv = n;
+        sg->nde = 2*n-2;
 
-	d[0] = 1;
-	v[0] = 0;
-	e[0] = 1;
-	for (i = 1, k = 1; i < n-1; ++i, k += 2)
-	{
-	    d[i] = 2;
-	    v[i] = k;
-	    e[k] = i-1;
-	    e[k+1] = i+1;
-	}
-	d[n-1] = 1;
-	v[n-1] = k;
-	e[k] = n-2;
+        d[0] = 1;
+        v[0] = 0;
+        e[0] = 1;
+        for (i = 1, k = 1; i < n-1; ++i, k += 2)
+        {
+            d[i] = 2;
+            v[i] = k;
+            e[k] = i-1;
+            e[k+1] = i+1;
+        }
+        d[n-1] = 1;
+        v[n-1] = k;
+        e[k] = n-2;
     }
 }
 
@@ -235,40 +235,40 @@ makecycle(long n, boolean digraph, sparsegraph *sg)
 
     if (digraph || n == 1)
     {
-	sg->nv = n;
-	sg->nde = n;
+        sg->nv = n;
+        sg->nde = n;
 
-	for (i = 0; i < n-1; ++i)
+        for (i = 0; i < n-1; ++i)
         {
-	    d[i] = 1;
-	    v[i] = i;
-	    e[i] = i+1;
+            d[i] = 1;
+            v[i] = i;
+            e[i] = i+1;
         }
-	d[n-1] = 1;
-	v[n-1] = n-1;
-	e[n-1] = 0;
+        d[n-1] = 1;
+        v[n-1] = n-1;
+        e[n-1] = 0;
     }
     else
     {
-	sg->nv = n;
-	sg->nde = 2UL*n;
+        sg->nv = n;
+        sg->nde = 2UL*n;
 
-	d[0] = 2;
-	v[0] = 0;
-	e[0] = 1;
-	e[1] = n-1;
+        d[0] = 2;
+        v[0] = 0;
+        e[0] = 1;
+        e[1] = n-1;
 
-	for (i = 1; i < n-1; ++i)
+        for (i = 1; i < n-1; ++i)
         {
-	    d[i] = 2;
-	    v[i] = 2UL*i;
-	    e[2UL*i] = i-1;
-	    e[2UL*i+1] = i+1;
+            d[i] = 2;
+            v[i] = 2UL*i;
+            e[2UL*i] = i-1;
+            e[2UL*i+1] = i+1;
         }
-	d[n-1] = 2;
-	v[n-1] = 2UL*n-2;
-	e[2UL*n-2] = 0;
-	e[2UL*n-1] = n-2;
+        d[n-1] = 2;
+        v[n-1] = 2UL*n-2;
+        e[2UL*n-2] = 0;
+        e[2UL*n-1] = n-2;
     }
 }
 
@@ -311,7 +311,7 @@ makeflowersnark(long k, boolean digraph, sparsegraph *sg)
 
     for (i = 0; i < n; ++i)
     {
-	d[i] = 0;
+        d[i] = 0;
         v[i] = 3*(size_t)i;
     }
 
@@ -328,20 +328,20 @@ makeflowersnark(long k, boolean digraph, sparsegraph *sg)
     for (i = 0; i < k; ++i)
     {
         j = FSB((i+1)%k);
-	e[v[FSB(i)]+d[FSB(i)]++] = j;
-	e[v[j]+d[j]++] = FSB(i);
+        e[v[FSB(i)]+d[FSB(i)]++] = j;
+        e[v[j]+d[j]++] = FSB(i);
     }
 
     for (i = 0; i < k-1; ++i)
     {
-	e[v[FSC(i)]+d[FSC(i)]++] = FSC(i+1);
-	e[v[FSC(i+1)]+d[FSC(i+1)]++] = FSC(i);
+        e[v[FSC(i)]+d[FSC(i)]++] = FSC(i+1);
+        e[v[FSC(i+1)]+d[FSC(i+1)]++] = FSC(i);
     }
 
     for (i = 0; i < k-1; ++i)
     {
-	e[v[FSD(i)]+d[FSD(i)]++] = FSD(i+1);
-	e[v[FSD(i+1)]+d[FSD(i+1)]++] = FSD(i);
+        e[v[FSD(i)]+d[FSD(i)]++] = FSD(i+1);
+        e[v[FSD(i+1)]+d[FSD(i+1)]++] = FSD(i);
     }
 
     e[v[FSD(0)]+d[FSD(0)]++] = FSC(k-1);
@@ -378,36 +378,36 @@ makeJohnson(long n, long k, boolean digraph, sparsegraph *sg)
 
     for (i = 0; i < nv; ++i)
     {
-	v[i] = i*(size_t)deg;
-	d[i] = deg;
-	ep = e + v[i];
-	unrank(i,k,a);
+        v[i] = i*(size_t)deg;
+        d[i] = deg;
+        ep = e + v[i];
+        unrank(i,k,a);
 //{int x;for(x=0;x<k;++x)printf(" %d",a[x]);printf("\n");}
-	RESETMARKS;
-	for (j = 0; j < k; ++j) MARK(a[j]);
+        RESETMARKS;
+        for (j = 0; j < k; ++j) MARK(a[j]);
 
-	for (j = 0; j < n; ++j)
-	if (ISNOTMARKED(j))
-	{
-	    for (s = 0; s < k; ++s)
-	    {
-		for (t = 0; t < k; ++t) b[t] = a[t];
-		u = s;
-		while (u > 0 && b[u-1] > j)
-		{
-		    b[u] = b[u-1];
-		    --u;
-		}
-		while (u < k-1 && b[u+1] < j)
-		{
-		    b[u] = b[u+1];
-		    ++u;
-		}
-		b[u] = j;
+        for (j = 0; j < n; ++j)
+        if (ISNOTMARKED(j))
+        {
+            for (s = 0; s < k; ++s)
+            {
+                for (t = 0; t < k; ++t) b[t] = a[t];
+                u = s;
+                while (u > 0 && b[u-1] > j)
+                {
+                    b[u] = b[u-1];
+                    --u;
+                }
+                while (u < k-1 && b[u+1] < j)
+                {
+                    b[u] = b[u+1];
+                    ++u;
+                }
+                b[u] = j;
 //{int x;printf("-");for(x=0;x<k;++x)printf(" %d",b[x]);printf(" (%d)\n",rank(k,b));}
-		*(ep++) = rank(k,b);
-	    }
-	}
+                *(ep++) = rank(k,b);
+            }
+        }
     }
 }
 
@@ -430,25 +430,25 @@ makecomplete(long n, boolean digraph, sparsegraph *sg)
     if (digraph)
     {
         sg->nv = n;
-	sg->nde = n*(size_t)n;
+        sg->nde = n*(size_t)n;
 
-	for (i = 0, k = 0; i < n; ++i, k += n)
-	{
-	    d[i] = n;
-	    v[i] = k;
-	    for (j = 0; j < n; ++j) e[k+j] = j;
+        for (i = 0, k = 0; i < n; ++i, k += n)
+        {
+            d[i] = n;
+            v[i] = k;
+            for (j = 0; j < n; ++j) e[k+j] = j;
         }
     }
     else
     {
         sg->nv = n;
-	sg->nde = n*(size_t)(n-1);
+        sg->nde = n*(size_t)(n-1);
 
-	for (i = 0, k = 0; i < n; ++i)
-	{
-	    d[i] = n-1;
-	    v[i] = k;
-	    for (j = 0; j < n; ++j)
+        for (i = 0, k = 0; i < n; ++i)
+        {
+            d[i] = n-1;
+            v[i] = k;
+            for (j = 0; j < n; ++j)
                if (j != i) e[k++] = j;
         }
     }
@@ -473,24 +473,24 @@ makeempty(long n, boolean digraph, sparsegraph *sg)
     if (digraph)
     {
         sg->nv = n;
-	sg->nde = n;
+        sg->nde = n;
 
-	for (i = 0; i < n; ++i)
-	{
-	    d[i] = 1;
-	    v[i] = i;
-	    e[i] = i;
+        for (i = 0; i < n; ++i)
+        {
+            d[i] = 1;
+            v[i] = i;
+            e[i] = i;
         }
     }
     else
     {
         sg->nv = n;
-	sg->nde = 0;
+        sg->nde = 0;
 
-	for (i = 0; i < n; ++i)
-	{
-	    d[i] = 0;
-	    v[i] = 0;
+        for (i = 0; i < n; ++i)
+        {
+            d[i] = 0;
+            v[i] = 0;
         }
     }
 }
@@ -518,9 +518,9 @@ makehypercube(long deg, boolean digraph, sparsegraph *sg)
 
     for (i = 0, k = 0; i < nv; ++i, k += deg)
     {
-	d[i] = deg;
-	v[i] = k;
-	for (j = 0; j < deg; ++j) e[k+j] = i ^ (1<<j);
+        d[i] = deg;
+        v[i] = k;
+        for (j = 0; j < deg; ++j) e[k+j] = i ^ (1<<j);
     }
 }
 
@@ -538,21 +538,21 @@ maketheta(long *len, int npaths, boolean digraph, sparsegraph *sg)
     ne = 0;
     for (i = 0; i < npaths; ++i)
     {
-	if (len[i] < 1)
-	    gt_abort(">E genspecialg: -T paths must be at least length 1\n");
-	if (len[i] == 1)
-	{
-	    if (hasone) gt_abort(
+        if (len[i] < 1)
+            gt_abort(">E genspecialg: -T paths must be at least length 1\n");
+        if (len[i] == 1)
+        {
+            if (hasone) gt_abort(
                   ">E genspecialg: -T only one path of length 1 allowed\n");
-	    hasone = TRUE;
-	}
-	ntemp = n;
-	n += len[i]-1;
-	if (n < ntemp)
-	    gt_abort(">E genspecialg: -T too many vertices\n");
-	etemp = ne;
-	ne += len[i];
-	if (ne < etemp) gt_abort(">E genspecialg: -T too many edges\n");
+            hasone = TRUE;
+        }
+        ntemp = n;
+        n += len[i]-1;
+        if (n < ntemp)
+            gt_abort(">E genspecialg: -T too many vertices\n");
+        etemp = ne;
+        ne += len[i];
+        if (ne < etemp) gt_abort(">E genspecialg: -T too many edges\n");
     }
 
     if (n > NAUTY_INFINITY-2)
@@ -560,9 +560,9 @@ maketheta(long *len, int npaths, boolean digraph, sparsegraph *sg)
 
     if (!digraph)
     {
-	etemp = ne;
-	ne *= 2;
-	if (ne < etemp) gt_abort(">E genspecialg: -T too many edges\n");
+        etemp = ne;
+        ne *= 2;
+        if (ne < etemp) gt_abort(">E genspecialg: -T too many edges\n");
     }
 
     SG_ALLOC(*sg,n,ne,"genspecialg");
@@ -574,39 +574,39 @@ maketheta(long *len, int npaths, boolean digraph, sparsegraph *sg)
     v[1] = npaths;
     if (digraph)
     {
-	v[2] = v[1];
-	for (i = 3; i < n; ++i) v[i] = v[i-1] + 1;
+        v[2] = v[1];
+        for (i = 3; i < n; ++i) v[i] = v[i-1] + 1;
     }
     else
     {
-	v[2] = v[1] + npaths;
-	for (i = 3; i < n; ++i) v[i] = v[i-1] + 2;
+        v[2] = v[1] + npaths;
+        for (i = 3; i < n; ++i) v[i] = v[i-1] + 2;
     }
 
     for (i = 0; i < n; ++i) d[i] = 0;
 
     if (hasone)
     {
-	e[v[0]+(d[0]++)] = 1;
-	if (!digraph) e[v[1]+(d[1]++)] = 0;
+        e[v[0]+(d[0]++)] = 1;
+        if (!digraph) e[v[1]+(d[1]++)] = 0;
     }
 
     k = 2;
     for (i = 0; i < npaths; ++i)
     {
-	if (len[i] == 1) continue;
+        if (len[i] == 1) continue;
 
-	e[v[0]+(d[0]++)] = k;
-	if (!digraph) e[v[k]+(d[k]++)] = 0;
-	
-	for (j = 0; j < len[i]-2; ++j)
-	{
-	    e[v[k]+(d[k]++)] = k+1;
-	    if (!digraph) e[v[k+1]+(d[k+1]++)] = k;
-	    ++k;
-	}
-	e[v[k]+(d[k]++)] = 1;
-	if (!digraph) e[v[1]+(d[1]++)] = k;
+        e[v[0]+(d[0]++)] = k;
+        if (!digraph) e[v[k]+(d[k]++)] = 0;
+        
+        for (j = 0; j < len[i]-2; ++j)
+        {
+            e[v[k]+(d[k]++)] = k+1;
+            if (!digraph) e[v[k+1]+(d[k+1]++)] = k;
+            ++k;
+        }
+        e[v[k]+(d[k]++)] = 1;
+        if (!digraph) e[v[1]+(d[1]++)] = k;
         ++k;
     }
 }
@@ -627,18 +627,18 @@ makegrid(long *dim, int ndim, boolean digraph, sparsegraph *sg)
     {
         if (dim[i] >= -1 && dim[i] <= 1)
             gt_abort(">E genspecialg: -G dimensions must be at least 2\n");
-	if (dim[i] == 2 && !digraph)
+        if (dim[i] == 2 && !digraph)
             gt_abort(">E genspecialg: -G dimen 2 is only ok for digraphs\n");
 
-	closed[i] = (dim[i] > 0);
-	if (dim[i] < 0) dim[i] = -dim[i];
+        closed[i] = (dim[i] > 0);
+        if (dim[i] < 0) dim[i] = -dim[i];
 
-	oldn = n;
+        oldn = n;
         n *= dim[i];
-	if (n < 0 || n / dim[i] != oldn)
-	    gt_abort(">E genspecialg: -G size is too big\n");
+        if (n < 0 || n / dim[i] != oldn)
+            gt_abort(">E genspecialg: -G size is too big\n");
 
-	if (digraph || dim[i] == 2) ++deg;
+        if (digraph || dim[i] == 2) ++deg;
         else                        deg += 2;
 
         index[i] = 0;
@@ -657,47 +657,47 @@ makegrid(long *dim, int ndim, boolean digraph, sparsegraph *sg)
     k = 0;
     for (i = 0; i < n; ++i)
     {
-	v[i] = k;
-	for (j = 0; j < ndim; ++j)
-	{
-	    if (index[j] < dim[j]-1)
-	    {
-		++index[j];
-		e[k++] = vnumber(dim,index,ndim);
-		--index[j];
-	    }
-	    if (!digraph && index[j] > 0)
-	    {
-		--index[j];
-		e[k++] = vnumber(dim,index,ndim);
-		++index[j];
-	    }
-	    if (closed[j] && index[j] == dim[j]-1)
-	    {
-		index[j] = 0;
-		e[k++] = vnumber(dim,index,ndim);
-		index[j] = dim[j]-1;
-	    }
-	    if (closed[j] && !digraph && index[j] == 0)
-	    {
-		index[j] = dim[j]-1;
-		e[k++] = vnumber(dim,index,ndim);
-		index[j] = 0;
-	    }
-	}
+        v[i] = k;
+        for (j = 0; j < ndim; ++j)
+        {
+            if (index[j] < dim[j]-1)
+            {
+                ++index[j];
+                e[k++] = vnumber(dim,index,ndim);
+                --index[j];
+            }
+            if (!digraph && index[j] > 0)
+            {
+                --index[j];
+                e[k++] = vnumber(dim,index,ndim);
+                ++index[j];
+            }
+            if (closed[j] && index[j] == dim[j]-1)
+            {
+                index[j] = 0;
+                e[k++] = vnumber(dim,index,ndim);
+                index[j] = dim[j]-1;
+            }
+            if (closed[j] && !digraph && index[j] == 0)
+            {
+                index[j] = dim[j]-1;
+                e[k++] = vnumber(dim,index,ndim);
+                index[j] = 0;
+            }
+        }
 
         d[i] = k - v[i];
 
-	for (j = ndim; --j >= 0;)
-	{
-	    if (index[j] != dim[j]-1)
-	    {
-		++index[j];
-		break;
-	    }
-	    else
-		index[j] = 0;
-	}
+        for (j = ndim; --j >= 0;)
+        {
+            if (index[j] != dim[j]-1)
+            {
+                ++index[j];
+                break;
+            }
+            else
+                index[j] = 0;
+        }
     }
 }
 
@@ -713,25 +713,25 @@ makecirculant(long n, long *conn, int nconn, boolean digraph, sparsegraph *sg)
         gt_abort(">E genspecialg: -C connections must be nonzero\n");
 
     for (i = 1; i < nconn; ++i)
-	if (conn[i] <= conn[i-1])
-	    gt_abort(">E genspecialg: -C connections must be increasing\n");
+        if (conn[i] <= conn[i-1])
+            gt_abort(">E genspecialg: -C connections must be increasing\n");
 
     if (nconn == 0)
-	deg = 0;
+        deg = 0;
     else
     {
         if (digraph)
-	{
-	    if (conn[nconn-1] >= n) gt_abort(
+        {
+            if (conn[nconn-1] >= n) gt_abort(
                  ">E genspecialg: -C connections must be 1..n-1\n");
-	    deg = nconn;
-	}
-	else
+            deg = nconn;
+        }
+        else
         {
             if (conn[nconn-1] > n/2) gt_abort(
                  ">E genspecialg: -C connections must be 1..n/2\n");
-	    deg = 2*nconn - (2*conn[nconn-1]==n);
-	}
+            deg = 2*nconn - (2*conn[nconn-1]==n);
+        }
     }
 
     SG_ALLOC(*sg,n,deg*n,"genspecialg");
@@ -743,18 +743,18 @@ makecirculant(long n, long *conn, int nconn, boolean digraph, sparsegraph *sg)
     for (i = 0; i < n; ++i)
     {
         d[i] = deg;
-	v[i] = deg*(size_t)i;
+        v[i] = deg*(size_t)i;
     }
  
     for (i = 0; i < n; ++i)
     {
-	k = v[i];
-	for (j = 0; j < nconn; ++j)
-	{
-	    e[k++] = (i + conn[j]) % n;
-	    if (!digraph && 2*conn[j] != n)
-		e[k++] = (i - conn[j] + n) % n;
-	}
+        k = v[i];
+        for (j = 0; j < nconn; ++j)
+        {
+            e[k++] = (i + conn[j]) % n;
+            if (!digraph && 2*conn[j] != n)
+                e[k++] = (i - conn[j] + n) % n;
+        }
     }
 }
 
@@ -770,7 +770,7 @@ makegenpetersen(long n1, long n2, boolean digraph, sparsegraph *sg)
 
     n = 2*n1;
     if (n < 1 || n1 > NAUTY_INFINITY/2-1 || n2 < 1 || 2*n2 >= n1)
-	gt_abort(">E -Pm,k needs m>0,0<k<m/2; or m too large\n");
+        gt_abort(">E -Pm,k needs m>0,0<k<m/2; or m too large\n");
 
     SG_ALLOC(*sg,n,3UL*n,"genspecialg");
 
@@ -781,23 +781,23 @@ makegenpetersen(long n1, long n2, boolean digraph, sparsegraph *sg)
     for (i = 0; i < n; ++i)
     {
         d[i] = 3;
-	v[i] = 3UL*i;
+        v[i] = 3UL*i;
     }
 
     for (i = 0; i < n1; ++i)
     {
-	k = v[i];
-	e[k] = (i + 1) % n1;
-	e[k+1] = (i + n1 - 1) % n1;
-	e[k+2] = i + n1;
+        k = v[i];
+        e[k] = (i + 1) % n1;
+        e[k+1] = (i + n1 - 1) % n1;
+        e[k+2] = i + n1;
     }
     
     for (i = 0; i < n1; ++i)
     {
-	k = v[n1+i];
-	e[k] = n1 + (i + n2) % n1;
+        k = v[n1+i];
+        e[k] = n1 + (i + n2) % n1;
         e[k+1] = n1 + (i - n2 + n1) % n1;
-	e[k+2] = i;
+        e[k+2] = i;
     }
 } 
 
@@ -812,7 +812,7 @@ makecompletebipartite(long n1, long n2,
 
     n = n1 + n2;
     if (matching > n1 || matching > n2) 
-	gt_abort(">E genspecialg: matching too large\n");
+        gt_abort(">E genspecialg: matching too large\n");
 
     if (n1 < 1 || n2 < 1 || n > NAUTY_INFINITY-2)
         gt_abort(">E genspecialg: bad argument for -b\n");
@@ -824,40 +824,40 @@ makecompletebipartite(long n1, long n2,
 
     if (digraph)
     {
-	sg->nv = n;
-	sg->nde = n1*n2 - matching;
+        sg->nv = n;
+        sg->nde = n1*n2 - matching;
 
-	for (i = 0, k = 0; i < n1; ++i)
-	{
-	    v[i] = k;
-	    jmissing = (i < matching ? n1+i : -1);
-	    for (j = n1; j < n; ++j) if (j != jmissing) e[k++] = j;
-	    d[i] = k - v[i];
-	}
-	for (i = n1; i < n; ++i)
-	{
-	    d[i] = 0;
-	    v[i] = k;
+        for (i = 0, k = 0; i < n1; ++i)
+        {
+            v[i] = k;
+            jmissing = (i < matching ? n1+i : -1);
+            for (j = n1; j < n; ++j) if (j != jmissing) e[k++] = j;
+            d[i] = k - v[i];
+        }
+        for (i = n1; i < n; ++i)
+        {
+            d[i] = 0;
+            v[i] = k;
         }
     }
     else
     {
-	sg->nv = n;
-	sg->nde = 2*(n1*n2 - matching);
+        sg->nv = n;
+        sg->nde = 2*(n1*n2 - matching);
 
-	for (i = 0, k = 0; i < n1; ++i)
-	{
-	    v[i] = k;
+        for (i = 0, k = 0; i < n1; ++i)
+        {
+            v[i] = k;
             jmissing = (i < matching ? n1+i : -1);
-	    for (j = n1; j < n; ++j) if (j != jmissing) e[k++] = j;
-	    d[i] = k - v[i];
-	}
-	for (i = n1; i < n; ++i)
-	{
-	    v[i] = k;
-	    jmissing = (i < n1+matching ? i-n1 : -1);
-	    for (j = 0; j < n1; ++j) if (j != jmissing) e[k++] = j;
-	    d[i] = k - v[i];
+            for (j = n1; j < n; ++j) if (j != jmissing) e[k++] = j;
+            d[i] = k - v[i];
+        }
+        for (i = n1; i < n; ++i)
+        {
+            v[i] = k;
+            jmissing = (i < n1+matching ? i-n1 : -1);
+            for (j = 0; j < n1; ++j) if (j != jmissing) e[k++] = j;
+            d[i] = k - v[i];
         }
     }
 }
@@ -910,12 +910,12 @@ main(int argc, char *argv[])
                 else SWBOOLEAN('q',quiet)
                 else SWBOOLEAN('v',verbose)
                 else SWLONG('p',pswitch,size,"genspecialg -p")
-		else SWLONG('c',cswitch,size,"genspecialg -c")
+                else SWLONG('c',cswitch,size,"genspecialg -c")
                 else SWLONG('e',eswitch,size,"genspecialg -e")
                 else SWLONG('k',kswitch,size,"genspecialg -k")
                 else SWLONG('f',fswitch,size,"genspecialg -f")
-		else SWLONG('Q',Qswitch,size,"genspecialg -Q")
-		else SWSEQUENCEMIN('b',",",bswitch,bargs,2,3,nbargs,"genspecialg -b")
+                else SWLONG('Q',Qswitch,size,"genspecialg -Q")
+                else SWSEQUENCEMIN('b',",",bswitch,bargs,2,3,nbargs,"genspecialg -b")
                 else SWSEQUENCEMIN('J',",",Jswitch,Jargs,2,2,nJargs,"genspecialg -J")
                 else SWSEQUENCEMIN('P',",",Pswitch,Pargs,2,2,nPargs,"genspecialg -P")
                 else SWSEQUENCEMIN('C',",",Cswitch,args,
@@ -981,97 +981,97 @@ main(int argc, char *argv[])
                 else SWBOOLEAN('z',zswitch)
                 else SWBOOLEAN('d',dswitch)
                 else SWBOOLEAN('q',quiet)
-		else SWBOOLEAN('v',verbose)
+                else SWBOOLEAN('v',verbose)
                 else if (sw == 'p')
-		{
-		    SWLONG('p',pswitch,size,"genspecialg -p")
-            	    makepath(size,zswitch,&sg);
-		    havegraph = TRUE;
-		}
+                {
+                    SWLONG('p',pswitch,size,"genspecialg -p")
+                    makepath(size,zswitch,&sg);
+                    havegraph = TRUE;
+                }
                 else if (sw == 'c')
-		{
-		    SWLONG('c',cswitch,size,"genspecialg -c")
-            	    makecycle(size,zswitch,&sg);
-		    havegraph = TRUE;
-		}
+                {
+                    SWLONG('c',cswitch,size,"genspecialg -c")
+                    makecycle(size,zswitch,&sg);
+                    havegraph = TRUE;
+                }
                 else if (sw == 'e')
-		{
-		    SWLONG('e',eswitch,size,"genspecialg -e")
-            	    makeempty(size,zswitch,&sg);
-		    havegraph = TRUE;
-		}
+                {
+                    SWLONG('e',eswitch,size,"genspecialg -e")
+                    makeempty(size,zswitch,&sg);
+                    havegraph = TRUE;
+                }
                 else if (sw == 'k')
-		{
-		    SWLONG('k',kswitch,size,"genspecialg -k")
-            	    makecomplete(size,zswitch,&sg);
-		    havegraph = TRUE;
-		}
+                {
+                    SWLONG('k',kswitch,size,"genspecialg -k")
+                    makecomplete(size,zswitch,&sg);
+                    havegraph = TRUE;
+                }
                 else if (sw == 'f')
-		{
-		    SWLONG('f',fswitch,size,"genspecialg -f")
-    	            makeflowersnark(size,zswitch,&sg);
-		    havegraph = TRUE;
-		}
+                {
+                    SWLONG('f',fswitch,size,"genspecialg -f")
+                    makeflowersnark(size,zswitch,&sg);
+                    havegraph = TRUE;
+                }
                 else if (sw == 'Q')
-		{
-		    SWLONG('Q',Qswitch,size,"genspecialg -Q")
+                {
+                    SWLONG('Q',Qswitch,size,"genspecialg -Q")
                     makehypercube(size,zswitch,&sg);
-		    havegraph = TRUE;
-		}
+                    havegraph = TRUE;
+                }
                 else if (sw == 'b')
-		{
-		    SWSEQUENCEMIN('b',",",bswitch,bargs,2,3,nbargs,"genspecialg -b")
+                {
+                    SWSEQUENCEMIN('b',",",bswitch,bargs,2,3,nbargs,"genspecialg -b")
                     makecompletebipartite(bargs[0],bargs[1],
                            (nbargs==2?0:bargs[2]),zswitch,&sg);
-		    havegraph = TRUE;
-		}
+                    havegraph = TRUE;
+                }
                 else if (sw == 'J')
-		{
-		    SWSEQUENCEMIN('J',",",Jswitch,Jargs,2,2,nJargs,"genspecialg -J")
+                {
+                    SWSEQUENCEMIN('J',",",Jswitch,Jargs,2,2,nJargs,"genspecialg -J")
                     makeJohnson(Jargs[0],Jargs[1],zswitch,&sg);
-		    havegraph = TRUE;
-		}
+                    havegraph = TRUE;
+                }
                 else if (sw == 'P')
-		{
-		    SWSEQUENCEMIN('P',",",Pswitch,Pargs,2,2,nPargs,"genspecialg -P")
-            	    makegenpetersen(Pargs[0],Pargs[1],zswitch,&sg);
-		    havegraph = TRUE;
-		}
+                {
+                    SWSEQUENCEMIN('P',",",Pswitch,Pargs,2,2,nPargs,"genspecialg -P")
+                    makegenpetersen(Pargs[0],Pargs[1],zswitch,&sg);
+                    havegraph = TRUE;
+                }
                 else if (sw == 'C')
-		{
-		    SWSEQUENCEMIN('C',",",Cswitch,args,
+                {
+                    SWSEQUENCEMIN('C',",",Cswitch,args,
                                         1,MAXARGS,nCargs,"genspecialg -C")
-            	    makecirculant(args[0],args+1,nCargs-1,zswitch,&sg);
-		    havegraph = TRUE;
-		}
+                    makecirculant(args[0],args+1,nCargs-1,zswitch,&sg);
+                    havegraph = TRUE;
+                }
                 else if (sw == 'G')
-		{
-		    SWSEQUENCEMIN('G',",",Gswitch,args,2,30,nGargs,"genspecialg -G")
+                {
+                    SWSEQUENCEMIN('G',",",Gswitch,args,2,30,nGargs,"genspecialg -G")
                     makegrid(args,nGargs,zswitch,&sg);
-		    havegraph = TRUE;
-		}
+                    havegraph = TRUE;
+                }
                 else if (sw == 'T')
-		{
-		    SWSEQUENCEMIN('T',",",Tswitch,args,1,MAXARGS,
+                {
+                    SWSEQUENCEMIN('T',",",Tswitch,args,1,MAXARGS,
                                 nTargs,"genspecialg -T")
-            	    maketheta(args,nTargs,zswitch,&sg);
-		    havegraph = TRUE;
-		}
+                    maketheta(args,nTargs,zswitch,&sg);
+                    havegraph = TRUE;
+                }
 
-	 	if (havegraph)
-		{
-        	    sortlists_sg(&sg);
-        	    if (dreadnaut)                 writedread(outfile,&sg,zswitch);
-        	    else if (codetype == GRAPH6)   writeg6_sg(outfile,&sg);
-        	    else if (codetype == DIGRAPH6) writed6_sg(outfile,&sg);
-        	    else                           writes6_sg(outfile,&sg);
-		    ++numgraphs;
-		    havegraph = FALSE;
+                if (havegraph)
+                {
+                    sortlists_sg(&sg);
+                    if (dreadnaut)                 writedread(outfile,&sg,zswitch);
+                    else if (codetype == GRAPH6)   writeg6_sg(outfile,&sg);
+                    else if (codetype == DIGRAPH6) writed6_sg(outfile,&sg);
+                    else                           writes6_sg(outfile,&sg);
+                    ++numgraphs;
+                    havegraph = FALSE;
 
-		    if (verbose)
-        	        fprintf(stderr,"Graph %d: %d vertices %lu edges\n",numgraphs,
-		           sg.nv,(unsigned long)(zswitch ? sg.nde : sg.nde/2));
-		}
+                    if (verbose)
+                        fprintf(stderr,"Graph %d: %d vertices %lu edges\n",numgraphs,
+                           sg.nv,(unsigned long)(zswitch ? sg.nde : sg.nde/2));
+                }
             }
         }
         else

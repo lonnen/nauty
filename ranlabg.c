@@ -111,7 +111,8 @@ main(int argc, char *argv[])
         exit(1);
     }
 
-    if (!Sswitch) INITSEED;
+    if (!Sswitch) seed = INITRANBYTIME;
+    else          ran_init(seed);
     if (!mswitch) mult = 1;
     if (!fswitch) fixed = 0;
 

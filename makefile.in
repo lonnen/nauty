@@ -1,4 +1,4 @@
-# makefile for nauty 2.7
+# makefile for nauty 2.8
 # @configure_input@
 
 SHELL=@SHELL@
@@ -37,11 +37,12 @@ GTOOLSH=gtools.h nauty.h naututil.h nausparse.h naurng.h gutils.h \
   naugstrings.h planarity.h quarticirred28.h
 GTOOLS=copyg listg labelg dretog amtog geng complg showg NRswitchg \
   biplabg addedgeg deledgeg countg pickg genrang newedgeg catg genbg \
-  directg gentreeg genquarticg underlyingg assembleg gengL \
+  directg gentreeg genquarticg underlyingg assembleg gengL addptg \
   ranlabg multig planarg gentourng linegraphg watercluster2 dretodot \
   subdivideg vcolg delptg cubhamg twohamg hamheuristic converseg \
-  nbrhoodg genspecialg edgetransg genbgL dreadnaut @shortg_or_null@
-GLIBS=nauty.a nauty1.a nautyW.a nautyW1.a nautyL.a nautyL1.a
+  genposetg nbrhoodg genspecialg edgetransg genbgL dreadnaut \
+  ancestorg productg dimacs2g @shortg_or_null@
+GLIBS=nauty.a nauty1.a nautyS.a nautyS1.a nautyW.a nautyW1.a nautyL.a nautyL1.a
 PCFILE=nauty.pc
 
 # @edit_msg@
@@ -322,11 +323,23 @@ gutil2L.o : ${GTOOLSH} gutils.h gutil2.c
 nbrhoodg : ${GTOOLSH} nbrhoodg.c gtools.o gtnauty.o ${NAUTYO}
 	${CC} -o nbrhoodg ${CFLAGS} nbrhoodg.c gtools.o gtnauty.o ${NAUTYO} ${LDFLAGS}
 
+productg : ${GTOOLSH} productg.c gtools.o ${NAUTYO}
+	${CC} -o productg ${CFLAGS} productg.c gtools.o ${NAUTYO} ${LDFLAGS}
+
+ancestorg : ${GTOOLSH} ancestorg.c gtools.o ${NAUTYO}
+	${CC} -o ancestorg ${CFLAGS} ancestorg.c gtools.o ${NAUTYO} ${LDFLAGS}
+
+dimacs2g : ${GTOOLSH} dimacs2g.c naututil.o gtools.o ${NAUTYO}
+	${CC} -o dimacs2g ${CFLAGS} dimacs2g.c naututil.o gtools.o ${NAUTYO} ${LDFLAGS}
+
 catg : ${GTOOLSH} catg.c gtools.o
 	${CC} -o catg ${CFLAGS} catg.c gtools.o ${LDFLAGS}
 
 copyg : ${GTOOLSH} copyg.c gtools.o
 	${CC} -o copyg ${CFLAGS} copyg.c gtools.o ${LDFLAGS}
+
+addptg : ${GTOOLSH} addptg.c gtools.o gtnauty.o ${NAUTYO}
+	${CC} -o addptg ${CFLAGS} addptg.c ${NAUTYO} gtnauty.o gtools.o ${LDFLAGS}
 
 genspecialg : ${GTOOLSH} genspecialg.c ${NAUTYO} gtools.o
 	${CC} -o genspecialg ${CFLAGS} genspecialg.c ${NAUTYO} gtools.o ${LDFLAGS}
@@ -428,8 +441,8 @@ subdivideg : ${GTOOLSH} subdivideg.c gtools.o ${NAUTYO}
 		${NAUTYO} ${LDFLAGS}
 
 vcolg : ${GTOOLSH} vcolg.c gtools.o ${NAUTYO} naugroup.o gtnauty.o \
-		 nautinv.o naututil.o naugroup.h
-	${CC} -o vcolg ${CFLAGS} vcolg.c gtnauty.o naututil.o \
+		 nautinv.o naututil.o naugroup.h gutils.h
+	${CC} -o vcolg ${CFLAGS} vcolg.c gtnauty.o naututil.o gutil2.o \
 		nautinv.o gtools.o naugroup.o ${NAUTYO} ${LDFLAGS}
 
 edgetransg : ${GTOOLSH} edgetransg.c gtools.o ${NAUTYO} naugroup.o \
@@ -490,6 +503,10 @@ watercluster2 : ${GTOOLSH} nauty.h watercluster2.c gtoolsW.o ${NAUTYW1O}
 	${CC} -o watercluster2 ${CFLAGS} ${W1} watercluster2.c \
                  gtoolsW.o ${NAUTYW1O} ${LDFLAGS}
 
+genposetg : ${GTOOLSH} nauty.h genposetg.c gtoolsS.o ${NAUTYS1O}
+	${CC} -o genposetg ${CFLAGS} ${S1} genposetg.c \
+                 gtoolsS.o ${NAUTYS1O} ${LDFLAGS}
+
 showg : showg.c
 	${CC} -o showg ${CFLAGS} showg.c ${LDFLAGS}
 
@@ -548,6 +565,45 @@ nautyex9 : nauty.h nautyex9.c nauty.a
 	${CC} -o nautyex9 ${CFLAGS} nautyex9.c nauty.a ${LDFLAGS}
 nautyex10 : nauty.h nautyex10.c nauty.a
 	${CC} -o nautyex10 ${CFLAGS} nautyex10.c nauty.a ${LDFLAGS}
+
+# Libraries with thread-local storage
+
+NAUTYC=nauty.c nautil.c nausparse.c naugraph.c schreier.c naurng.c \
+        traces.c gtools.c naututil.c nautinv.c gutil1.c gutil2.c \
+        gtnauty.c naugroup.c nautycliquer.c
+
+nautyT.a : nauty.h gtools.h ${NAUTYC}
+	rm -rf TLSlib_temp ; mkdir TLSlib_temp 
+	( cd TLSlib_temp ; for f in ${NAUTYC} ; do cp ../$$f . ; done ; \
+	${CC} ${CFLAGS} -I.. -c -DUSE_TLS *.c ; ${AR} rcs ../nautyT.a *.o ; \
+	${CC} ${CFLAGS} ${SMALL} -I.. -c -DUSE_TLS *.c ; ${AR} rcs ../nautyT1.a *.o ; )
+	rm -rf TLSlib_temp
+
+nautyTW.a : nauty.h gtools.h ${NAUTYC}
+	rm -rf TLSlib_Wtemp ; mkdir TLSlib_Wtemp 
+	( cd TLSlib_Wtemp ; for f in ${NAUTYC} ; do cp ../$$f . ; done ; \
+	${CC} ${CFLAGS} ${W} -I.. -c -DUSE_TLS *.c ; ${AR} rcs ../nautyTW.a *.o ; \
+	${CC} ${CFLAGS} ${W1} -I.. -c -DUSE_TLS *.c ; ${AR} rcs ../nautyTW1.a *.o ; )
+	rm -rf TLSlib_Wtemp
+
+nautyTL.a : nauty.h gtools.h ${NAUTYC}
+	rm -rf TLSlib_Ltemp ; mkdir TLSlib_Ltemp 
+	( cd TLSlib_Ltemp ; for f in ${NAUTYC} ; do cp ../$$f . ; done ; \
+	${CC} ${CFLAGS} ${L} -I.. -c -DUSE_TLS *.c ; ${AR} rcs ../nautyTL.a *.o ; \
+	${CC} ${CFLAGS} ${L1} -I.. -c -DUSE_TLS *.c ; ${AR} rcs ../nautyTL1.a *.o ; )
+	rm -rf TLSlib_Ltemp
+
+TLSlibs: nautyT.a nautyTW.a nautyTL.a ;
+nautyT1.a: nautyT.a ;
+nautyTW1.a: nautyTW.a ;
+nautyTL1.a: nautyTL.a ;
+
+callgeng2 : nauty.h gtools.h callgeng2.c geng.c nautyTW1.a
+	${CC} ${CFLAGS} ${W1} -o callgeng2 -pthread -DMAXN=WORDSIZE -DWORDSIZE=32 \
+	-DUSE_TLS -DGENG_MAIN=geng_main -DSUMMARY=geng_summary \
+	 callgeng2.c geng.c nautyTW1.a
+
+# Test programs
 
 testprogs: ${TESTPROGS} ;
 

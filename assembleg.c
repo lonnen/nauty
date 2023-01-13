@@ -29,7 +29,7 @@
 #include "gtools.h" 
 
 static int ninputs;             /* Number of inputs */
-static unsigned long nout;      /* Number of outputs */
+static nauty_counter nout;      /* Number of outputs */
 typedef graph *graphptr;
 static graphptr *gin;           /* Their contents */
 static int *size;               /* Their sizes */
@@ -50,10 +50,10 @@ insertg(graph *g, int ng, graph *h, int nh, int n)
     mh = SETWORDSNEEDED(nh);
 
     for (i = 0, hi = h, gi = g + ng*m; i < nh;
-		            ++i, hi += mh, gi += m)
+                            ++i, hi += mh, gi += m)
     {
-	for (j = -1; (j = nextelement(hi,mh,j)) >= 0; )
-	    ADDELEMENT(gi,ng+j);
+        for (j = -1; (j = nextelement(hi,mh,j)) >= 0; )
+            ADDELEMENT(gi,ng+j);
     }
 }
 
@@ -68,8 +68,8 @@ removeg(graph *g, int ng, int nh, int n)
 
     for (i = ng, gi = g + ng*m; i < ng+nh; ++i, gi += m)
     {
-	for (j = ng; j < ng+nh; ++j)
-	    DELELEMENT(gi,j);
+        for (j = ng; j < ng+nh; ++j)
+            DELELEMENT(gi,j);
     }
 }
 
@@ -92,7 +92,7 @@ readinputs(FILE *f, int imin, int imax)
 
     if ((gin = malloc(sizeof(graphptr)*10000)) == NULL ||
         (size = malloc(sizeof(int)*10000)) == NULL)
-	    gt_abort(">E malloc failed in readinputs()\n");
+            gt_abort(">E malloc failed in readinputs()\n");
     tablesize = 10000;
     
     ninputs = 0;
@@ -101,23 +101,23 @@ readinputs(FILE *f, int imin, int imax)
     {
         if ((g = readgg(f,NULL,0,&m,&n,&digraph)) == NULL) break;
         if (digraph) outcode = DIGRAPH6;
-	if (n < imin || n > imax) continue;
+        if (n < imin || n > imax) continue;
 
-	if (ninputs == tablesize)
-	{
-            tablesize += 10000;
-	    if ((gin = realloc(gin,sizeof(graphptr)*tablesize)) == NULL ||
+        if (ninputs == tablesize)
+        {
+            tablesize = 3*tablesize/2 + 10000;
+            if ((gin = realloc(gin,sizeof(graphptr)*tablesize)) == NULL ||
                 (size = realloc(size,sizeof(int)*tablesize)) == NULL)
-		    gt_abort(">E realloc failed in readinputs()\n");
-	}
+                    gt_abort(">E realloc failed in readinputs()\n");
+        }
 
-	gin[ninputs] = g;
+        gin[ninputs] = g;
         size[ninputs] = n;
-	++ninputs;
+        ++ninputs;
     }
 
     if (ninputs < 0 || ninputs > tablesize)
-	gt_abort(">E Some overflow problem in readinputs()\n");
+        gt_abort(">E Some overflow problem in readinputs()\n");
 
     sortbysize(size,gin,ninputs);
 }
@@ -134,7 +134,7 @@ readsomeinputs(FILE *f, int imin, int imax, int maxsize,
 
     if ((gin = malloc(sizeof(graphptr)*10000)) == NULL ||
         (size = malloc(sizeof(int)*10000)) == NULL)
-	    gt_abort(">E malloc failed in readsomeinputs()\n");
+            gt_abort(">E malloc failed in readsomeinputs()\n");
     tablesize = 10000;
 
     ninputs = 0;
@@ -143,25 +143,25 @@ readsomeinputs(FILE *f, int imin, int imax, int maxsize,
     {
         if ((*g = readgg(f,NULL,0,&m,n,&digraph)) == NULL) break;
         if (digraph) outcode = DIGRAPH6;
-	if (*n > maxsize) break;
+        if (*n > maxsize) break;
 
-	if (*n < imin || *n > imax) continue;
+        if (*n < imin || *n > imax) continue;
 
-	if (ninputs == tablesize)
-	{
+        if (ninputs == tablesize)
+        {
             tablesize += 10000;
-	    if ((gin = realloc(gin,sizeof(graphptr)*tablesize)) == NULL ||
+            if ((gin = realloc(gin,sizeof(graphptr)*tablesize)) == NULL ||
                 (size = realloc(size,sizeof(int)*tablesize)) == NULL)
-		    gt_abort(">E realloc failed in readsomeinputs()\n");
-	}
+                    gt_abort(">E realloc failed in readsomeinputs()\n");
+        }
 
-	gin[ninputs] = *g;
+        gin[ninputs] = *g;
         size[ninputs] = *n;
-	++ninputs;
+        ++ninputs;
     }
 
     if (ninputs < 0 || ninputs > tablesize)
-	gt_abort(">E Some overflow problem in readinputs()\n");
+        gt_abort(">E Some overflow problem in readinputs()\n");
 
     sortbysize(size,gin,ninputs);
 }
@@ -178,22 +178,22 @@ assemble(graph *g, int nmin, int nmax, int sofar, int lastpos,
 
     for (pos = lastpos; pos < ninputs; ++pos)
     {
-	newsize = sofar + size[pos];
-	if (newsize > nmax) break;
+        newsize = sofar + size[pos];
+        if (newsize > nmax) break;
 
-	insertg(g,sofar,gin[pos],size[pos],nmax);
-	if (newsize >= nmin && (sofar > 0 || writeconn))
-	{
-	    if (outcode == DIGRAPH6)
+        insertg(g,sofar,gin[pos],size[pos],nmax);
+        if (newsize >= nmin && (sofar > 0 || writeconn))
+        {
+            if (outcode == DIGRAPH6)
                 writed6(outfile,g,SETWORDSNEEDED(nmax),newsize);
-	    else if (outcode == GRAPH6)
+            else if (outcode == GRAPH6)
                 writeg6(outfile,g,SETWORDSNEEDED(nmax),newsize);
-	    else
+            else
                 writes6(outfile,g,SETWORDSNEEDED(nmax),newsize);
-	    ++nout;
-	}
-	assemble(g,nmin,nmax,newsize,pos,writeconn,outfile);
-	removeg(g,sofar,size[pos],nmax);
+            ++nout;
+        }
+        assemble(g,nmin,nmax,newsize,pos,writeconn,outfile);
+        removeg(g,sofar,size[pos],nmax);
     }
 }
 
@@ -207,10 +207,9 @@ main(int argc, char *argv[])
     boolean badargs,quiet;
     boolean nswitch,cswitch,iswitch,Lswitch;
     boolean digraph;
-    int j,m,n,argnum;
+    int j,mm,n,argnum;
     int codetype;
     graph *gread,*gout;
-    nauty_counter nin;
     char *arg,sw;
     double t;
     long nmin,nmax,mmax,imin,imax;
@@ -233,10 +232,10 @@ main(int argc, char *argv[])
             {
                 sw = *arg++;
                      SWBOOLEAN('q',quiet)
-		else SWBOOLEAN('c',cswitch)
-		else SWBOOLEAN('L',Lswitch)
-		else SWRANGE('n',":-",nswitch,nmin,nmax,"assembleg -n")
-		else SWRANGE('i',":-",iswitch,imin,imax,"assembleg -i")
+                else SWBOOLEAN('c',cswitch)
+                else SWBOOLEAN('L',Lswitch)
+                else SWRANGE('n',":-",nswitch,nmin,nmax,"assembleg -n")
+                else SWRANGE('i',":-",iswitch,imin,imax,"assembleg -i")
                 else badargs = TRUE;
             }
         }
@@ -264,15 +263,15 @@ main(int argc, char *argv[])
     if (!quiet)
     {
         fprintf(stderr,">A assembleg -");
-	if (nmin == nmax) fprintf(stderr,"n%ld",nmin);
-	else fprintf(stderr,"n%ld:%ld",nmin,nmax);
-	if (iswitch)
-	{
-	    if (imin == imax) fprintf(stderr,"i%ld",imin);
-	    else fprintf(stderr,"i%ld:%ld",imin,imax);
-	}
-	if (cswitch) fprintf(stderr,"c");
-	if (Lswitch) fprintf(stderr,"L");
+        if (nmin == nmax) fprintf(stderr,"n%ld",nmin);
+        else fprintf(stderr,"n%ld:%ld",nmin,nmax);
+        if (iswitch)
+        {
+            if (imin == imax) fprintf(stderr,"i%ld",imin);
+            else fprintf(stderr,"i%ld:%ld",imin,imax);
+        }
+        if (cswitch) fprintf(stderr,"c");
+        if (Lswitch) fprintf(stderr,"L");
         if (argnum > 0) fprintf(stderr," %s",infilename);
         if (argnum > 1) fprintf(stderr," %s",outfilename);
         fprintf(stderr,"\n");
@@ -310,8 +309,7 @@ main(int argc, char *argv[])
     mmax = SETWORDSNEEDED(nmax);
 
     if ((gout = malloc(mmax*sizeof(graph)*nmax)) == NULL)
-	gt_abort(">E assembleg: malloc() failed in main()\n");
-
+        gt_abort(">E assembleg: malloc() failed in main()\n");
 
     nout = 0;
 
@@ -319,41 +317,41 @@ main(int argc, char *argv[])
     {
         readsomeinputs(infile,(int)imin,(int)imax,(int)nmax/2,&gread,&n);
 
-        EMPTYSET(gout,m*(size_t)nmax);
+        EMPTYSET(gout,mmax*(size_t)nmax);
         assemble(gout,(int)nmin,(int)nmax,0,0,cswitch,outfile);
 
-	while (gread)
-	{
-	    if (n >= imin && n <= imax)
-	    { 
+        while (gread)
+        {
+            if (n >= imin && n <= imax)
+            { 
                 EMPTYSET(gout,mmax*(size_t)nmax);
                 insertg(gout,0,gread,n,(int)nmax);
     
-	        if (n >= nmin && n <= nmax && cswitch)
-	        {
-	            if (outcode == DIGRAPH6)
+                if (n >= nmin && n <= nmax && cswitch)
+                {
+                    if (outcode == DIGRAPH6)
                         writed6(outfile,gout,mmax,n);
-	            else if (outcode == GRAPH6)
+                    else if (outcode == GRAPH6)
                         writeg6(outfile,gout,mmax,n);
-	            else
+                    else
                         writes6(outfile,gout,mmax,n);
-	            ++nout;
-	        }
+                    ++nout;
+                }
 
                 assemble(gout,(int)nmin,(int)nmax,n,0,cswitch,outfile);
-	    }
-	    FREES(gread);
+            }
+            FREES(gread);
 
-            if ((gread = readgg(infile,NULL,0,&m,&n,&digraph)) == NULL) break;
+            if ((gread = readgg(infile,NULL,0,&mm,&n,&digraph)) == NULL) break;
             if (digraph) outcode = DIGRAPH6;
-	    if (n <= nmax/2) gt_abort(">E assembleg -L : inputs in bad order\n");
-	}
+            if (n <= nmax/2) gt_abort(">E assembleg -L : inputs in bad order\n");
+        }
     }
     else
     {
         readinputs(infile,(int)imin,(int)imax);
 
-        EMPTYSET(gout,m*(size_t)nmax);
+        EMPTYSET(gout,mmax*(size_t)nmax);
         assemble(gout,(int)nmin,(int)nmax,0,0,cswitch,outfile);
     }
  

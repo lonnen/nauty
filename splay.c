@@ -38,7 +38,7 @@
    the left, right, and parent fields.  Use i here too if you like.
    Typically, this might initialise the data in node p.
 
-	PRESENT(p) and NOT_PRESENT(p) should not manipulate the
+        PRESENT(p) and NOT_PRESENT(p) should not manipulate the
         tree pointers.  However, each of them can include a
         return if you don't want to change the tree.  In the
         case of NOT_PRESENT(p), do free(p) before returning.
@@ -129,28 +129,28 @@ SPLAY_SCAN(SPLAYNODE *root SCAN_ARGS)
 
     while (p)
     {
-	switch (code)    /* deliberate flow-ons */
-	{
-	 case S_A:
-	    if (p->left)
-	    {
-		p = p->left;
-		break;
-	    }
-	 case S_L:
-	    ACTION(p);
-	    if (p->right)
-	    {
-		p = p->right;
-		code = S_A;
-		break;
-	    }
-	 case S_R:
-	    if (p->parent && p->parent->left == p) code = S_L;
-	    else                                   code = S_R;
-	    p = p->parent;
-	    break;
-	}
+        switch (code)    /* deliberate flow-ons */
+        {
+         case S_A:
+            if (p->left)
+            {
+                p = p->left;
+                break;
+            }
+         case S_L:
+            ACTION(p);
+            if (p->right)
+            {
+                p = p->right;
+                code = S_A;
+                break;
+            }
+         case S_R:
+            if (p->parent && p->parent->left == p) code = S_L;
+            else                                   code = S_R;
+            p = p->parent;
+            break;
+        }
     }
 }
 
@@ -169,72 +169,72 @@ SPLAY(SPLAYNODE *p)
 
     while (p->parent)
     {
-	a = p->left;
-	b = p->right;
-	q = p->parent;
-	if (q->left == p)
-	{
-	    code = S_L;
-	    c = q->right;
-	}
-	else
-	{
-	    code = S_R;
-	    c = q->left;
-	}
-	r = q->parent;
-	if (r)
-	{
-	    if (r->left == q) code = (code == S_L ? S_LL : S_LR);
-	    else              code = (code == S_L ? S_RL : S_RR);
-	    s = r->parent;
-	    p->parent = s;
-	    if (s)
-	    {
-		if (s->left == r) s->left = p;
-		else              s->right = p;
-	    }
-	}
-	else
-	{
-	    p->parent = NULL;
-	}
-	
-	switch (code)
-	{
-	 case S_L:
-	    RCHILD(p,q);
-	    LCHILD(q,b);
-	    break;
-	 case S_R:
-	    LCHILD(p,q);
-	    RCHILD(q,a);
-	    break;
-	 case S_LL:
-	    RCHILD(p,q);
-	    RCHILD(q,r);
-	    LCHILD(q,b);
-	    LCHILD(r,c);
-	    break;
-	 case S_RR:
-	    LCHILD(p,q);
-	    LCHILD(q,r);
-	    RCHILD(r,c);
-	    RCHILD(q,a);
-	    break;
-	 case S_LR:
-	    LCHILD(p,q);
-	    RCHILD(p,r);
-	    RCHILD(q,a);
-	    LCHILD(r,b);
-	    break;
-	 case S_RL:
-	    LCHILD(p,r);
-	    RCHILD(p,q);
-	    RCHILD(r,a);
-	    LCHILD(q,b);
-	    break;
-	}
+        a = p->left;
+        b = p->right;
+        q = p->parent;
+        if (q->left == p)
+        {
+            code = S_L;
+            c = q->right;
+        }
+        else
+        {
+            code = S_R;
+            c = q->left;
+        }
+        r = q->parent;
+        if (r)
+        {
+            if (r->left == q) code = (code == S_L ? S_LL : S_LR);
+            else              code = (code == S_L ? S_RL : S_RR);
+            s = r->parent;
+            p->parent = s;
+            if (s)
+            {
+                if (s->left == r) s->left = p;
+                else              s->right = p;
+            }
+        }
+        else
+        {
+            p->parent = NULL;
+        }
+        
+        switch (code)
+        {
+         case S_L:
+            RCHILD(p,q);
+            LCHILD(q,b);
+            break;
+         case S_R:
+            LCHILD(p,q);
+            RCHILD(q,a);
+            break;
+         case S_LL:
+            RCHILD(p,q);
+            RCHILD(q,r);
+            LCHILD(q,b);
+            LCHILD(r,c);
+            break;
+         case S_RR:
+            LCHILD(p,q);
+            LCHILD(q,r);
+            RCHILD(r,c);
+            RCHILD(q,a);
+            break;
+         case S_LR:
+            LCHILD(p,q);
+            RCHILD(p,r);
+            RCHILD(q,a);
+            LCHILD(r,b);
+            break;
+         case S_RL:
+            LCHILD(p,r);
+            RCHILD(p,q);
+            RCHILD(r,a);
+            LCHILD(q,b);
+            break;
+        }
     }
 }
 
@@ -257,9 +257,9 @@ SPLAY_INSERT(SPLAYNODE **to_root  INSERT_ARGS)
         cmp = COMPARE(p);
         if (cmp == 0)
         {
-	    PRESENT(p);
-	    SPLAY(p);
-	    *to_root = p;
+            PRESENT(p);
+            SPLAY(p);
+            *to_root = p;
             return;
         }
         else if (cmp < 0)
@@ -287,17 +287,17 @@ SPLAY_INSERT(SPLAYNODE **to_root  INSERT_ARGS)
     if (cmp == 0)
     {
         *to_root = new_node;
-	new_node->parent = NULL;
+        new_node->parent = NULL;
     }
     else if (cmp < 0)
     {
         ppar->left = new_node;
-	new_node->parent = ppar;
+        new_node->parent = ppar;
     }
     else
     {
         ppar->right = new_node;
-	new_node->parent = ppar;
+        new_node->parent = ppar;
     }
 
     SPLAY(new_node);
@@ -322,8 +322,8 @@ SPLAY_LOOKUP(SPLAYNODE **to_root  LOOKUP_ARGS)
         cmp = COMPARE(p);
         if (cmp == 0)
         {
-	    SPLAY(p);
-	    *to_root = p;
+            SPLAY(p);
+            *to_root = p;
             return p;
         }
         else if (cmp < 0)
@@ -354,10 +354,10 @@ SPLAY_DELETE(SPLAYNODE **to_root, SPLAYNODE *p)
 
     if (!p->right)
     {
-	*to_root = p->left;
+        *to_root = p->left;
         if (p->left) p->left->parent = NULL;
-	free(p);
-	return;
+        free(p);
+        return;
     }
 
     /* right child but no left child */
@@ -402,9 +402,9 @@ SPLAY_DUMP(SPLAYNODE *p DUMP_ARGS)
     if (p == NULL) return;
 
     if (p->right && p->right->parent != p)
-	fprintf(stderr,"parent misaligned at %p-%p ************\n",p,p->right);
+        fprintf(stderr,"parent misaligned at %p-%p ************\n",p,p->right);
     if (p->left && p->left->parent != p)
-	fprintf(stderr,"parent misaligned at %p-%p ************\n",p,p->left);
+        fprintf(stderr,"parent misaligned at %p-%p ************\n",p,p->left);
 
     SPLAY_DUMP(p->right  DUMP_RIGHT);
     DUMP_ACTION(p);

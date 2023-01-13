@@ -62,8 +62,8 @@ hamheur(sparsegraph *sg, boolean pathok, unsigned long limit, int *cyc)
 
     for (i = 0; i < n; ++i)
     {
-	if (d[i] < 2) return NO;
-	pos[i] = -1;
+        if (d[i] < 2) return NO;
+        pos[i] = -1;
     }
     count = 0;
  
@@ -79,167 +79,167 @@ hamheur(sparsegraph *sg, boolean pathok, unsigned long limit, int *cyc)
     {
      /* First look for an extension, but note if cycle */
 
-	if (pathok && len == n)
-	{
-	    if (cyc)
-	    {
-	        j = 0;
-	        for (i = end0; i <= end1; ++i)
-		    cyc[j++] = path[i];
-	    }
-	    return YES;
-	}
-
-	v0 = path[end0];
-	v1 = path[end1];
-
-	exts = 0;
-	d0 = d[v0];
-        e0 = e + v[v0];
-	cycle = FALSE;
-        ran = NEXTRAN;
-	for (i = 0; i < d0; ++i)
-	{
-	    w = e0[i];
-	    if (pos[w] < 0)
-	    {
-		++exts;
-		if (ran%exts == 0) {left = TRUE; vext = w;}
-	    }
-	    else if (w == v1) cycle = TRUE;
+        if (pathok && len == n)
+        {
+            if (cyc)
+            {
+                j = 0;
+                for (i = end0; i <= end1; ++i)
+                    cyc[j++] = path[i];
+            }
+            return YES;
         }
-	d1 = d[v1];
+
+        v0 = path[end0];
+        v1 = path[end1];
+
+        exts = 0;
+        d0 = d[v0];
+        e0 = e + v[v0];
+        cycle = FALSE;
+        ran = NEXTRAN;
+        for (i = 0; i < d0; ++i)
+        {
+            w = e0[i];
+            if (pos[w] < 0)
+            {
+                ++exts;
+                if (ran%exts == 0) {left = TRUE; vext = w;}
+            }
+            else if (w == v1) cycle = TRUE;
+        }
+        d1 = d[v1];
         e1 = e + v[v1];
         ran = NEXTRAN;
-	for (i = 0; i < d1; ++i)
-	{
-	    w = e1[i];
-	    if (pos[w] < 0) 
+        for (i = 0; i < d1; ++i)
+        {
+            w = e1[i];
+            if (pos[w] < 0) 
             {
                 ++exts;
                 if (ran%exts == 0) {left = FALSE; vext = w;}
             }
-	}
+        }
 
-	if (exts > 0)
-	{
-	    if (left)
-	    {
-		--end0;
-		path[end0] = vext;
-		pos[vext] = end0;
-	    }
-	    else
-	    {
-		++end1;
-		path[end1] = vext;
-		pos[vext] = end1;
-	    }
-	    ++len;
-	    continue;
-	}
+        if (exts > 0)
+        {
+            if (left)
+            {
+                --end0;
+                path[end0] = vext;
+                pos[vext] = end0;
+            }
+            else
+            {
+                ++end1;
+                path[end1] = vext;
+                pos[vext] = end1;
+            }
+            ++len;
+            continue;
+        }
 
      /* Can't extend but a cycle was found */
 
-	if (cycle)
+        if (cycle)
         {
-	    if (len == n)
-	    {
-		if (cyc)
-		{
-		    j = 0;
-		    for (i = pos[0]; i <= end1; ++i) cyc[j++] = path[i];
-		    for (i = end0; i < pos[0]; ++i) cyc[j++] = path[i];
-		}
-		return YES;
-	    }
-
-	    ix = end0 + KRAN(len);
-	    for (i = 0; i < len; ++i)      
+            if (len == n)
             {
-	        x = path[ix];
+                if (cyc)
+                {
+                    j = 0;
+                    for (i = pos[0]; i <= end1; ++i) cyc[j++] = path[i];
+                    for (i = end0; i < pos[0]; ++i) cyc[j++] = path[i];
+                }
+                return YES;
+            }
 
-	        exts = 0;
-	        dx = d[x];
-	        ex = e + v[x];
-		ran = NEXTRAN;
-	        for (j = 0; j < dx; ++j)
-	        {
-		    w = ex[j];
-		    if (pos[w] < 0) 
+            ix = end0 + KRAN(len);
+            for (i = 0; i < len; ++i)      
+            {
+                x = path[ix];
+
+                exts = 0;
+                dx = d[x];
+                ex = e + v[x];
+                ran = NEXTRAN;
+                for (j = 0; j < dx; ++j)
+                {
+                    w = ex[j];
+                    if (pos[w] < 0) 
                     {
                         ++exts;
                         if (ran%exts == 0) vext = w;
                     }
-	        }
-		if (exts > 0) break;
-		if (ix == end1) ix = end0; else ++ix;
+                }
+                if (exts > 0) break;
+                if (ix == end1) ix = end0; else ++ix;
             }
-	    if (i == len) return NO;    /* isolated component */
+            if (i == len) return NO;    /* isolated component */
 
-	    work[0] = vext;
-	    j = 1;
-	    for (i = ix; i <= end1; ++i) work[j++] = path[i];
-	    for (i = end0; i < ix; ++i) work[j++] = path[i];
+            work[0] = vext;
+            j = 1;
+            for (i = ix; i <= end1; ++i) work[j++] = path[i];
+            for (i = end0; i < ix; ++i) work[j++] = path[i];
 
-	    for (i = 0; i < j; ++i)
-	    {
-		path[end0+i] = work[i];
+            for (i = 0; i < j; ++i)
+            {
+                path[end0+i] = work[i];
                 pos[work[i]] = end0+i;
-	    }
-	    ++end1;
-	    ++len;
-	    continue;
+            }
+            ++end1;
+            ++len;
+            continue;
         }
 
      /* In the last resort, do a sideways move. */
     
-	exts = 0;
-	d0 = d[v0];
+        exts = 0;
+        d0 = d[v0];
         e0 = e + v[v0];
         ran = NEXTRAN;
-	for (i = 0; i < d0; ++i)
-	{
-	    w = e0[i];
-	    if (pos[w] >= 0 && w != path[end0+1])
-	    {
-		++exts;
-		if (ran%exts == 0) {left = TRUE; vext = w;}
-	    }
+        for (i = 0; i < d0; ++i)
+        {
+            w = e0[i];
+            if (pos[w] >= 0 && w != path[end0+1])
+            {
+                ++exts;
+                if (ran%exts == 0) {left = TRUE; vext = w;}
+            }
         }
-	d1 = d[v1];
+        d1 = d[v1];
         e1 = e + v[v1];
         ran = NEXTRAN;
-	for (i = 0; i < d1; ++i)
-	{
-	    w = e1[i];
-	    if (pos[w] >= 0 && w != path[end1-1]) 
+        for (i = 0; i < d1; ++i)
+        {
+            w = e1[i];
+            if (pos[w] >= 0 && w != path[end1-1]) 
             {
                 ++exts;
                 if (ran%exts == 0) {left = FALSE; vext = w;}
             }
-	}
+        }
 
-	if (left)
-	{
-	    i = end0;
+        if (left)
+        {
+            i = end0;
             j = pos[vext]-1;
-	}
-	else
-	{
-	    i = pos[vext]+1;
-	    j = end1;
-	}
-	for (; i < j; ++i, --j)
-	{
-	    w = path[i];
-	    path[i] = path[j];
-	    path[j] = w;
-	    pos[path[i]] = i;
-	    pos[path[j]] = j;
-	}
+        }
+        else
+        {
+            i = pos[vext]+1;
+            j = end1;
+        }
+        for (; i < j; ++i, --j)
+        {
+            w = path[i];
+            path[i] = path[j];
+            path[j] = w;
+            pos[path[i]] = i;
+            pos[path[j]] = j;
+        }
 
-	++count;
+        ++count;
     }
 
     return TIMEOUT;
@@ -266,8 +266,7 @@ main(int argc, char *argv[])
 
     HELP; PUTVERSION;
 
-    INITSEED;
-    ran_init(seed);
+    INITRANBYTIME;
 
     uswitch = sswitch = gswitch = Lswitch = qswitch = FALSE;
     pswitch = vswitch = tswitch = FALSE;
@@ -290,8 +289,8 @@ main(int argc, char *argv[])
                 else SWBOOLEAN('p',pswitch)
                 else SWBOOLEAN('q',qswitch)
                 else SWBOOLEAN('v',vswitch)
-		else SWLONG('L',Lswitch,Lvalue,"-L")
-		else SWINT('t',tswitch,tvalue,"-t")
+                else SWLONG('L',Lswitch,Lvalue,"-L")
+                else SWINT('t',tswitch,tvalue,"-t")
                 else badargs = TRUE;
             }
         }
@@ -326,8 +325,8 @@ main(int argc, char *argv[])
         if (uswitch) fprintf(stderr,"u");
         if (vswitch) fprintf(stderr,"v");
         if (pswitch) fprintf(stderr,"p");
-	if (Lswitch) fprintf(stderr,"L%ld",Lvalue);
-	if (tswitch) fprintf(stderr,"t%d",tvalue);
+        if (Lswitch) fprintf(stderr,"L%ld",Lvalue);
+        if (tswitch) fprintf(stderr,"t%d",tvalue);
         if (argnum > 0) fprintf(stderr," %s",infilename);
         if (argnum > 1) fprintf(stderr," %s",outfilename);
         fprintf(stderr,"\n");
@@ -375,19 +374,19 @@ main(int argc, char *argv[])
     {
         ++nin;
 
-	n = sg.nv;
+        n = sg.nv;
 
         if (vswitch) { DYNALLOC1(int,cyc,cyc_sz,n,"malloc"); }
-	else         cyc = NULL;
+        else         cyc = NULL;
 
-	status = TIMEOUT;
-	for (i = 0; i < tvalue; ++i)
-	{
-	    status = hamheur(&sg,pswitch,(Lswitch?Lvalue:1000+5*n),cyc);
-	    if (status != TIMEOUT) break;
-	}
+        status = TIMEOUT;
+        for (i = 0; i < tvalue; ++i)
+        {
+            status = hamheur(&sg,pswitch,(Lswitch?Lvalue:1000+5*n),cyc);
+            if (status != TIMEOUT) break;
+        }
 
-	if (status == NO) ++nNO;
+        if (status == NO) ++nNO;
         else if (status == YES) ++nYES;
         else ++nTIMEOUT;
 
@@ -395,28 +394,28 @@ main(int argc, char *argv[])
         {
             if (outcode == SPARSE6) writes6_sg(outfile,&sg);
             else if (outcode == GRAPH6) writeg6_sg(outfile,&sg);
-	    ++nout;
-	}
+            ++nout;
+        }
 
-	if (vswitch)
-	{
-	    fprintf(stderr,">H " COUNTER_FMT ":",nin);
-	    if (status == TIMEOUT)
-		fprintf(stderr," timed out\n");
+        if (vswitch)
+        {
+            fprintf(stderr,">H " COUNTER_FMT ":",nin);
+            if (status == TIMEOUT)
+                fprintf(stderr," timed out\n");
             else if (status == NO)
                     fprintf(stderr," disconnected or low degree\n");
-	    else
-	    {
-		for (i = 0; i < n; ++i) fprintf(stderr," %d",cyc[i]);
-		fprintf(stderr,"\n");
-	    }
-	}
+            else
+            {
+                for (i = 0; i < n; ++i) fprintf(stderr," %d",cyc[i]);
+                fprintf(stderr,"\n");
+            }
+        }
     }
     t = CPUTIME - t;
 
     if (uswitch)
     {
-	fprintf(stderr,">Z " COUNTER_FMT " graphs read from %s; "
+        fprintf(stderr,">Z " COUNTER_FMT " graphs read from %s; "
            COUNTER_FMT " hamiltonian, " COUNTER_FMT " not, "
            COUNTER_FMT " timed out; %3.2f sec.\n",
            nin,infilename,nYES,nNO,nTIMEOUT,t);

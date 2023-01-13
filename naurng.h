@@ -12,13 +12,14 @@
 */
 
 #ifndef NAURNG_H
-#include "nauty.h"
+#include "naututil.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 extern void ran_init(long seed);
+extern long ran_init_time(long extra);
 extern long ran_nextran(void);
 
 #ifdef __cplusplus
@@ -34,7 +35,7 @@ extern long ran_nextran(void);
 #define GETKRAN(k,var) {long __getkran; \
     do {__getkran = NEXTRAN;} while (__getkran >= MAXSAFE(k)); \
     var = __getkran % (k);}
-#define INITRANBYTIME ran_init((long)time(NULL))
+#define INITRANBYTIME ran_init_time(0)
 
 #define NAURNG_H
 #endif
