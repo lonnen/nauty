@@ -1,4 +1,5 @@
 /* multig.c version 2.1; B D McKay, March 4, 2022 */
+/* TODO: allow colours in -V input to count against -e */
 
 #define USAGE \
 "multig [-q] [-V] [-u|-T|-G|-A|-B] [-e#|-e#:#] \n" \
@@ -17,11 +18,11 @@
     -r# make regular of specified degree (incompatible with -l, -D, -e)\n\
     -l# make regular multigraphs with multiloops, degree #\n\
                  (incompatible with -r, -D, -e)\n\
+    -f# Use the group that fixes the first # vertices setwise\n\
     -V  read the T format as produced by vcolg and obey the vertex colours\n\
         in computing the automorphism group. If -T or -G is used as the\n\
         output format, a list of the input colours is included.\n\
     Either -l, -r, -D, -e or -m with a finite maximum must be given\n\
-    -f# Use the group that fixes the first # vertices setwise\n\
     -T  use a simple text output format (nv ne {v1 v2 mult})\n\
     -G  like -T but includes group size as third item (if less than 10^10)\n\
           The group size does not include exchange of isolated vertices.\n\
@@ -90,7 +91,7 @@ static nauty_counter oldlo;
  * If OUTPROC is defined at compile time, and -u is not used, the
  * procedure OUTPROC is called for each graph.  This must be linked
  * by the compiler.  The arguments are
- * f = open output file (FILE*
+ * f = open output file (FILE*)
  * n = number of vertices (int)
  * ne = number of edges (int)
  * gp = unsigned long group size ignoring isolated vertices
@@ -102,7 +103,7 @@ static nauty_counter oldlo;
  * If OUTPROCC is defined at compile time, and -u is not used, the
  * procedure OUTPROCC is called for each graph.  This must be linked
  * by the compiler.  The arguments are
- * f = open output file (FILE*
+ * f = open output file (FILE*)
  * n = number of vertices (int)
  * ne = number of edges (int)
  * gp = unsigned long group size ignoring isolated vertices
@@ -277,7 +278,7 @@ trythisone(grouprec *group,
     {
 #ifdef GROUPTEST
         if (groupsize % newgroupsize != 0)
-                    gt_abort("group size error\n");
+                    gt_abort(">E group size error\n");
         totallab += groupsize/newgroupsize;
 #endif
 
@@ -291,7 +292,7 @@ trythisone(grouprec *group,
                     if (deg[i] < maxdeg)
                     {
                         v0[ne2] = v1[ne2] = i;
-			edgeno[i][i] = ne2;
+                        edgeno[i][i] = ne2;
                         ix[ne2] = (maxdeg-deg[i])/2;
                         ++ne2;
                     }
@@ -311,28 +312,28 @@ trythisone(grouprec *group,
         while (sp > s) { *(p++) = *(--sp); } }}
 #define SPC *(p++) = ' '
 
-	        p = line;
-		PUTINT(n); SPC; PUTINT(ne2);
-	 	if (Gswitch) { SPC; PUTINT(newgroupsize); }
-		if (Vswitch)
-		    for (i = 0; i < n; ++i) { SPC; PUTINT(colour[i]); }
-		SPC;
-		for (i = 0; i < ne2; ++i)
-		{  SPC; PUTINT(v0[i]);
-		   SPC; PUTINT(v1[i]);
-		   SPC; PUTINT(ix[i]);
-		}
-		*(p++) = '\n';
-		*(p++) = '\0';
-		fputs(line,outfile);
+                p = line;
+                PUTINT(n); SPC; PUTINT(ne2);
+                if (Gswitch) { SPC; PUTINT(newgroupsize); }
+                if (Vswitch)
+                    for (i = 0; i < n; ++i) { SPC; PUTINT(colour[i]); }
+                SPC;
+                for (i = 0; i < ne2; ++i)
+                {  SPC; PUTINT(v0[i]);
+                   SPC; PUTINT(v1[i]);
+                   SPC; PUTINT(ix[i]);
+                }
+                *(p++) = '\n';
+                *(p++) = '\0';
+                fputs(line,outfile);
             }
 #endif
 #endif
-	    for (i = ne2; --i >= ne; )
-	    {
-		j = v0[i];
-		edgeno[j][j] = -1;
-	    }
+            for (i = ne2; --i >= ne; )
+            {
+                j = v0[i];
+                edgeno[j][j] = -1;
+            }
         }
         return;
     }
@@ -621,8 +622,8 @@ multi(graph *g, int nfixed, long minedges, long maxedges, long maxmult,
 
     if (maxedges == NOLIMIT)
     {
-	if (maxmult == NOLIMIT) maxedges = maxdeg*n/2;
-	else                    maxedges = ne*maxmult;
+        if (maxmult == NOLIMIT) maxedges = maxdeg*n/2;
+        else                    maxedges = ne*maxmult;
     }
     if (maxmult == NOLIMIT) maxmult = maxedges - ne + 1;
     if (maxdeg >= 0 && maxmult > maxdeg) maxmult = maxdeg;
@@ -655,11 +656,11 @@ multi(graph *g, int nfixed, long minedges, long maxedges, long maxmult,
 
     hasloops = FALSE;
     for (i = 0, gi = g; i < n; ++i, gi += m)
-	if (ISELEMENT(gi,i))
-	{
-	    hasloops = TRUE;
-	    break;
-	}
+        if (ISELEMENT(gi,i))
+        {
+            hasloops = TRUE;
+            break;
+        }
 
     options.defaultptn = FALSE;
     options.digraph = hasloops;
@@ -720,8 +721,8 @@ vmulti(graph *g, int nfixed, long minedges, long maxedges, long maxmult,
         for (j = 0; j < m; ++j) thisdeg += POPCOUNT(gi[j]);
         deg[i] = thisdeg;
         if (thisdeg > maxd) maxd = thisdeg;
-	if (thisdeg == 0)    weight[i] = -i-1;
-	else if (i < nfixed) weight[i] = 2*colour[i];
+        if (thisdeg == 0)    weight[i] = -i-1;
+        else if (i < nfixed) weight[i] = 2*colour[i];
         else                 weight[i] = 2*colour[i]+1;
     }
 
@@ -774,8 +775,8 @@ vmulti(graph *g, int nfixed, long minedges, long maxedges, long maxmult,
 
     if (maxedges == NOLIMIT)
     {
-	if (maxmult == NOLIMIT) maxedges = maxdeg*n/2;
-	else                    maxedges = ne*maxmult;
+        if (maxmult == NOLIMIT) maxedges = maxdeg*n/2;
+        else                    maxedges = ne*maxmult;
     }
     if (maxmult == NOLIMIT) maxmult = maxedges - ne + 1;
     if (maxdeg >= 0 && maxmult > maxdeg) maxmult = maxdeg;
@@ -799,11 +800,11 @@ vmulti(graph *g, int nfixed, long minedges, long maxedges, long maxmult,
 
     hasloops = FALSE;
     for (i = 0, gi = g; i < n; ++i, gi += m)
-	if (ISELEMENT(gi,i))
-	{
-	    hasloops = TRUE;
-	    break;
-	}
+        if (ISELEMENT(gi,i))
+        {
+            hasloops = TRUE;
+            break;
+        }
  
     options.defaultptn = FALSE;
     options.digraph = hasloops;
@@ -841,38 +842,38 @@ readvcol(FILE *f, int *m, int *n, int *ne, graph *g)
    Return FALSE iff the input is empty.
 */
 {
-    int i,j,nn,nne,mm,x,y;
+    int i,j,nn,nne,mm;
     
     if (fscanf(f,"%d",&nn) != 1) return FALSE;
     if (nn > MAXNV) gt_abort(">E multig : too many vertices\n");
 
     if (fscanf(f,"%d",&nne) != 1)
-	gt_abort(">E multig : incomplete input (1)\n");
+        gt_abort(">E multig : incomplete input (1)\n");
     else if (nne > MAXNE)
-	gt_abort(">E multig : too many edges\n");
+        gt_abort(">E multig : too many edges\n");
 
     *n = nn;
     *ne = nne;
     *m = mm = SETWORDSNEEDED(nn);
 
     for (i = 0; i < nn; ++i)
-	if (fscanf(f,"%d",&colour[i]) != 1)
-	    gt_abort(">E multig : incomplete input (2)\n");
+        if (fscanf(f,"%d",&colour[i]) != 1)
+            gt_abort(">E multig : incomplete input (2)\n");
 
     EMPTYGRAPH(g,mm,nn);
 
     if (Aswitch || Bswitch)
-	for (i = 0; i < nn; ++i)
-	for (j = 0; j < nn; ++j)
-	    edgeno[i][j] = -1;
+        for (i = 0; i < nn; ++i)
+        for (j = 0; j < nn; ++j)
+            edgeno[i][j] = -1;
 
     for (i = 0; i < nne; ++i)
     {
-	if (fscanf(f,"%d%d",&v0[i],&v1[i]) != 2)
-	    gt_abort(">E multig : incomplete input (3)\n");
-	ADDELEMENT(g+mm*v0[i],v1[i]);
-	ADDELEMENT(g+mm*v1[i],v0[i]);
-	edgeno[v0[i]][v1[i]] = edgeno[v1[i]][v0[i]] = i;
+        if (fscanf(f,"%d%d",&v0[i],&v1[i]) != 2)
+            gt_abort(">E multig : incomplete input (3)\n");
+        ADDELEMENT(g+mm*v0[i],v1[i]);
+        ADDELEMENT(g+mm*v1[i],v0[i]);
+        edgeno[v0[i]][v1[i]] = edgeno[v1[i]][v0[i]] = i;
     }
 
     return TRUE;
@@ -1038,11 +1039,11 @@ main(int argc, char *argv[])
 
     if (Vswitch)
     {
-	if (!infilename)
-	    infile = stdin;
-	else if ((infile = fopen(infilename,"r")) == NULL)
-	    gt_abort(">E multig -V : cannot open input file\n");
-	codetype = 0;
+        if (!infilename)
+            infile = stdin;
+        else if ((infile = fopen(infilename,"r")) == NULL)
+            gt_abort(">E multig -V : cannot open input file\n");
+        codetype = 0;
     }
     else
     {
@@ -1063,10 +1064,7 @@ main(int argc, char *argv[])
             outfile = stdout;
         }
         else if ((outfile = fopen(outfilename,"w")) == NULL)
-        {
-            fprintf(stderr,"Can't open output file %s\n",outfilename);
-            gt_abort(NULL);
-        }
+            gt_abort_1(">E Can't open output file %s\n",outfilename);
     }
 
     mg_nin = mg_nout = mg_skipped = 0;
@@ -1076,16 +1074,16 @@ main(int argc, char *argv[])
     t = CPUTIME;
     while (TRUE)
     {
-	if (Vswitch)
-	{
-	    if (!readvcol(infile,&m,&n,&ne,g)) break;
-	}
-	else
-	{
+        if (Vswitch)
+        {
+            if (!readvcol(infile,&m,&n,&ne,g)) break;
+        }
+        else
+        {
             if ((g = readg(infile,NULL,0,&m,&n)) == NULL) break;
-	    if (n > MAXNV) gt_abort(">E multig: increase MAXNV\n");
+            if (n > MAXNV) gt_abort(">E multig: increase MAXNV\n");
             for (i = 0; i < n; ++i) colour[i] = 0;
-	}
+        }
         ++mg_nin;
 #ifdef PATHCOUNTS
         oldlo = mg_nout;
@@ -1128,8 +1126,8 @@ main(int argc, char *argv[])
 #ifdef PATHCOUNTS
         if (mg_nout != oldlo) ++count5;
 #endif
-	if (!uswitch && ferror(outfile))
-	    gt_abort(">E multig output error\n");
+        if (!uswitch && ferror(outfile))
+            gt_abort(">E multig output error\n");
         if (!Vswitch) FREES(g);
     }
     t = CPUTIME - t;
@@ -1141,7 +1139,7 @@ main(int argc, char *argv[])
     if (!qswitch)
     {
         fprintf(stderr,">Z " COUNTER_FMT " graphs read from %s; ",
-	 	       mg_nin,infilename);
+                        mg_nin,infilename);
 #ifdef INPUTGRAPH
         fprintf(stderr,COUNTER_FMT " skipped; ",mg_skipped);
 #endif

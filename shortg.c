@@ -1,7 +1,20 @@
 /* shortg.c  version 3.2; B D McKay, Sep 17 2018. */
 
+#include "gtools.h" 
+#include "nautinv.h"
+#include "gutils.h"
+#include "traces.h"
+
+#if SORT_SIZE
+#define USAGE \
+  "shortg [-qvkdu] [-i# -I#:# -K#] [-fxxx] [-S|-t] [-Tdir] [-Z#] [infile [outfile]]"
+#define SIZEHELP \
+"    -Z# Specify memory for sorting (number followed by %,K,M, or G)\n"
+#else
 #define USAGE \
   "shortg [-qvkdu] [-i# -I#:# -K#] [-fxxx] [-S|-t] [-Tdir] [infile [outfile]]"
+#define SIZEHELP
+#endif
 
 #define HELPTEXT \
 "  Remove isomorphs from a file of graphs.\n\
@@ -65,16 +78,12 @@
     -u  Write no output, just report how many graphs it would have output.\n\
         In this case, outfile is not permitted.\n\
     -Tdir  Specify that directory \"dir\" will be used for temporary disk\n\
-        space by the sort subprocess.  The default is usually /tmp.\n\
-    -q  Suppress auxiliary output\n"
+        space by the sort subprocess.  The default is usually /tmp.\n" \
+SIZEHELP \
+"    -q  Suppress auxiliary output\n"
 
 
 /*************************************************************************/
-
-#include "gtools.h" 
-#include "nautinv.h"
-#include "gutils.h"
-#include "traces.h"
 
 #if (HAVE_PIPE==0) || (HAVE_WAIT==0) || (HAVE_FORK==0)
  #error Forget it, either pipe(), wait() or fork() are not available
@@ -86,24 +95,6 @@ typedef int pid_t;
 
 #if !FDOPEN_DEC
 FILE *fdopen(int, const char*);
-#endif
-
-#if SORT_NEWKEY == 0
-#define SORTCOMMAND  SORTPROG,SORTPROG,"-u","+0","-1"
-#define VSORTCOMMAND1  SORTPROG,SORTPROG
-#define VSORTCOMMAND2  SORTPROG,SORTPROG,"+0","-1","+2"
-
-#define SORTCOMMANDT  SORTPROG,SORTPROG,"-T",tempdir,"-u","+0","-1"
-#define VSORTCOMMANDT1  SORTPROG,SORTPROG,"-T",tempdir
-#define VSORTCOMMANDT2  SORTPROG,SORTPROG,"-T",tempdir,"+0","-1","+2"
-#else
-#define SORTCOMMAND  SORTPROG,SORTPROG,"-u","-k","1,1"
-#define VSORTCOMMAND1  SORTPROG,SORTPROG
-#define VSORTCOMMAND2  SORTPROG,SORTPROG,"-k","1,1","-k","3"
-
-#define SORTCOMMANDT  SORTPROG,SORTPROG,"-T",tempdir,"-u","-k","1,1"
-#define VSORTCOMMANDT1  SORTPROG,SORTPROG,"-T",tempdir
-#define VSORTCOMMANDT2  SORTPROG,SORTPROG,"-T",tempdir,"-k","1,1","-k","3"
 #endif
 
 static struct invarrec
@@ -138,12 +129,14 @@ static struct invarrec
 /**************************************************************************/
 
 static pid_t
-beginsort(FILE **sortin, FILE **sortout, char *tempdir,
+beginsort(FILE **sortin, FILE **sortout, char *tempdir, char *Zarg,
           boolean vdswitch, boolean keep)
 /* begin sort process, open streams for i/o to it, and return its pid */
 {
-    int pid;
+    int ii;
+    pid_t pid;
     int inpipe[2],outpipe[2];
+    char *argv[15];
 
     if (pipe(inpipe) < 0 || pipe(outpipe) < 0)
         gt_abort(">E shortg: can't create pipes to sort process\n");
@@ -168,22 +161,43 @@ beginsort(FILE **sortin, FILE **sortout, char *tempdir,
         if (dup2(inpipe[0],0) < 0 || dup2(outpipe[1],1) < 0)
             gt_abort(">E shortg: dup2 failed\n");
 
-        if (tempdir == NULL)
+        ii = 0;
+        argv[ii++] = SORTPROG;
+        if (tempdir != NULL)
         {
-            if (vdswitch)
-                if (keep) execlp(VSORTCOMMAND2,NULL);
-                else      execlp(VSORTCOMMAND1,NULL);
-            else
-                execlp(SORTCOMMAND,NULL);
+            argv[ii++] = "-T";
+            argv[ii++] = tempdir;
         }
-        else
+        if (Zarg != NULL)
         {
-            if (vdswitch)
-                if (keep) execlp(VSORTCOMMANDT2,NULL);
-                else      execlp(VSORTCOMMANDT1,NULL);
-            else
-                execlp(SORTCOMMANDT,NULL);
+            argv[ii++] = "-S";
+            argv[ii++] = Zarg;
         }
+        if (!vdswitch) argv[ii++] = "-u";
+
+#if SORT_NEWKEY
+        argv[ii++] = "-k";
+        argv[ii++] = "1,1";
+        if (vdswitch && keep)
+        {
+            argv[ii++] = "-k";
+            argv[ii++] = "3";
+        }
+#else
+        argv[ii++] = "+0";
+        argv[ii++] = "-1";
+        if (vdswitch && keep) argv[ii++] = "+2";
+#endif
+
+        argv[ii] = NULL;
+
+/*
+for (ii = 0; argv[ii] != NULL; ++ii) fprintf(stderr," %s",argv[ii]);
+fprintf(stderr,"\n");
+*/
+
+        execvp(SORTPROG,argv);
+
         gt_abort(">E shortg: can't start sort process\n");
     }
 
@@ -278,29 +292,25 @@ main(int argc, char *argv[])
     char *dstr,*cdstr,*prevdstr,*prevcdstr;
     char sw,*fmt;
     boolean badargs,quiet,vswitch,dswitch,kswitch,format,uswitch;
-    boolean iswitch,Iswitch,Kswitch,Tswitch;
+    boolean iswitch,Iswitch,Kswitch,Tswitch,Zswitch;
     boolean zswitch,sswitch,gswitch,Sswitch,tswitch;
     boolean digraph;
     nauty_counter numread,prevnumread,numwritten,classsize;
-    int m,n,i,ii,argnum,line;
+    int m,n,i,ii,argnum,line,Zval;
+    char *Zarg,Zstring[25];
     int outcode,codetype;
     int inv,mininvarlevel,maxinvarlevel,invararg;
     long minil,maxil;
     pid_t sortpid;
     graph *g;
-    char *arg,*tempdir;
+    char *arg,*tempdir,Zchar;
     sparsegraph sg,sh;
     DEFAULTOPTIONS_TRACES(traces_opts);
     TracesStats traces_stats;
-#if MAXN
-    graph h[MAXN*MAXM];
-    int lab[MAXN],ptn[MAXN],orbits[MAXN];
-#else
     DYNALLSTAT(graph,h,h_sz);
     DYNALLSTAT(int,lab,lab_sz);
     DYNALLSTAT(int,ptn,ptn_sz);
     DYNALLSTAT(int,orbits,orbits_sz);
-#endif
 
     HELP; PUTVERSION;
 
@@ -309,7 +319,7 @@ main(int argc, char *argv[])
     infilename = outfilename = NULL;
     dswitch = format = quiet = vswitch = kswitch = uswitch = FALSE;
     zswitch = sswitch = gswitch = Sswitch = Tswitch = FALSE;
-    tswitch = iswitch = Iswitch = Kswitch = FALSE;
+    tswitch = iswitch = Iswitch = Kswitch = Zswitch = FALSE;
     tempdir = NULL;
     inv = 0;
 
@@ -352,6 +362,15 @@ main(int argc, char *argv[])
                     tempdir = arg;
                     break;
                 }
+                else if (sw == 'Z')
+                {
+                    SWINT('Z',Zswitch,Zval,"shortg -Z");
+                    Zchar = *arg++;
+                    if (Zchar != 'K' && Zchar != 'M' && Zchar != 'G'
+                                     && Zchar != '%')
+                        badargs = TRUE;
+                    if (Zchar == '\0') break;
+                }
                 else badargs = TRUE;
             }
         }
@@ -383,6 +402,14 @@ main(int argc, char *argv[])
           ">E shortg: that invariant is not available in sparse mode\n");
 
     if (argnum == 1 && !uswitch) outfilename = infilename;
+
+    if (Zswitch)
+    {
+        sprintf(Zstring,"%d%c",Zval,Zchar);
+        Zarg = Zstring;
+    }
+    else
+        Zarg = NULL;
 
     if (iswitch)
     {
@@ -418,12 +445,12 @@ main(int argc, char *argv[])
         if (vswitch) fprintf(stderr,"v");
         if (dswitch) fprintf(stderr,"d");
         if (uswitch) fprintf(stderr,"u");
+        if (Zswitch) fprintf(stderr," -Z%d%c",Zval,Zchar);
         if (iswitch)
-            fprintf(stderr,"i=%s[%d:%d,%d]",invarproc[inv].name,
+            fprintf(stderr," i=%s[%d:%d,%d]",invarproc[inv].name,
                     mininvarlevel,maxinvarlevel,invararg);
-        if (format) fprintf(stderr,"f%s",fmt);
-        if (format && Tswitch) fprintf(stderr," -");
-        if (Tswitch) fprintf(stderr,"T%s",tempdir);
+        if (format) fprintf(stderr," -f%s",fmt);
+        if (Tswitch) fprintf(stderr," -T%s",tempdir);
         if (argnum > 0) fprintf(stderr," %s",infilename);
         if (argnum > 1) fprintf(stderr," %s",outfilename);
         fprintf(stderr,"\n");
@@ -459,7 +486,7 @@ main(int argc, char *argv[])
      /* begin sort in a subprocess */
 
     sortpid = beginsort(&sortin,&sortout,(Tswitch?tempdir:NULL),
-                                            dswitch||vswitch,kswitch);
+                                   Zarg,dswitch||vswitch,kswitch);
 
   /* feed input graphs, possibly relabelled, to sort process */
 
@@ -467,24 +494,24 @@ main(int argc, char *argv[])
 
     if (Sswitch)
     {
-	SG_INIT(sg);
-	SG_INIT(sh);
+        SG_INIT(sg);
+        SG_INIT(sh);
         while (TRUE)
         {
-	    if (read_sgg_loops(infile,&sg,&loops,&digraph) == NULL) break;
+            if (read_sgg_loops(infile,&sg,&loops,&digraph) == NULL) break;
             dstr = readg_line;
             ++numread;
-	    n = sg.nv;
+            n = sg.nv;
 #if MAXN
-	    if (n > MAXN) gt_abort(">E shortg: graph larger than MAXN read\n");
+            if (n > MAXN) gt_abort(">E shortg: graph larger than MAXN read\n");
 #endif
             m = SETWORDSNEEDED(n);
             SG_ALLOC(sh,n,sg.nde,"shortg");
             fcanonise_inv_sg(&sg,m,n,&sh,format?fmt:NULL,
-		invarproc[inv].entrypoint_sg,
+                invarproc[inv].entrypoint_sg,
                 mininvarlevel,maxinvarlevel,invararg,loops>0||digraph);
             sortlists_sg(&sh);
-	    if (outcode == DIGRAPH6 || digraph) cdstr = sgtod6(&sh);
+            if (outcode == DIGRAPH6 || digraph) cdstr = sgtod6(&sh);
             else if (outcode == SPARSE6)        cdstr = sgtos6(&sh);
             else                                cdstr = sgtog6(&sh);
 
@@ -509,28 +536,28 @@ main(int argc, char *argv[])
             ++numread;
             n = sg.nv;
 #if MAXN
-	    if (n > MAXN) gt_abort(">E shortg: graph larger than MAXN read\n");
+            if (n > MAXN) gt_abort(">E shortg: graph larger than MAXN read\n");
 #endif
             DYNALLOC1(int,lab,lab_sz,n,"traces@shortg");
             DYNALLOC1(int,ptn,ptn_sz,n,"traces@shortg");
             DYNALLOC1(int,orbits,orbits_sz,n,"traces@shortg");
             SG_ALLOC(sh,n,sg.nde,"labelg");
-	    if (n == 0)
-	    {
-		sh.nv = 0;
-		sh.nde = 0;
-	    }
-	    else
-	    {
+            if (n == 0)
+            {
+                sh.nv = 0;
+                sh.nde = 0;
+            }
+            else
+            {
                 for (ii = 0; ii < n; ++ii) { lab[ii] = ii; ptn[ii] = 1; }
                 ptn[n-1] = 0;
                 Traces(&sg,lab,ptn,orbits,&traces_opts,&traces_stats,&sh);
                 sortlists_sg(&sh);
-	    }
-	    if (outcode == DIGRAPH6 || digraph) cdstr = sgtod6(&sh);
+            }
+            if (outcode == DIGRAPH6 || digraph) cdstr = sgtod6(&sh);
             else if (outcode == SPARSE6)        cdstr = sgtos6(&sh);
             else                                cdstr = sgtog6(&sh);
-	    tosort(sortin,cdstr,kswitch ? dstr : NULL,vswitch ? numread : 0);
+            tosort(sortin,cdstr,kswitch ? dstr : NULL,vswitch ? numread : 0);
         }
     }
     else
@@ -547,7 +574,7 @@ main(int argc, char *argv[])
             fcanonise_inv(g,m,n,h,format?fmt:NULL,
                 invarproc[inv].entrypoint,mininvarlevel,maxinvarlevel,
                 invararg, loops>0||digraph);
-	    if (outcode == DIGRAPH6 || digraph) cdstr = ntod6(h,m,n);
+            if (outcode == DIGRAPH6 || digraph) cdstr = ntod6(h,m,n);
             else if (outcode == SPARSE6)        cdstr = ntos6(h,m,n);
             else                                cdstr = ntog6(h,m,n);
 
@@ -570,11 +597,8 @@ main(int argc, char *argv[])
     else
     {
         if ((outfile = fopen(outfilename,"w")) == NULL)
-        {
-            fprintf(stderr,
+            gt_abort_1(
                 ">E shortg: can't open %s for writing\n",outfilename);
-            gt_abort(NULL);
-        }
     }
 
     if (!uswitch && (codetype&HAS_HEADER))
@@ -727,7 +751,7 @@ main(int argc, char *argv[])
             fprintf(stderr,">Z " COUNTER_FMT " graphs produced\n",numwritten);
         else
             fprintf(stderr,
-                  ">Z " COUNTER_FMT " graphs written to %s\n",numwritten,outfilename);
+             ">Z " COUNTER_FMT " graphs written to %s\n",numwritten,outfilename);
     }
 
      /* check that the subprocess exitted properly */
@@ -741,16 +765,13 @@ main(int argc, char *argv[])
     if (WTERMSIG(status) != 0)
 #endif
     {
-        fprintf(stderr,">E shortg: sort process killed (signal %d)\n",
+        gt_abort_1(">E shortg: sort process killed (signal %d)\n",
                       WTERMSIG(status)); 
-        gt_abort(NULL);
     }   
     else if (WEXITSTATUS(status) != 0)
     {
-        fprintf(stderr,
-                ">E shortg: sort process exited abnormally (code %d)\n",
+        gt_abort_1(">E shortg: sort process exited abnormally (code %d)\n",
                 WEXITSTATUS(status));
-        gt_abort(NULL);
     }
 #endif
 

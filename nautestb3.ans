@@ -1,0 +1,4 @@
+                          [-i# -I#:# -K#] [infile [outfile]]
+   Use ./labelg -help to see more detailed instructions.
+>A ./geng -cfd1D9 n=10 e=9-16
+>E Usage: labelg [-q] [-sgz | -C#W#] [-fxxx] [-S|-t] 

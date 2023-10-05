@@ -64,7 +64,7 @@ main(int argc, char *argv[])
     boolean digraph;
     char *arg,sw;
     double t;
-    long seed;
+    unsigned long long seed;
 #if MAXN
     graph h[MAXN*MAXM];
 #else
@@ -91,7 +91,7 @@ main(int argc, char *argv[])
                      SWBOOLEAN('q',quiet)
                 else SWINT('f',fswitch,fixed,"ranlabg -f") 
                 else SWINT('m',mswitch,mult,"ranlabg -m") 
-                else SWLONG('S',Sswitch,seed,"ranlabg -S") 
+                else SWULL('S',Sswitch,seed,"ranlabg -S") 
                 else badargs = TRUE;
             }
         }
@@ -111,14 +111,15 @@ main(int argc, char *argv[])
         exit(1);
     }
 
-    if (!Sswitch) INITSEED;
+    if (!Sswitch) seed = INITRANBYTIME;
+    else          ran_init(seed);
     if (!mswitch) mult = 1;
     if (!fswitch) fixed = 0;
 
     if (!quiet)
     {
         fprintf(stderr,">A ranlabg");
-        fprintf(stderr," -S%ld",seed);
+        fprintf(stderr," -S%llu",seed);
         if (fswitch) fprintf(stderr,"f%d",fixed);
         if (mswitch) fprintf(stderr,"m%d",mult);
         if (argnum > 0) fprintf(stderr," %s",infilename);
@@ -140,10 +141,7 @@ main(int argc, char *argv[])
         outfile = stdout;
     }
     else if ((outfile = fopen(outfilename,"w")) == NULL)
-    {
-        fprintf(stderr,"Can't open output file %s\n",outfilename);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E Can't open output file %s\n",outfilename);
 
     if (codetype&SPARSE6)       outcode = SPARSE6;
     else if (codetype&DIGRAPH6) outcode = DIGRAPH6;

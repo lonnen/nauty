@@ -8,6 +8,7 @@
    May 11, 2010 : use sorttemplates.c
    Sep  5, 2013 : Unify format processing and remove 2^22 limit
    Oct 14, 2017 : Include code for n=0
+   Sep 28, 2019 : Define breakcellwt
 
 **************************************************************************/
 
@@ -61,9 +62,46 @@ setlabptn(int *weight, int *lab, int *ptn, int n)
     }
     else
     {
-	for (i = 0; i < n-1; ++i) ptn[i] = 1;
-	ptn[n-1] = 0;
+        for (i = 0; i < n-1; ++i) ptn[i] = 1;
+        ptn[n-1] = 0;
     }
+}
+
+int
+breakcellwt(int *weight, int *lab, int *ptn, int n1, int n2)
+/* Break (lab[n1..n2-1],ptn[n1..n2-1]) into cells in increasing
+   order of weight.  If is assumed that lab[n1..n2-1] are defined
+   but ptn[n1..n2-1] are ignored.
+   The weight of lab[i] is weight[lab[i]]. 
+   The number of cells is returned. */
+{
+    int i,nc;
+
+    if (n2 <= n1) return 0;
+
+    nc = 1;
+    if (weight)
+    {
+        sortwt(lab+n1,weight,n2-n1);
+        for (i = n1; i < n2-1; ++i)
+        {
+            if (weight[lab[i]] != weight[lab[i+1]])
+            {
+                ptn[i] = 0;
+                ++nc;
+            }
+            else
+                ptn[i] = 1;
+        }
+        ptn[n2-1] = 0;
+    }
+    else
+    {
+        for (i = n1; i < n2-1; ++i) ptn[i] = 1;
+        ptn[n2-1] = 0;
+    }
+
+    return nc;
 }
 
 static int
@@ -89,20 +127,20 @@ setlabptnfmt(char *fmt, int *lab, int *ptn, set *active, int m, int n)
     if (fmt != NULL && fmt[0] != '\0')
     {
 #if !MAXN
-        DYNALLOC1(int,wt,wt_sz,n,"fcanonise");
+        DYNALLOC1(int,wt,wt_sz,n,"setlabptnfmt");
 #endif
         for (i = 0; i < n && fmt[i] != '\0'; ++i)
-	    wt[i] = (unsigned char)fmt[i];
-	for ( ; i < n; ++i)
-	    wt[i] = 'z';
+            wt[i] = (unsigned char)fmt[i];
+        for ( ; i < n; ++i)
+            wt[i] = 'z';
 
-	setlabptn(wt,lab,ptn,n);
-	for (i = 0; i < n-1; ++i)
-	    if (ptn[i] == 0)
-	    {
-		++nc;
-		ADDELEMENT(active,i+1);
-	    }
+        setlabptn(wt,lab,ptn,n);
+        for (i = 0; i < n-1; ++i)
+            if (ptn[i] == 0)
+            {
+                ++nc;
+                ADDELEMENT(active,i+1);
+            }
     }
     else
     {
@@ -142,9 +180,9 @@ hasloops_sg(sparsegraph *sg)
     SG_VDE(sg,v,d,e);
     for (i = 0; i < n; ++i)
     {
-	vi = v[i];
+        vi = v[i];
         for (j = vi; j < vi + d[i]; ++j)
-	    if (e[vi] == i) return TRUE;
+            if (e[vi] == i) return TRUE;
     }
 
     return FALSE;
@@ -181,7 +219,7 @@ fcanonise(graph *g, int m, int n, graph *h, char *fmt, boolean digraph)
     if (n > MAXN || m > MAXM)
     {
         fprintf(stderr,">E fcanonise: m or n too large\n");
-        ABORT(">E fcanonise");
+        NAUTY_ABORT(">E fcanonise");
     }
 #else
     DYNALLOC1(int,lab,lab_sz,n,"fcanonise");
@@ -215,7 +253,7 @@ fcanonise(graph *g, int m, int n, graph *h, char *fmt, boolean digraph)
 #ifdef REFINE
         options.userrefproc = REFINE;
 #endif
-	if (n >= MIN_SCHREIER) options.schreier = TRUE;
+        if (n >= MIN_SCHREIER) options.schreier = TRUE;
 
         EMPTYSET(active,m);
         nauty(g,lab,ptn,active,orbits,&options,&stats,
@@ -262,7 +300,7 @@ fcanonise_inv(graph *g, int m, int n, graph *h, char *fmt,
     if (n > MAXN || m > MAXM)
     {
         fprintf(stderr,">E fcanonise: m or n too large\n");
-        ABORT(">E fcanonise");
+        NAUTY_ABORT(">E fcanonise");
     }
 #else
     DYNALLOC1(int,lab,lab_sz,n,"fcanonise");
@@ -302,7 +340,7 @@ fcanonise_inv(graph *g, int m, int n, graph *h, char *fmt,
 #ifdef REFINE
         options.userrefproc = REFINE;
 #endif
-	if (n >= MIN_SCHREIER) options.schreier = TRUE;
+        if (n >= MIN_SCHREIER) options.schreier = TRUE;
 
         EMPTYSET(active,m);
         nauty(g,lab,ptn,active,orbits,&options,&stats,workspace,24*m,m,n,h);
@@ -344,8 +382,8 @@ fcanonise_inv_sg(sparsegraph *g, int m, int n, sparsegraph *h, char *fmt,
 
     if (n == 0)
     {
-	h->nv = 0;
-	h->nde = 0;
+        h->nv = 0;
+        h->nde = 0;
         return;
     }
 
@@ -353,7 +391,7 @@ fcanonise_inv_sg(sparsegraph *g, int m, int n, sparsegraph *h, char *fmt,
     if (n > MAXN || m > MAXM)
     {
         fprintf(stderr,">E fcanonise: m or n too large\n");
-        ABORT(">E fcanonise");
+        NAUTY_ABORT(">E fcanonise");
     }
 #else
     DYNALLOC1(int,lab,lab_sz,n,"fcanonise");
@@ -390,7 +428,7 @@ fcanonise_inv_sg(sparsegraph *g, int m, int n, sparsegraph *h, char *fmt,
 #ifdef REFINE
         options.userrefproc = REFINE;
 #endif
-	if (n >= MIN_SCHREIER) options.schreier = TRUE;
+        if (n >= MIN_SCHREIER) options.schreier = TRUE;
 
         EMPTYSET(active,m);
         nauty((graph*)g,lab,ptn,active,orbits,&options,&stats,
@@ -430,15 +468,15 @@ fgroup(graph *g, int m, int n, char *fmt, int *orbits, int *numorbits)
 
     if (n == 0)
     {
-	*numorbits = 0;
-	return;
+        *numorbits = 0;
+        return;
     }
 
 #if MAXN
     if (n > MAXN || m > MAXM)
     {
         fprintf(stderr,">E fcanonise: m or n too large\n");
-        ABORT(">E fcanonise");
+        NAUTY_ABORT(">E fcanonise");
     }
 #else
     DYNALLOC1(int,lab,lab_sz,n,"fcanonise");
@@ -487,7 +525,7 @@ fgroup(graph *g, int m, int n, char *fmt, int *orbits, int *numorbits)
 #ifdef REFINE
         options.userrefproc = REFINE;
 #endif
-	if (n >= MIN_SCHREIER) options.schreier = TRUE;
+        if (n >= MIN_SCHREIER) options.schreier = TRUE;
 
         EMPTYSET(active,m);
         nauty(g,lab,ptn,active,orbits,&options,&stats,workspace,24*m,m,n,NULL);
@@ -530,15 +568,15 @@ fgroup_inv(graph *g, int m, int n, char *fmt, int *orbits, int *numorbits,
 
     if (n == 0)
     {
-	*numorbits = 0;
-	return;
+        *numorbits = 0;
+        return;
     }
 
 #if MAXN
     if (n > MAXN || m > MAXM)
     {
         fprintf(stderr,">E fcanonise: m or n too large\n");
-        ABORT(">E fcanonise");
+        NAUTY_ABORT(">E fcanonise");
     }
 #else
     DYNALLOC1(int,lab,lab_sz,n,"fcanonise");
@@ -594,7 +632,7 @@ fgroup_inv(graph *g, int m, int n, char *fmt, int *orbits, int *numorbits,
 #ifdef REFINE
         options.userrefproc = REFINE;
 #endif
-	if (n >= MIN_SCHREIER) options.schreier = TRUE;
+        if (n >= MIN_SCHREIER) options.schreier = TRUE;
 
         EMPTYSET(active,m);
         nauty(g,lab,ptn,active,orbits,&options,&stats,workspace,24*m,m,n,NULL);
@@ -759,7 +797,7 @@ tg_canonise(graph *g, graph *h, int m, int n)
     if (n > MAXN || m > MAXM)
     {
         fprintf(stderr,">E tg_canonise: m or n too large\n");
-        ABORT(">E tg_canonise");
+        NAUTY_ABORT(">E tg_canonise");
     }
 #else
     DYNALLOC1(int,lab,lab_sz,n,"tg_canonise");

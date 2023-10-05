@@ -53,7 +53,7 @@ main(int argc, char *argv[])
          /* Find the squares and the degree */
 
             for (i = 0; i < n; ++i) issquare[i] = FALSE;
-            for (i = 0; i < n; ++i) issquare[(i*i)%n] = TRUE;
+            for (i = 0; i < n; ++i) issquare[(i*(unsigned long)i)%n] = TRUE;
             if (!issquare[n-1])
             {
                 printf("-1 must be a square mod n; try again\n");
@@ -65,13 +65,13 @@ main(int argc, char *argv[])
 
          /* Now make the graph */
 
-            SG_ALLOC(sg,n,n*deg,"malloc");
+            SG_ALLOC(sg,n,n*(size_t)deg,"malloc");
             sg.nv = n;              /* Number of vertices */
-            sg.nde = n*deg;           /* Number of directed edges */
+            sg.nde = n*(size_t)deg;           /* Number of directed edges */
 
             for (i = 0; i < n; ++i)
             {
-                sg.v[i] = i*deg;     /* Position of vertex i in v array */
+                sg.v[i] = i*(size_t)deg;     /* Position of vertex i in v array */
                 sg.d[i] = deg;       /* Degree of vertex i */
             }
              

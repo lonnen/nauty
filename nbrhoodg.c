@@ -14,7 +14,7 @@
     -d# -d#:# Only include vertices with original degree in the given range\n\
     -v# -v#:# Only include vertices with these vertex numbers (first is 0).\n\
         No empty graphs are output.\n\
-	For digraphs, out-degree and out-neighbourhoods are used.\n\
+        For digraphs, out-degree and out-neighbourhoods are used.\n\
     -q  Suppress auxiliary information\n"
 
 /*************************************************************************/
@@ -65,7 +65,7 @@ main(int argc, char *argv[])
     graph *g,*gq;
     nauty_counter nin;
     char *arg,sw;
-    setword *gv,*gi;
+    setword *gv;
     long mindeg,maxdeg;
     long minvert,maxvert;
     int degv,msub,nsub;
@@ -92,30 +92,30 @@ main(int argc, char *argv[])
         arg = argv[j];
         if (arg[0] == '-' && arg[1] != '\0')
         {
-    	    ++arg;
-    	    while (*arg != '\0')
-    	    {
-    	        sw = *arg++;
-    	             SWBOOLEAN('l',dolabel)
-    	        else SWBOOLEAN('q',quiet)
-    	        else SWBOOLEAN('c',cswitch)
-    	        else SWBOOLEAN('C',Cswitch)
+            ++arg;
+            while (*arg != '\0')
+            {
+                sw = *arg++;
+                     SWBOOLEAN('l',dolabel)
+                else SWBOOLEAN('q',quiet)
+                else SWBOOLEAN('c',cswitch)
+                else SWBOOLEAN('C',Cswitch)
                 else SWRANGE('v',":-",vswitch,minvert,maxvert,">E nbrhoodg -v")
                 else SWRANGE('d',":-",dswitch,mindeg,maxdeg,">E nbrhoodg -d")
-    	        else badargs = TRUE;
-    	    }
+                else badargs = TRUE;
+            }
         }
         else
         {
-    	    ++argnum;
-    	    if      (argnum == 1) infilename = arg;
+            ++argnum;
+            if      (argnum == 1) infilename = arg;
             else if (argnum == 2) outfilename = arg;
-    	    else                  badargs = TRUE;
+            else                  badargs = TRUE;
         }
     }
 
     if (cswitch && Cswitch) gt_abort(">E nbrhoodg: -c and -C are incompatible\n");
-	
+        
     if (badargs)
     {
         fprintf(stderr,">E Usage: %s\n",USAGE);
@@ -137,13 +137,13 @@ main(int argc, char *argv[])
 
     if (!dswitch)
     {
-	mindeg = 0;
-	maxdeg = NAUTY_INFINITY;
+        mindeg = 0;
+        maxdeg = NAUTY_INFINITY;
     }
     if (!vswitch)
     {
-	minvert = 0;
-	maxvert = NAUTY_INFINITY;
+        minvert = 0;
+        maxvert = NAUTY_INFINITY;
     }
     if (mindeg < 0) mindeg = 0;
     if (maxdeg == NOLIMIT) maxdeg = NAUTY_INFINITY;
@@ -164,10 +164,7 @@ main(int argc, char *argv[])
         outfile = stdout;
     }
     else if ((outfile = fopen(outfilename,"w")) == NULL)
-    {
-        fprintf(stderr,"Can't open output file %s\n",outfilename);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E Can't open output file %s\n",outfilename);
 
     if (codetype&SPARSE6)       outcode = SPARSE6;
     else if (codetype&DIGRAPH6) outcode = DIGRAPH6;
@@ -177,7 +174,7 @@ main(int argc, char *argv[])
     {
         if (outcode == SPARSE6)       writeline(outfile,SPARSE6_HEADER);
         else if (outcode == DIGRAPH6) writeline(outfile,DIGRAPH6_HEADER);
-        else    	              writeline(outfile,GRAPH6_HEADER);
+        else                          writeline(outfile,GRAPH6_HEADER);
     }
 
     t = CPUTIME;
@@ -187,55 +184,55 @@ main(int argc, char *argv[])
         ++nin;
 
 #if !MAXN
-	DYNALLOC2(graph,gsub,gsub_sz,m,n,"nbrhoodg");
-	if (dolabel) DYNALLOC2(graph,gx,gx_sz,m,n,"nbrhoodg");
+        DYNALLOC2(graph,gsub,gsub_sz,m,n,"nbrhoodg");
+        if (dolabel) DYNALLOC2(graph,gx,gx_sz,m,n,"nbrhoodg");
         DYNALLOC1(int,perm,perm_sz,n,"nbrhoodg");
 #endif
 
         for (v = minvert, gv = GRAPHROW(g,minvert,m);
                               v < n && v <= maxvert; ++v, gv += m)
         {
-    	    degv = 0;
-    	    for (i = 0; i < m; ++i) degv += POPCOUNT(gv[i]);
-    	    if (degv < mindeg || degv > maxdeg) continue;
+            degv = 0;
+            for (i = 0; i < m; ++i) degv += POPCOUNT(gv[i]);
+            if (degv < mindeg || degv > maxdeg) continue;
 
-	    if (Cswitch)
-	    {
-		perm[0] = v;
-		nsub = 1;
-		for (i = 0; i < n; ++i)
-		    if (ISELEMENT(gv,i) && i != v) perm[nsub++] = i;
-	    }
-	    else if (cswitch)
-	    {
-		nsub = 0;
-		for (i = 0; i < n; ++i)
-		    if (!ISELEMENT(gv,i) && i != v) perm[nsub++] = i;
-	    }
-	    else
-	    {
-		nsub = 0;
-		for (i = 0; i < n; ++i)
-		    if (ISELEMENT(gv,i) && i != v) perm[nsub++] = i;
-	    }
+            if (Cswitch)
+            {
+                perm[0] = v;
+                nsub = 1;
+                for (i = 0; i < n; ++i)
+                    if (ISELEMENT(gv,i) && i != v) perm[nsub++] = i;
+            }
+            else if (cswitch)
+            {
+                nsub = 0;
+                for (i = 0; i < n; ++i)
+                    if (!ISELEMENT(gv,i) && i != v) perm[nsub++] = i;
+            }
+            else
+            {
+                nsub = 0;
+                for (i = 0; i < n; ++i)
+                    if (ISELEMENT(gv,i) && i != v) perm[nsub++] = i;
+            }
 
-	    if (nsub != 0)
-	    {
-		getsubgraph(g,perm,nsub,gsub,m,n);
-		msub = SETWORDSNEEDED(nsub);
+            if (nsub != 0)
+            {
+                getsubgraph(g,perm,nsub,gsub,m,n);
+                msub = SETWORDSNEEDED(nsub);
                 if (dolabel)
                 {
-        	    fcanonise(gsub,msub,nsub,gx,NULL,digraph);
-        	    gq = gx;
-    	   	}
-    	        else
+                    fcanonise(gsub,msub,nsub,gx,NULL,digraph);
+                    gq = gx;
+                }
+                else
                     gq = gsub;
 
                 if (outcode == DIGRAPH6 || digraph) writed6(outfile,gq,msub,nsub);
                 else if (outcode == SPARSE6)        writes6(outfile,gq,msub,nsub);
                 else                                writeg6(outfile,gq,msub,nsub);
                 ++nout;
-	    }
+            }
         }
 
         FREES(g);

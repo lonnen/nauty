@@ -1,8 +1,8 @@
 /*****************************************************************************
 *                                                                            *
-*  Sparse-graph-specific auxiliary source file for version 2.7 of nauty.     *
+*  Sparse-graph-specific auxiliary source file for version 2.8 of nauty.     *
 *                                                                            *
-*   Copyright (2004-2016) Brendan McKay.  All rights reserved.               *
+*   Copyright (2004-2022) Brendan McKay.  All rights reserved.               *
 *   Subject to waivers and disclaimers in nauty.h.                           *
 *                                                                            *
 *   CHANGE HISTORY                                                           *
@@ -22,6 +22,8 @@
 *                   field of the dispatch vector to sort the lists of the    *
 *                   canonical graph, but isn't there by default.             *
 *       15-Oct-19 : fix static declaration of snwork[]                       *
+*        6-Apr-21 : increase work space in sparsenauty()                     *
+*       16-Nov-22 : fix an error in the Traces utility comparelab_tr()       *
 *                                                                            *
 *****************************************************************************/
 
@@ -322,16 +324,16 @@ updatecan_sg(graph *g, graph *canong, int *lab, int samerows, int m, int n)
         cv[i] = k;
         cd[i] = dli = d[lab[i]];
         vli = v[lab[i]];
-	if (wt)
-	{
+        if (wt)
+        {
             for (j = 0; j < dli; ++j)
             {
-		ce[k] = INVLAB[e[vli+j]];
-		cwt[k] = wt[vli+j];
-	        ++k;
+                ce[k] = INVLAB[e[vli+j]];
+                cwt[k] = wt[vli+j];
+                ++k;
             }
-	}
-	else
+        }
+        else
             for (j = 0; j < dli; ++j) ce[k++] = INVLAB[e[vli+j]];
     }
 }
@@ -353,8 +355,13 @@ comparelab_tr(sparsegraph *g,
     int mina;
     
     n = g->nv;
-    PREPAREMARKS1(n);
     
+#if !MAXN
+    DYNALLOC1(int,work1,work1_sz,n,"comparelab_tr");
+#endif
+#define NGHCOUNTS work1
+    
+    memset(NGHCOUNTS,0,n*sizeof(int));
     for (c=0; c<n; c+=cls[c])
     {
         if (cls[c] == 1)
@@ -369,22 +376,26 @@ comparelab_tr(sparsegraph *g,
                 if (d1 < d2) return -1;
                 else if (d1 > d2) return 1;
                 
-                RESETMARKS1;
                 mina = n;
-                for (j = 0; j < d1; ++j) MARK1(col[invlab1[e1[j]]]);
-                
+                for (j = 0; j < d1; ++j) {
+                    (NGHCOUNTS[col[invlab1[e1[j]]]])++;
+                }
                 for (j = 0; j < d1; ++j)
                 {
                     k = col[invlab2[e2[j]]];
-                    if (ISMARKED1(k))  UNMARK1(k);
-                    else if (k < mina) mina = k;
+                    if (NGHCOUNTS[k]) {
+                        (NGHCOUNTS[k])--;
+                    }
+                    else {
+                        if (k < mina) mina = k;
+                    }
                 }
                 if (mina != n)
                 {
                     for (j = 0; j < d1; ++j)
                     {
                         k = col[invlab1[e1[j]]];
-                        if (ISMARKED1(k) && k < mina) return -1;
+                        if (NGHCOUNTS[k] && k < mina) return -1;
                     }
                     return 1;
                 }
@@ -893,7 +904,7 @@ refine_sg(graph *g, int *lab, int *ptn, int level, int *numcells,
             }
 
             if (hitcells > 1) sortints(HITCELL,hitcells);
-	    longcode = MASH(longcode,hitcells);
+            longcode = MASH(longcode,hitcells);
 
          /* divide cells according to which vertices are hit */
 
@@ -981,7 +992,7 @@ refine_sg(graph *g, int *lab, int *ptn, int level, int *numcells,
             {
                 v1 = HITCELL[i];
                 w1 = HITS[lab[v1]];
-		longcode = MASH(longcode,v1);
+                longcode = MASH(longcode,v1);
 
                 v2 = v1+1;
                 while (ptn[v2-1] > level && HITS[lab[v2]] == w1) ++v2;
@@ -1452,7 +1463,7 @@ copy_sg(sparsegraph *sg1, sparsegraph *sg2)
     else
     {
         SG_ALLOC(*sg2,n,k,"copy_sg malloc");
-	DYNFREE(sg2->w,sg2->wlen);
+        DYNFREE(sg2->w,sg2->wlen);
     }
     SWG_VDE(sg2,v2,d2,e2,wt2);
 

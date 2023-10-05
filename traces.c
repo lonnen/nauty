@@ -1,7 +1,7 @@
 /******************************************************************************
  *                                                                            *
  * This is the main file for traces() version 2.2, which is included into     *
- *   nauty() version 2.7.                                                     *
+ *   nauty() version 2.8.6.                                                   *
  *                                                                            *
  *   nauty is Copyright (1984-2018) Brendan McKay.  All rights reserved.      *
  *   Traces is Copyright Adolfo Piperno, 2008-2018.  All rights reserved.     *
@@ -23,6 +23,8 @@
  *       12-Jul-16 : bug correction (reaching degree 2 vertices)              *
  *       07-Jun-18 : bug correction (finalnumcells, thanks R.Kralovic)        *
  *       07-Jun-18 : bug correction (index computation when findperm)         *
+ *       10-Nov-22 : bug correction (cycles in degree 2 subgraphs)            *
+ *       07-Aug-23 : bug correction (colors in degree 2 subgraphs)            *
  *****************************************************************************/
 
 #include "traces.h"
@@ -256,8 +258,8 @@ static int  traces_refine_sametrace(Candidate*, int, Partition*,
 static int  traces_refine_refine(sparsegraph*, Candidate*, int, Partition*,
                                  struct TracesVars*, struct TracesInfo*);
 static void  refine_tr_refine(Candidate*, int, Partition*,
-                             struct TracesVars*, struct TracesInfo*);
-static int given_gens(sparsegraph*, permnode*, int*, boolean);
+                              struct TracesVars*, struct TracesInfo*);
+static int given_gens(sparsegraph*, permnode*, int*, boolean, struct TracesVars*);
 static void quickSort(int*, int);
 static struct Partition* NewPartition(int);
 static struct Candidate* NewCandidate(int, Candidate**, int);
@@ -267,12 +269,12 @@ static int FixBase(int*, struct TracesVars*, Candidate*, int, int);
 static boolean FixedBase(int*, struct TracesVars*, Candidate*, int, int);
 static void factorial(double*, int*, int);
 static void factorial2(double*, int*, int);
-static int CheckForAutomorphisms(Candidate*, Candidate*, struct TracesVars*, struct TracesInfo*, int, int, Partition*);
-static int CheckForSingAutomorphisms(Candidate*, Partition*, Candidate*, struct TracesVars*, struct TracesInfo*, int, int);
-static int CheckForMatching(Candidate*, Candidate*, Partition*, struct TracesVars*, struct TracesInfo*, int, int);
+static int CheckForAutomorphisms(Candidate*, Candidate*, struct TracesVars*, struct TracesInfo*, int, Partition*);
+static int CheckForSingAutomorphisms(Candidate*, Partition*, Candidate*, struct TracesVars*, struct TracesInfo*, int);
+static int CheckForMatching(Candidate*, Candidate*, Partition*, struct TracesVars*, struct TracesInfo*, int);
 static void Individualize(Partition*, Candidate*, int, int, int, int);
 static boolean TreeFyTwo(int, Candidate*, Candidate*, Partition*, int, struct TracesVars*, struct TracesInfo*);
-static void ExperimentalStep(Partition*, Candidate*, struct TracesVars*, struct TracesInfo*, int, int);
+static void ExperimentalStep(Partition*, Candidate*, struct TracesVars*, struct TracesInfo*, int);
 static boolean TargetCell(Candidate*, Partition*, int, struct TracesVars*, int);
 static boolean TargetCellFirstPath(Candidate*, Partition*, struct TracesVars*);
 static int TargetCellExpPath(Candidate*, Partition*, struct TracesVars*);
@@ -287,9 +289,9 @@ static struct trie* trie_comp(trie*, int);
 static void trie_dump(trie*);
 static void trie_class(trie*, int*);
 static void RemoveFromLevel(int, int, int, boolean);
-static int CompStage0(Partition*, Partition*, Candidate*, Candidate*, int, int, struct TracesVars*, struct TracesInfo*);
-static int CompStage1(Partition*, Partition*, Candidate*, Candidate*, int, int, struct TracesVars*, struct TracesInfo*);
-static int CompStage2(Partition*, Partition*, Candidate*, Candidate*, int, int, struct TracesVars*, struct TracesInfo*);
+static int CompStage0(Partition*, Partition*, Candidate*, Candidate*, int, struct TracesVars*, struct TracesInfo*);
+static int CompStage1(Partition*, Partition*, Candidate*, Candidate*, int, struct TracesVars*, struct TracesInfo*);
+static int CompStage2(Partition*, Partition*, Candidate*, Candidate*, int, struct TracesVars*, struct TracesInfo*);
 static void grouporderplus(sparsegraph*, Candidate*, Partition*, permnode**, double*, int*, int, struct TracesVars*, struct TracesInfo*);
 static boolean Prefix(Candidate*, Candidate*, int);
 static boolean findperm(permnode*, int*, int);
@@ -305,7 +307,7 @@ static int maxint(int, int);
 static int minint(int, int);
 static void orbjoin_sp_perm(int*, int*, int*, int, int*);
 static void orbjoin_sp_pair(int*, int*, int, int, int, int*);
-static boolean isautom_sg_pair(graph*, int*, boolean, int, int, struct TracesVars*);
+static boolean isautom_sg_pair(sparsegraph*, int*, boolean, int, struct TracesVars*);
 static void SetAutom(int, int, struct TracesVars*);
 static void ResetAutom(int, int, struct TracesVars*);
 static void PrintVect(int*, int, int, int);
@@ -341,6 +343,11 @@ static const unsigned int fuzz2[] = {006532, 070236, 035523, 062437};
 static int Select_from_CStack(int*, int);
 static void PrintBlissGraph(int);
 static void CodeClassify(int, int, int);
+static void Adjust_Cycles(Candidate*, Partition*, int, TracesVars*);
+
+static boolean isautom_sg_tr(sparsegraph*,int*,boolean,int,TracesVars*);
+static void writeperm_tr(FILE*, const int*, boolean, int, int);
+
 
 #define FUZZ1(x) ((x) ^ fuzz1[(x)&3])
 #define FUZZ2(x) ((x) ^ fuzz2[(x)&3])
@@ -645,7 +652,7 @@ tv->stats->numgenerators++; \
 tv->specialgens++; \
 if (tv->options->writeautoms) { \
 fprintf(outfile, "Gen #%d: ", tv->stats->numgenerators); \
-writeperm(outfile, AUTPERM, tv->options->cartesian, tv->options->linelength, n); \
+writeperm_tr(outfile, AUTPERM, tv->options->cartesian, tv->options->linelength, n); \
 } \
 if (tv->options->userautomproc) { \
 (*tv->options->userautomproc)(tv->stats->numgenerators, AUTPERM, n); \
@@ -686,11 +693,6 @@ MakeTree(arg, val, sg_orig, n, tv, FALSE); }
 #define VERB_PRINT(V,Verb,R) if (tv->options->verbosity >= Verb) { \
 fprintf(outfile,"\033[0;32m%s\033[0m ",V); \
 if (R) fprintf(outfile,"\n"); }
-
-/* data decls. for CPUTIME */
-#ifdef  CPUDEFS
-CPUDEFS
-#endif
 
 #if !MAXN
 DYNALLSTAT(int, AUTPERM, AUTPERM_sz);
@@ -742,6 +744,9 @@ DYNALLSTAT(TracesSpine, Spine, Spine_sz);
 DYNALLSTAT(trie*, TrieArray, TrieArray_sz);
 DYNALLSTAT(grph_strct, TheGraph, TheGraph_sz);
 DYNALLSTAT(ExpPathInfo, EPCodes, EPCodes_sz);
+DYNALLSTAT(int, CyclesPart, CyclesPart_sz);
+DYNALLSTAT(int, CyclesLength, CyclesLength_sz);
+DYNALLSTAT(int, workperm_tr, workperm_tr_sz);
 #else
 static TLS_ATTR int CStack[MAXN];
 static TLS_ATTR int AUTPERM[MAXN];
@@ -792,6 +797,9 @@ static TLS_ATTR grph_strct TheGraph[MAXN];
 static TLS_ATTR int Neighbs1[MAXN];
 static TLS_ATTR int Neighbs2[MAXN];
 static TLS_ATTR ExpPathInfo EPCodes[MAXN];
+static TLS_ATTR int CyclesPart[MAXN];
+static TLS_ATTR int CyclesLength[MAXN];
+static TLS_ATTR int workperm_tr[MAXN];
 #endif
 
 #define PERMSTACK WorkArray1
@@ -846,7 +854,6 @@ Traces(sparsegraph *g_arg, int *lab, int *ptn,
     Candidate *CurrCand, *NextCand, *BestCand, *AuxCand;
     
     const int n = g_arg->nv;
-    const int m = SETWORDSNEEDED(n);
     
     if (g_arg->nv > (NAUTY_INFINITY-2))
     {
@@ -881,7 +888,7 @@ Traces(sparsegraph *g_arg, int *lab, int *ptn,
     
     if (tv->options->verbosity >= 2) {
         for (i = n, tv->digits = 0; i > 0; i /= 10, ++tv->digits) {}
-        sprintf(tv->digstring, "%s%dd ", "%", tv->digits);
+        snprintf(tv->digstring, 25, "%s%dd ", "%", tv->digits);
     }
     
     /* Initialize group and statistics */
@@ -909,7 +916,7 @@ Traces(sparsegraph *g_arg, int *lab, int *ptn,
     
     if (tv->options->generators) {
         tv->stats->numorbits = given_gens(g_arg, *tv->options->generators,
-                                          orbits_arg, tv->options->digraph);
+                                          orbits_arg, tv->options->digraph, tv);
         newgroup(&gpB, NULL, n);
         gensB = *tv->options->generators;
         expandschreier(gpB, &gensB, n);
@@ -929,7 +936,7 @@ Traces(sparsegraph *g_arg, int *lab, int *ptn,
     
     tv->graph = &redgraph;
     if (g_arg->w) memcpy(tv->graph->w, g_arg->w, tv->graph->wlen*sizeof(int));
-    memcpy(tv->graph->e, g_arg->e, tv->graph->elen*sizeof(int));
+    if (g_arg->e) memcpy(tv->graph->e, g_arg->e, tv->graph->elen*sizeof(int));
     
     for (i=0; i<n; i++) {
         EPCodes[i].info = 0;
@@ -940,11 +947,18 @@ Traces(sparsegraph *g_arg, int *lab, int *ptn,
         if (TheGraph[i].d < tv->mindeg) {
             tv->mindeg = TheGraph[i].d;
         }
-        TheGraph[i].e = tv->graph->e + g_arg->v[i];
-        if (g_arg->w)
+        if (g_arg->e) {
+            TheGraph[i].e = tv->graph->e + g_arg->v[i];
+        }
+        else {
+            TheGraph[i].e = NULL;
+        }
+        if (g_arg->w) {
             TheGraph[i].w = tv->graph->w + g_arg->v[i];
-        else
+        }
+        else {
             TheGraph[i].w = NULL;
+        }
         TheGraph[i].one = FALSE;
     }
     
@@ -1088,10 +1102,6 @@ Traces(sparsegraph *g_arg, int *lab, int *ptn,
         if (tv->options->getcanon) {
             memcpy(lab, CurrCand->lab, n*sizeof(int));
             if (canong_arg) memcpy(CurrPart->inv, CurrCand->invlab, n*sizeof(int));
-            if (tv->options->usercanonproc != NULL)
-            {
-                (*tv->options->usercanonproc)((graph*)g_arg, lab, (graph*)canong_arg, tv->stats->canupdates, CurrCand->code, m, n);
-            }
         }
     }
     else {
@@ -1113,7 +1123,7 @@ Traces(sparsegraph *g_arg, int *lab, int *ptn,
             
             if (CurrCand) {
                 switch (tv->compstage) {
-                    case 0: retval = CompStage0(CurrPart, NextPart, CurrCand, NextCand, m, n, tv, ti);
+                    case 0: retval = CompStage0(CurrPart, NextPart, CurrCand, NextCand, n, tv, ti);
                         break;
                     case 1:
                         if (!TempOrbits) {
@@ -1124,10 +1134,10 @@ Traces(sparsegraph *g_arg, int *lab, int *ptn,
                         for (i=SpineTL->tgtcell; i<SpineTL->tgtend; i++) {
                             TempOrbSize[TempOrbits[CurrCand->lab[i]]]++;
                         }
-                        retval = CompStage1(CurrPart, NextPart, CurrCand, NextCand, m, n, tv, ti);
+                        retval = CompStage1(CurrPart, NextPart, CurrCand, NextCand, n, tv, ti);
                         break;
                     case 2:
-                        retval = CompStage2(CurrPart, NextPart, CurrCand, NextCand, m, n, tv, ti);
+                        retval = CompStage2(CurrPart, NextPart, CurrCand, NextCand, n, tv, ti);
                         break;
                     default:
                         break;
@@ -1192,10 +1202,6 @@ Traces(sparsegraph *g_arg, int *lab, int *ptn,
                         if (comparelab_tr(g_arg, BestCand->lab, BestCand->invlab, AuxCand->lab, AuxCand->invlab, Spine[tv->maxtreelevel].part->cls, Spine[tv->maxtreelevel].part->inv) == 1) {
                             BestCand = AuxCand;
                             tv->stats->canupdates++;
-                            if (tv->options->usercanonproc != NULL)
-                            {
-                                (*tv->options->usercanonproc)((graph*)g_arg, lab, (graph*)canong_arg, tv->stats->canupdates, CurrCand->code, m, n);
-                            }
                         }
                     }
                     AuxCand = AuxCand->next;
@@ -1681,9 +1687,9 @@ int traces_refine(Candidate *Cand,
                             /* Split the cell C and update the information for sizes of new cells */
                             /* Put the new cells into the stack */
                             i = ind0;
-                            if (StackMarkers[i] != tv->stackmark) {
-                                BigCellSize = 0;
-                            }
+                            BigCellSize = 0;
+                            BigCell = ind0;
+
                             for (k = 0; k < SplCntInd; k++) {
                                 value = SplPos[SplCnt[k]];
                                 cls[i] = value;
@@ -4569,7 +4575,6 @@ int traces_refine_sametrace(Candidate *Cand,
 void refine_tr(sparsegraph *sg, int *lab, int *ptn, int *numcells, int *code, TracesOptions *options_arg) {
     
     const int n = sg->nv;
-    const int m = SETWORDSNEEDED(n);
     
     int i, j, ord;
     Partition *CurrPart;
@@ -4729,10 +4734,10 @@ void refine_tr(sparsegraph *sg, int *lab, int *ptn, int *numcells, int *code, Tr
 }
 
 void refine_tr_refine(Candidate *Cand,
-                     int n,
-                     Partition *Part,
-                     struct TracesVars* tv,
-                     struct TracesInfo *ti) {
+                      int n,
+                      Partition *Part,
+                      struct TracesVars* tv,
+                      struct TracesInfo *ti) {
     
     int i, j, k, jk, sc, ind0, ind1, ind2, ind3, ind4, labi;
     int value, iend, newcell;
@@ -5328,6 +5333,50 @@ void refine_tr_refine(Candidate *Cand,
     return;
 }
 
+void Adjust_Cycles(Candidate *Cand, Partition *Part, int n, struct TracesVars *tv) {
+    int i, j, i1, j1, k;
+    int tmp, arg, cyclength;
+    
+    if (Part->cells < n) {
+        memset(CyclesLength,0,n*sizeof(int));
+        SETMARK(CellMarkers1, tv->markcell1)
+        SETMARK(CellMarkers2, tv->markcell2)
+        i1 = j1 = 0;
+        for (i=0; i<n; i+=Part->cls[i]) {
+            if (Part->cls[i] > 1) {
+                for (j=i; j<i+Part->cls[i]; j++) {
+                    arg = Cand->lab[j];
+                    if (CellMarkers1[arg] != tv->markcell1) {
+                        CellMarkers1[arg] = tv->markcell1;
+                        cyclength = 1;
+                        CyclesPart[i1++] = Cand->invlab[arg];
+                        do {
+                            tmp = NextNeighbour(arg, Cand, Part, CellMarkers1, tv->markcell1, &arg, n);
+                            if (tmp) {
+                                CellMarkers1[arg] = tv->markcell1;
+                                cyclength++;
+                                CyclesPart[i1++] = Cand->invlab[arg];
+                            }
+                        } while (tmp);
+                        for (k=j1; k<i1; k++) {
+                            CyclesLength[CyclesPart[k]] = cyclength;
+                        }
+                        j1 = i1;
+                    }
+                }
+            }
+        }
+    }
+    for (i=0; i<n; i+=Part->cls[i]) {
+        if (Part->cls[i] > 1) {
+            sort2ints(CyclesLength+i, Cand->lab+i, Part->cls[i]);
+        }
+        for (j=i; j<i+Part->cls[i]; j++) {
+            Cand->invlab[Cand->lab[j]] = j;
+        }
+    }
+}
+
 void Allocate_Traces_Structures(int n) {
 #if !MAXN
     DYNALLOC1(int, AUTPERM, AUTPERM_sz, n, "Traces");
@@ -5376,6 +5425,8 @@ void Allocate_Traces_Structures(int n) {
     DYNALLOC1(trie*, TrieArray, TrieArray_sz, n, "Traces");
     DYNALLOC1(grph_strct, TheGraph, TheGraph_sz, n, "Traces");
     DYNALLOC1(ExpPathInfo, EPCodes, EPCodes_sz, n, "Traces");
+    DYNALLOC1(int, CyclesPart, CyclesPart_sz, n, "Traces");
+    DYNALLOC1(int, CyclesLength, CyclesLength_sz, n, "Traces");
 #endif
     return;
 }
@@ -5462,12 +5513,14 @@ int Check_degree_one(sparsegraph *sg, Candidate *Cand, Partition *Part, int n) {
 
 int CheckForAutomorphisms(Candidate *CurrCand, Candidate *NextCand,
                           struct TracesVars* tv, struct TracesInfo* ti,
-                          int m, int n, Partition* Part) {
+                          int n, Partition* Part) {
     Candidate *CheckAutList;
     int i, j, k, tgt_level, numtemporbits;
     int CheckLevel, CheckLevelEnd;
     int temp, tmp, tmp1, arg, arg1, val, val1;
     searchtrie *TrieCandFrom, *TrieCheckFrom;
+    
+    VERB_PRINT("CFA",3,FALSE)
     
     CheckLevel = 0;
     CheckLevelEnd = 0;
@@ -5499,7 +5552,7 @@ int CheckForAutomorphisms(Candidate *CurrCand, Candidate *NextCand,
             CheckLevel = CheckLevelEnd = tv->tolevel;
             break;
         case 2:
-            if (m || (tv->tolevel == tv->maxtreelevel+1)) {
+            if (n || (tv->tolevel == tv->maxtreelevel+1)) {
                 CheckLevel = CheckLevelEnd = tv->maxtreelevel+1;
             }
             else {
@@ -5515,6 +5568,10 @@ int CheckForAutomorphisms(Candidate *CurrCand, Candidate *NextCand,
         default:
             break;
     }
+    
+    
+    Adjust_Cycles(NextCand, Part, n, tv);
+    
     while (CheckLevel <= CheckLevelEnd) {
         CheckAutList = Spine[CheckLevel].liststart;
         while (CheckAutList) {
@@ -5530,6 +5587,7 @@ int CheckForAutomorphisms(Candidate *CurrCand, Candidate *NextCand,
                         }
                     }
                     else {
+                        Adjust_Cycles(CheckAutList, Part, n, tv);
                         if (tv->permInd) ResetAutom(tv->permInd, n, tv);
                         SETMARK(CellMarkers1, tv->markcell1)
                         SETMARK(CellMarkers2, tv->markcell2)
@@ -5600,7 +5658,7 @@ int CheckForAutomorphisms(Candidate *CurrCand, Candidate *NextCand,
                         }
                     }
                     
-                    if (isautom_sg_pair((graph*)tv->input_graph, AUTPERM, tv->options->digraph, m, n, tv)) {
+                    if (isautom_sg_pair(tv->input_graph, AUTPERM, tv->options->digraph, n, tv)) {
                         if (!findperm(gensB, AUTPERM, n)) {
                             if (tv->options->verbosity >= 2) tv->schreier3 -= CPUTIME;
                             addgenerator(&gpB, &gensB, AUTPERM, n);
@@ -5618,7 +5676,7 @@ int CheckForAutomorphisms(Candidate *CurrCand, Candidate *NextCand,
                             }
                             if (tv->options->writeautoms) {
                                 fprintf(outfile, "Gen(A) #%d: ", tv->stats->numgenerators);
-                                writeperm(outfile, AUTPERM, tv->options->cartesian, tv->options->linelength, n);
+                                writeperm_tr(outfile, AUTPERM, tv->options->cartesian, tv->options->linelength, n);
                             }
                             if (tv->options->userautomproc) {
                                 (*tv->options->userautomproc)(tv->stats->numgenerators, AUTPERM, n);
@@ -5788,8 +5846,7 @@ int CheckForAutomorphisms(Candidate *CurrCand, Candidate *NextCand,
 
 
 int CheckForSingAutomorphisms(Candidate *CurrCand, Partition *NextPart, Candidate *NextCand,
-                              struct TracesVars* tv, struct TracesInfo* ti,
-                              int m, int n) {
+                              struct TracesVars* tv, struct TracesInfo* ti, int n) {
     int i, j, temp, tmp, tmp1, result, tgt_level, numtemporbits;
     TracesSpine *SpineTL;
     Candidate *CheckAutList;
@@ -5799,6 +5856,8 @@ int CheckForSingAutomorphisms(Candidate *CurrCand, Partition *NextPart, Candidat
     CheckAutList = SpineTL->liststart;
     tv->gotonode = NULL;
     
+    VERB_PRINT("CFSA",3,FALSE)
+    
     result = 0;
     while (CheckAutList != NULL) {
         if (CheckAutList->do_it && (CheckAutList->stnode->father == CurrCand->stnode)) {
@@ -5806,7 +5865,7 @@ int CheckForSingAutomorphisms(Candidate *CurrCand, Partition *NextPart, Candidat
                 if (tv->permInd) ResetAutom(tv->permInd, n, tv);
                 if ((tv->tolevel == 1) && (Spine[0].part->cells == 1)) tmp = 2; else tmp = tv->tolevel;
                 if (TreeFyTwo(tmp, CheckAutList, NextCand, NextPart, n, tv, ti)) {
-                    if (isautom_sg((graph*)tv->input_graph, AUTPERM, tv->options->digraph, m, n)) {
+                    if (isautom_sg_tr(tv->input_graph, AUTPERM, tv->options->digraph, n, tv)) {
                         if (!findperm(gensB, AUTPERM, n)) {
                             if (tv->options->verbosity >= 2) tv->schreier3 -= CPUTIME;
                             addgenerator(&gpB, &gensB, AUTPERM, n);
@@ -5835,7 +5894,7 @@ int CheckForSingAutomorphisms(Candidate *CurrCand, Partition *NextPart, Candidat
                             }
                             if (tv->options->writeautoms) {
                                 fprintf(outfile, "Gen(a) #%d: ", tv->stats->numgenerators);
-                                writeperm(outfile, AUTPERM, tv->options->cartesian, tv->options->linelength, n);
+                                writeperm_tr(outfile, AUTPERM, tv->options->cartesian, tv->options->linelength, n);
                             }
                             if (tv->options->userautomproc) {
                                 (*tv->options->userautomproc)(tv->stats->numgenerators, AUTPERM, n);
@@ -5999,13 +6058,15 @@ int CheckForSingAutomorphisms(Candidate *CurrCand, Partition *NextPart, Candidat
     return result;
 }
 
-int CheckForMatching(Candidate *CurrCand, Candidate *NextCand, Partition *Part, struct TracesVars* tv, struct TracesInfo* ti, int m, int n) {
+int CheckForMatching(Candidate *CurrCand, Candidate *NextCand, Partition *Part, struct TracesVars* tv, struct TracesInfo* ti, int n) {
     int i, j, vtx, vtx1, temp, tmp1, tgt_level, numtemporbits, pos;
     TracesSpine *SpineTL;
     Candidate *CheckAutList;
     int *cls;
     searchtrie *TrieCandFrom, *TrieCheckFrom;
     boolean CodeVerify;
+    
+    VERB_PRINT("CFM",3,FALSE)
     
     SpineTL = Spine+tv->tolevel;
     CheckAutList = SpineTL->liststart;
@@ -6045,7 +6106,7 @@ int CheckForMatching(Candidate *CurrCand, Candidate *NextCand, Partition *Part, 
             tv->conta7++;
             
             if (CodeVerify) {
-                if (isautom_sg_pair((graph*)tv->input_graph, AUTPERM, tv->options->digraph, m, n, tv)) {
+                if (isautom_sg_pair(tv->input_graph, AUTPERM, tv->options->digraph, n, tv)) {
                     
                     if (!findperm(gensB, AUTPERM, n)) {
                         if (tv->options->verbosity >= 2) tv->schreier3 -= CPUTIME;
@@ -6083,7 +6144,7 @@ int CheckForMatching(Candidate *CurrCand, Candidate *NextCand, Partition *Part, 
                         }
                         if (tv->options->writeautoms) {
                             fprintf(outfile, "Gen(M) #%d: ", tv->stats->numgenerators);
-                            writeperm(outfile, AUTPERM, tv->options->cartesian, tv->options->linelength, n);
+                            writeperm_tr(outfile, AUTPERM, tv->options->cartesian, tv->options->linelength, n);
                         }
                         if (tv->options->userautomproc) {
                             (*tv->options->userautomproc)(tv->stats->numgenerators, AUTPERM, n);
@@ -6305,7 +6366,7 @@ void Complete(sparsegraph *sg_orig, Candidate *Cand, Partition *Part, int cell, 
 }
 
 int CompStage0(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Candidate *NextCand,
-               int m, int n, struct TracesVars* tv, struct TracesInfo *ti) {
+               int n, struct TracesVars* tv, struct TracesInfo *ti) {
     int i, j, i1, j2, k, cu, cu1, num_indv;
     int temp, tmp, auxcode, search_vtx, gom_level;
     boolean closeloop, firstsing, has_nexttcell;
@@ -6362,54 +6423,54 @@ int CompStage0(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
                      || tv->strategy
                      || (tv->expathlength <=10)
                      )) {
+                    
+                    TempOrbits = NULL;
+                    tv->samepref = FixBase(fix, tv, CurrCand, 0, tv->fromlevel);
+                    if ((tv->samepref != tv->nfix) || ti->thegrouphaschanged) {
+                        if (tv->options->verbosity >= 2) tv->schreier1 -= CPUTIME;
+                        gom_level = getorbitsmin(fix, tv->nfix, gpB, &gensB, &tv->currorbit, CurrCand->lab+tv->tcell, CurrPart->cls[tv->tcell], n, TRUE);
+                        if (tv->options->verbosity >= 2) tv->schreier1 += CPUTIME;
+                        ti->thegrouphaschanged = FALSE;
                         
-                        TempOrbits = NULL;
-                        tv->samepref = FixBase(fix, tv, CurrCand, 0, tv->fromlevel);
-                        if ((tv->samepref != tv->nfix) || ti->thegrouphaschanged) {
-                            if (tv->options->verbosity >= 2) tv->schreier1 -= CPUTIME;
-                            gom_level = getorbitsmin(fix, tv->nfix, gpB, &gensB, &tv->currorbit, CurrCand->lab+tv->tcell, CurrPart->cls[tv->tcell], n, TRUE);
-                            if (tv->options->verbosity >= 2) tv->schreier1 += CPUTIME;
-                            ti->thegrouphaschanged = FALSE;
+                        if (gom_level < tv->nfix) {
+                            PRINT_NOTMIN_VERB(4)
                             
-                            if (gom_level < tv->nfix) {
-                                PRINT_NOTMIN_VERB(4)
+                            TreeNode = CurrCand->stnode;
+                            j2 = CurrCand->lab[Spine[gom_level+1].tgtpos];
+                            i1 = tv->currorbit[j2];
+                            for (j=0; j < tv->nfix - gom_level; j++) {
+                                TreeNode = TreeNode->father;
+                            }
+                            TreeNode1 = TreeNode->first_child;
+                            while (TreeNode1) {
+                                if (TreeNode1->vtx == i1) {
+                                    break;
+                                }
+                                TreeNode1 = TreeNode1->next_sibling;
+                            }
+                            if (TreeNode1) {
+                                while (TreeNode1->goes_to) {
+                                    TreeNode1 = TreeNode1->goes_to;
+                                }
+                                TreeNode2 = TreeNode1->next_sibling;
+                                while (TreeNode2->vtx != j2) {
+                                    TreeNode2 = TreeNode2->next_sibling;
+                                }
+                                TreeNode1->index += TreeNode2->index;
+                                TreeNode2->goes_to = TreeNode1;
+                                PRINT_INDEX(TreeNode1,4,25)
                                 
-                                TreeNode = CurrCand->stnode;
-                                j2 = CurrCand->lab[Spine[gom_level+1].tgtpos];
-                                i1 = tv->currorbit[j2];
-                                for (j=0; j < tv->nfix - gom_level; j++) {
-                                    TreeNode = TreeNode->father;
-                                }
-                                TreeNode1 = TreeNode->first_child;
-                                while (TreeNode1) {
-                                    if (TreeNode1->vtx == i1) {
-                                        break;
-                                    }
-                                    TreeNode1 = TreeNode1->next_sibling;
-                                }
-                                if (TreeNode1) {
-                                    while (TreeNode1->goes_to) {
-                                        TreeNode1 = TreeNode1->goes_to;
-                                    }
-                                    TreeNode2 = TreeNode1->next_sibling;
-                                    while (TreeNode2->vtx != j2) {
-                                        TreeNode2 = TreeNode2->next_sibling;
-                                    }
-                                    TreeNode1->index += TreeNode2->index;
-                                    TreeNode2->goes_to = TreeNode1;
-                                    PRINT_INDEX(TreeNode1,4,25)
-                                    
-                                    ti->minimalinorbits = FALSE;
-                                }
-                                else {
-                                    tv->currorbit = getorbits(fix, tv->nfix, gpB, &gensB, n);
-                                }
+                                ti->minimalinorbits = FALSE;
+                            }
+                            else {
+                                tv->currorbit = getorbits(fix, tv->nfix, gpB, &gensB, n);
                             }
                         }
-                        else {
-                            tv->currorbit = findcurrorbits(gpB, tv->nfix);
-                        }
                     }
+                    else {
+                        tv->currorbit = findcurrorbits(gpB, tv->nfix);
+                    }
+                }
                 else {
                     TempOrbits = WorkArray1;
                     memcpy(TempOrbits, IDENTITY_PERM, n*sizeof(int));
@@ -6521,8 +6582,7 @@ int CompStage0(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
                                 
                                 if (tv->steps > 1) {
                                     if (tv->fromlevel <= tv->lev_of_lastauto) {
-                                        
-                                        closeloop = CheckForMatching(CurrCand, NextCand, NextPart, tv, ti, m, n);
+                                        closeloop = CheckForMatching(CurrCand, NextCand, NextPart, tv, ti, n);
                                     }
                                     if (NextCand->do_it) {
                                         firstsing = TRUE;
@@ -6534,7 +6594,7 @@ int CompStage0(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
                                                 if (firstsing && BreakSteps[tv->tolevel]) {
                                                     firstsing = FALSE;
                                                     NextCand->firstsingcode = NextCand->pathsingcode;
-                                                    if (CheckForSingAutomorphisms(CurrCand, NextPart, NextCand, tv, ti, m, n))
+                                                    if (CheckForSingAutomorphisms(CurrCand, NextPart, NextCand, tv, ti, n))
                                                         if (!NextCand->do_it) {
                                                             break;
                                                         }
@@ -6554,7 +6614,7 @@ int CompStage0(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
                                                     }
                                                     break;
                                                 }
-                                                ExperimentalStep(NextPart, NextCand, tv, ti, m, n);
+                                                ExperimentalStep(NextPart, NextCand, tv, ti, n);
                                                 if (NextPart->cells == n) {
                                                     has_nexttcell = FALSE;
                                                 }
@@ -6593,7 +6653,7 @@ int CompStage0(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
                                     if (tv->options->verbosity >= 2) tv->autchk -= CPUTIME;
                                     tv->newindex = 0;
                                     if (NextCand->do_it) {
-                                        closeloop = CheckForAutomorphisms(CurrCand, NextCand, tv, ti, m, n, NextPart);
+                                        closeloop = CheckForAutomorphisms(CurrCand, NextCand, tv, ti, n, NextPart);
                                         if (!NextCand->do_it && closeloop < tv->tolevel) k = SpineTL->tgtend;
                                     }
                                     if (tv->options->verbosity >= 2) tv->autchk += CPUTIME;
@@ -6607,7 +6667,7 @@ int CompStage0(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
                                 else {
                                     if (BreakSteps[tv->tolevel]) {
                                         NextCand->firstsingcode = NextCand->pathsingcode;
-                                        if (CheckForSingAutomorphisms(CurrCand, NextPart, NextCand, tv, ti, m, n))
+                                        if (CheckForSingAutomorphisms(CurrCand, NextPart, NextCand, tv, ti, n))
                                             if (!NextCand->do_it) {
                                                 PRINT_RETURN
                                                 break;
@@ -6618,7 +6678,7 @@ int CompStage0(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
                                     if (tv->options->verbosity >= 2) tv->autchk -= CPUTIME;
                                     tv->newindex = 0;
                                     if (NextCand->do_it) {
-                                        closeloop = CheckForAutomorphisms(CurrCand, NextCand, tv, ti, m, n, NextPart);
+                                        closeloop = CheckForAutomorphisms(CurrCand, NextCand, tv, ti, n, NextPart);
                                         if (!NextCand->do_it && closeloop < tv->tolevel) k = SpineTL->tgtend;
                                     }
                                     if (tv->options->verbosity >= 2) tv->autchk += CPUTIME;
@@ -6640,10 +6700,6 @@ int CompStage0(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
                                 has_nexttcell = FALSE;
                                 if (NextPart->cells == n) {
                                     tv->stats->canupdates++;
-                                    if (tv->options->usercanonproc != NULL)
-                                    {
-                                        (*tv->options->usercanonproc)((graph*)tv->input_graph, NextCand->lab, (graph*)tv->cangraph, tv->stats->canupdates, NextCand->code, m, n);
-                                    }
                                 }
                                 
                                 if (tv->tolevel > tv->treedepth) {
@@ -6714,9 +6770,6 @@ int CompStage0(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
                                     
                                     if (!has_nexttcell) {
                                         tv->stats->canupdates++;
-                                        if (tv->options->usercanonproc != NULL) {
-                                            (*tv->options->usercanonproc)((graph*)tv->input_graph, NextCand->lab, (graph*)tv->cangraph, tv->stats->canupdates, NextCand->code, m, n);
-                                        }
                                     }
                                     
                                     tv->tcellevel = tv->maxtreelevel = tv->tolevel;
@@ -6756,7 +6809,7 @@ int CompStage0(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
                                         tv->finalnumcells = n;
                                         
                                         while (has_nexttcell) {
-                                            ExperimentalStep(NextPart, SpTLliststart, tv, ti, m, n);
+                                            ExperimentalStep(NextPart, SpTLliststart, tv, ti, n);
                                             
                                             Spine[tv->tolevel_tl].singcode = SpTLliststart->pathsingcode;
                                             has_nexttcell = TargetCellFirstPath(SpTLliststart, NextPart, tv);
@@ -6829,8 +6882,7 @@ int CompStage0(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
 }
 
 int CompStage1(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Candidate *NextCand,
-               int m, int n,
-               struct TracesVars* tv, struct TracesInfo *ti) {
+               int n, struct TracesVars* tv, struct TracesInfo *ti) {
     int i, k, cu, cu1, tmp, gom_level, search_vtx, temp;
     searchtrie *TreeNode, *TrieNode;
     
@@ -6941,7 +6993,7 @@ int CompStage1(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
             if (tv->options->verbosity >= 2) tv->autchk -= CPUTIME;
             
             PRINTF2("CS1 2?: finalnumcells: %d\n", tv->finalnumcells);
-            CheckForAutomorphisms(CurrCand, NextCand, tv, ti, m, n, NextPart);
+            CheckForAutomorphisms(CurrCand, NextCand, tv, ti, n, NextPart);
             if (tv->options->verbosity >= 2) tv->autchk += CPUTIME;
             
             PRINT_RETURN
@@ -7016,8 +7068,7 @@ int CompStage1(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
     return 0;
 }
 
-int CompStage2(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Candidate *NextCand,
-               int m, int n,
+int CompStage2(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Candidate *NextCand, int n,
                struct TracesVars* tv, struct TracesInfo *ti) {
     int i, j, i1, j2, k, cu, cu1, vertex, gom_level;
     int temp, tmp, autom;
@@ -7161,7 +7212,7 @@ int CompStage2(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
                                     tv->tolevel_tl = tv->tolevel;
                                     if (tv->options->verbosity >= 2) tv->expaths -= CPUTIME;
                                     TargetCellExpPath(NextCand, NextPart, tv);
-                                    ExperimentalStep(NextPart, NextCand, tv, ti, m, n);
+                                    ExperimentalStep(NextPart, NextCand, tv, ti, n);
                                     PRINT_EXPPATHSTEP(NextCand, tv->answ)
                                     PRINTF2("CS2 1?: finalnumcells: %d\n", tv->finalnumcells);
                                     if ((NextPart->cells == tv->finalnumcells) || (NextPart->cells == n)) {
@@ -7180,8 +7231,7 @@ int CompStage2(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
                         if ((NextPart->cells == tv->finalnumcells) || (NextPart->cells == n)) {
                             if (tv->options->verbosity >= 2) tv->autchk -= CPUTIME;
                             temp = (tv->tolevel_tl == tv->tolevel+1);
-                            autom = CheckForAutomorphisms(CurrCand, NextCand,
-                                                          tv, ti, temp, n, NextPart);
+                            autom = CheckForAutomorphisms(CurrCand, NextCand, tv, ti, n, NextPart);
                             if (tv->options->verbosity >= 2) tv->autchk += CPUTIME;
                             
                             if (ti->thegrouphaschanged) {
@@ -7274,11 +7324,16 @@ int CompStage2(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
                                             TreeNode2 = TreeNode2->next_sibling;
                                         }
                                         
-                                        TreeNode1->index += TreeNode2->index;
-                                        TreeNode2->goes_to = TreeNode1;
-                                        PRINT_INDEX(TreeNode1,4,28)
-                                        PRINT_INDEX(TreeNode2,4,29)
-                                        ti->minimalinorbits = FALSE;
+                                        if (TreeNode1 != TreeNode2) {
+                                            TreeNode1->index += TreeNode2->index;
+                                            TreeNode2->goes_to = TreeNode1;
+                                            PRINT_INDEX(TreeNode1,4,28)
+                                            PRINT_INDEX(TreeNode2,4,29)
+                                            ti->minimalinorbits = FALSE;
+                                        } else {
+                                            tv->currorbit = getorbits(fix, tv->nfix, gpB, &gensB, n);
+                                            schreierwrong = TRUE;
+                                        }
                                     }
                                     else {
                                         tv->currorbit = getorbits(fix, tv->nfix, gpB, &gensB, n);
@@ -7385,7 +7440,7 @@ int CompStage2(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
                                         tv->tolevel_tl = tv->tolevel;
                                         if (tv->options->verbosity >= 2) tv->expaths -= CPUTIME;
                                         if (TargetCellExpPath(NextCand, NextPart, tv)) {
-                                            ExperimentalStep(NextPart, NextCand, tv, ti, m, n);
+                                            ExperimentalStep(NextPart, NextCand, tv, ti, n);
                                             PRINT_EXPPATHSTEP(NextCand, tv->answ)
                                             PRINTF2("CS2 5?: finalnumcells: %d\n", tv->finalnumcells);
                                             if ((NextPart->cells == tv->finalnumcells) || (NextPart->cells == n)) {
@@ -7405,8 +7460,7 @@ int CompStage2(Partition *CurrPart, Partition *NextPart, Candidate *CurrCand, Ca
                             if ((NextPart->cells == tv->finalnumcells) || (NextPart->cells == n)) {
                                 if (tv->options->verbosity >= 2) tv->autchk -= CPUTIME;
                                 temp = (tv->tolevel_tl == tv->tolevel+1);
-                                autom = CheckForAutomorphisms(CurrCand, NextCand,
-                                                              tv, ti, temp, n, NextPart);
+                                autom = CheckForAutomorphisms(CurrCand, NextCand, tv, ti, n, NextPart);
                                 if (tv->options->verbosity >= 2) tv->autchk += CPUTIME;
                                 if (autom) {
                                     for (i=autom; i<=tv->maxtreelevel; i++) {
@@ -7549,7 +7603,7 @@ void Edge_Delete(int vertex, int sons, Candidate *Cand, TracesVars *tv) {
 }
 
 void ExperimentalStep(Partition *NextPart, Candidate *NextCand,
-                      TracesVars *tv, TracesInfo *ti, int m, int n) {
+                      TracesVars *tv, TracesInfo *ti, int n) {
     int i, iend, min, tmp;
     
     SpineTL_tl = Spine+tv->tolevel_tl;
@@ -7772,8 +7826,8 @@ int FreeList(Candidate *List, int cond) {
 
 /* Check if the permutations in the list gens are automorphisms,
  * also set mark and refcount fields and initialise orbits. */
-int given_gens(sparsegraph *g, permnode *gens, int *orbits, boolean digraph) {
-    int i, m, n, norbs;
+int given_gens(sparsegraph *g, permnode *gens, int *orbits, boolean digraph, struct TracesVars* tv) {
+    int i, n, norbs;
     permnode *pn;
     
     n = g->nv;
@@ -7783,10 +7837,9 @@ int given_gens(sparsegraph *g, permnode *gens, int *orbits, boolean digraph) {
     
     if (!gens) return norbs;
     
-    m = SETWORDSNEEDED(n);
     pn = gens;
     do {
-        if (!isautom_sg((graph*)g, pn->p, digraph, m, n)) {
+        if (!isautom_sg_tr(g, pn->p, digraph, n, tv)) {
             fprintf(ERRFILE, "Input permutation is not an automorphism\n");
             exit(1);
         }
@@ -7859,11 +7912,12 @@ void grouporderplus(sparsegraph *sg_orig, Candidate *Cand, Partition *Part, perm
     }
     
     if (Part->cells < n) {
-        
         if (!ti->deg_one) {
-            memcpy(tv->graph->e, sg_orig->e, tv->graph->elen*sizeof(int));
-            for (i=0; i<n; i++) {
-                TheGraph[i].e = tv->graph->e + sg_orig->v[i];
+            if (sg_orig->e) {
+                memcpy(tv->graph->e, sg_orig->e, tv->graph->elen*sizeof(int));
+                for (i=0; i<n; i++) {
+                    TheGraph[i].e = tv->graph->e + sg_orig->v[i];
+                }
             }
         }
         NSFCInd = 0;
@@ -8102,6 +8156,7 @@ void grouporderplus(sparsegraph *sg_orig, Candidate *Cand, Partition *Part, perm
                         }
                         SPECIALGENERATORS
                         if (counts > 2) {
+                            if (tv->permInd) ResetAutom(tv->permInd, n, tv);
                             for (k=0; k<StInd/counts; k++) {
                                 i1 = PERMSTACK[k];
                                 for (j0=0; j0<1; j0++) {
@@ -8394,7 +8449,7 @@ void grouporderplus(sparsegraph *sg_orig, Candidate *Cand, Partition *Part, perm
                     nghcell = Part->inv[Cand->invlab[TheGraph[tmp].e[0]]]; else nghcell = i;
                 if ((TheGraph[tmp].d == 0) ||
                     ((TheGraph[tmp].d == numvertices-1) && (TheGraph[tmp].d > 2)) ||
-                    ((TheGraph[tmp].d == 1) && (TheGraph[TheGraph[tmp].e[0]].d == 1) && (i < nghcell))) {
+                    ((TheGraph[tmp].d == 1) && (TheGraph[TheGraph[tmp].e[0]].d == 1) && (i > nghcell))) {
                     do_ngh = FALSE;
                     if ((TheGraph[tmp].d == 1) && (TheGraph[TheGraph[tmp].e[0]].d == 1) && (i != nghcell)) {
                         do_ngh = TRUE;
@@ -8562,7 +8617,7 @@ void Initialize_Traces_Time_Variables (TracesVars *tv) {
     tv->schreier3 = 0;
 }
 
-boolean isautom_sg_pair(graph *g, int *p, boolean digraph, int m, int n, struct TracesVars *tv) {
+boolean isautom_sg_pair(sparsegraph *g, int *p, boolean digraph, int n, struct TracesVars *tv) {
     int *d, *e;
     size_t *v;
     int i, k, pi, di;
@@ -8717,8 +8772,9 @@ int minint(int u, int v) {
 
 int NextNeighbour(int vtx, Candidate *Cand, Partition *Part, int* Markers, int mark, int *ngh, int n) {
     int *e_vtx;
-    int i, deg;
-    int cell1;
+    int i, j, deg, cell1, nghi;
+    int cell[2];
+    int vert[2];
     
     deg = TheGraph[vtx].d;
     e_vtx = TheGraph[vtx].e;
@@ -8726,17 +8782,29 @@ int NextNeighbour(int vtx, Candidate *Cand, Partition *Part, int* Markers, int m
     if (deg == n-1) {
         return 0;
     }
-    
+    j = 0;
+    cell[0] = cell[1] = n;
     for (i=0; i<deg; i++) {
-        if (Markers[e_vtx[i]] != mark) {
-            cell1 = Part->inv[Cand->invlab[e_vtx[i]]];
+        nghi = e_vtx[i];
+        if (Markers[nghi] != mark) {
+            cell1 = Part->inv[Cand->invlab[nghi]];
             if (Part->cls[cell1] > 1) {
-                *ngh = e_vtx[i];
-                break;
+                cell[j] = cell1;
+                vert[j] = nghi;
+                j++;
+                if (j==2) break;
             }
         }
     }
-    if (i<deg) return 1; else return 0;
+    if (j>0) {
+        if (cell[0] < cell[1]) {
+            *ngh = vert[0];
+        } else {
+            *ngh = vert[1];
+        }
+        return 1;
+    }
+    else return 0;
 }
 
 int NonSingDeg(int vtx, Candidate *Cand, Partition *Part) {
@@ -9878,6 +9946,8 @@ void traces_freedyn(void) {
     DYNFREE(TrieArray, TrieArray_sz);
     DYNFREE(TheGraph, TheGraph_sz);
     DYNFREE(EPCodes, EPCodes_sz);
+    DYNFREE(CyclesPart, CyclesPart_sz);
+    DYNFREE(CyclesLength, CyclesLength_sz);
 #endif
 }
 
@@ -10401,4 +10471,99 @@ boolean TargetCellFirstPathSmall(Candidate *TargCand, Partition *Part, struct Tr
         }
     }
     return TRUE;
+}
+
+boolean isautom_sg_tr(sparsegraph *g, int *p, boolean digraph, int n, struct TracesVars* tv)
+{
+    int *d,*e;
+    size_t *v;
+    int i,pi,di;
+    size_t vi,vpi,j;
+    
+    SG_VDE(g,v,d,e);
+
+    for (i = 0; i < n; ++i)
+    if (p[i] != i || digraph)
+    {
+        pi = p[i];
+        di = d[i];
+        if (d[pi] != di) return FALSE;
+
+        vi = v[i];
+        vpi = v[pi];
+        if (tv->mark > (NAUTY_INFINITY-2)) {
+            memset(Markers, 0, n*sizeof(int));
+            tv->mark = 0;
+        }
+        tv->mark++;
+
+        for (j = 0; j < di; ++j) Markers[p[e[vi+j]]] = tv->mark;
+        for (j = 0; j < di; ++j) if (Markers[e[vpi+j]] != tv->mark) return FALSE;
+    }
+
+    return TRUE;
+}
+
+void writeperm_tr(FILE *f, const int *perm, boolean cartesian, int linelength, int n)
+{
+    int i,k,l,curlen,intlen;
+    char s[30];
+
+#if !MAXN
+    DYNALLOC1(int,workperm_tr,workperm_tr_sz,n,"writeperm_tr");
+#endif
+
+    /* CONDNL(x) writes end-of-line and 3 spaces if x characters
+       won't fit on the current line. */
+#define CONDNL(x) if (linelength>0 && curlen+(x)>linelength)\
+              {putstring(f,"\n   ");curlen=3;}
+
+    curlen = 0;
+    if (cartesian)
+    {
+        for (i = 0; i < n; ++i)
+        {
+            intlen = itos(perm[i]+labelorg,s);
+            CONDNL(intlen+1);
+            PUTC(' ',f);
+            putstring(f,s);
+            curlen += intlen + 1;
+        }
+        PUTC('\n',f);
+    }
+    else
+    {
+        for (i = n; --i >= 0;) workperm_tr[i] = 0;
+
+        for (i = 0; i < n; ++i)
+        {
+            if (workperm_tr[i] == 0 && perm[i] != i)
+            {
+                l = i;
+                intlen = itos(l+labelorg,s);
+                if (curlen > 3) CONDNL(2*intlen+4);
+                PUTC('(',f);
+                do
+                {
+                    putstring(f,s);
+                    curlen += intlen + 1;
+                    k = l;
+                    l = perm[l];
+                    workperm_tr[k] = 1;
+                    if (l != i)
+                    {
+                        intlen = itos(l+labelorg,s);
+                        CONDNL(intlen+2);
+                        PUTC(' ',f);
+                    }
+                }
+                while (l != i);
+                PUTC(')',f);
+                ++curlen;
+            }
+        }
+
+        if (curlen == 0) putstring(f,"(1)\n");
+        else             PUTC('\n',f);
+    }
 }

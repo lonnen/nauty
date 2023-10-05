@@ -1,4 +1,4 @@
-/* copyg.c version 2.4; B D McKay, May 2020 */
+/* copyg.c version 2.6; B D McKay, June 2023 */
 
 #ifdef FILTER
 #define HELPUSECMD
@@ -95,6 +95,7 @@ nauty_counter nin;
 int
 main(int argc, char *argv[])
 {
+    char msg[201];
     graph *g,*gprev,*gbase;
     int m,n,codetype;
     char *infilename,*outfilename;
@@ -139,7 +140,7 @@ main(int argc, char *argv[])
                 else SWBOOLEAN('x',xswitch)
 #ifdef FILTER
                 else SWBOOLEAN('v',vswitch)
-		else SWRANGE('Q',":-",Qswitch,Qlo,Qhi,"filter -Q")
+                else SWRANGE('Q',":-",Qswitch,Qlo,Qhi,"filter -Q")
 #endif
                 else SWLONG('I',Iswitch,refresh,"copyg -I")
                 else SWRANGE('p',":-",pswitch,pval1,pval2,"copyg -p")
@@ -168,26 +169,39 @@ main(int argc, char *argv[])
         exit(1);
     }
 
+    if (pswitch && pval1 < 1) pval1 = 1;
+
     if (!qswitch)
     {
-        fprintf(stderr,">A %s",argv[0]);
-        if (sswitch || gswitch || iswitch || Iswitch || fswitch
-            || zswitch || pswitch || xswitch || hswitch || vswitch || Qswitch)
-            fprintf(stderr," -");
-        if (sswitch) fprintf(stderr,"s");
-        if (gswitch) fprintf(stderr,"g");
-        if (zswitch) fprintf(stderr,"z");
-        if (hswitch) fprintf(stderr,"h");
-        if (Iswitch) fprintf(stderr,"I%ld",refresh); 
-        else if (iswitch) fprintf(stderr,"i");
-        if (xswitch) fprintf(stderr,"x");
-        if (fswitch) fprintf(stderr,"f");
-        if (pswitch) writerange(stderr,'p',pval1,pval2);
-	if (vswitch) fprintf(stderr,"v");
-        if (Qswitch) writerange(stderr,'Q',Qlo,Qhi);
-        if (argnum > 0) fprintf(stderr," %s",infilename);
-        if (argnum > 1) fprintf(stderr," %s",outfilename);
-        fprintf(stderr,"\n");
+        msg[0] = '\0';
+        CATMSG1(">A %s",argv[0]);
+        if (sswitch || gswitch || fswitch || zswitch || pswitch
+                    || iswitch || Iswitch || xswitch || hswitch || vswitch)
+            CATMSG0(" -");
+        if (sswitch) CATMSG0("s");
+        if (gswitch) CATMSG0("g");
+        if (zswitch) CATMSG0("z");
+        if (hswitch) CATMSG0("h");
+        if (xswitch) CATMSG0("x");
+        if (fswitch) CATMSG0("f");
+        if (vswitch) CATMSG0("v");
+        if (Iswitch) CATMSG1("I%ld",refresh);
+        else if (iswitch) CATMSG0("i");
+        if (pswitch)
+        {
+            if (pval2 == NOLIMIT) CATMSG1(" -p%ld:",pval1);
+            else                  CATMSG2(" -p%ld:%ld",pval1,pval2);
+        }
+        if (Qswitch)
+        {
+            CATMSG0(" -Q");
+            if (Qlo != -NOLIMIT) CATMSG1("%ld",Qlo);
+            CATMSG0(":");
+            if (Qhi != NOLIMIT) CATMSG1("%ld",Qhi);
+        }
+        if (argnum == 0) fprintf(stderr,"%s\n",msg);
+        else if (argnum == 1) fprintf(stderr,"%s %s\n",msg,infilename);
+        else fprintf(stderr,"%s %s %s\n",msg,infilename,outfilename);
         fflush(stderr);
     }
 
@@ -203,10 +217,7 @@ main(int argc, char *argv[])
         outfile = stdout;
     }
     else if ((outfile = fopen(outfilename,"w")) == NULL)
-    {
-        fprintf(stderr,"Can't open output file %s\n",outfilename);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E copyg : Can't open output file %s\n",outfilename);
 
     if (gswitch)                  outcode = GRAPH6;
     else if (sswitch || iswitch)  outcode = SPARSE6;
@@ -246,19 +257,20 @@ main(int argc, char *argv[])
         if ((g = readgg_inc(infile,NULL,0,&m,&n,gprev,mprev,nprev,&digraph))
                                                       == NULL) break;
         ++nin;
-	kept = TRUE;
+        kept = TRUE;
 #ifdef FILTER
-	if ((!vswitch && !FILTER(g,digraph,Qlo,Qhi,m,n)) ||
-	                   (vswitch && FILTER(g,digraph,Qlo,Qhi,m,n))) 
-	    kept = FALSE;
-	++nout;
+        if ((!vswitch && !FILTER(g,digraph,Qlo,Qhi,m,n)) ||
+                           (vswitch && FILTER(g,digraph,Qlo,Qhi,m,n))) 
+            kept = FALSE;
+        else
+            ++nout;
 #endif
 
-	if (!kept)
-	{ }
-	else if (iswitch)  
+        if (!kept)
+        { }
+        else if (iswitch)  
         {
-	    if (digraph) gt_abort(
+            if (digraph) gt_abort(
                 ">Z incremental sparse6 is incompatible with digraphs\n");
             gbase = gprev;
             if (nprev != n || mprev != m) gbase = NULL;
@@ -267,7 +279,7 @@ main(int argc, char *argv[])
             writeis6(outfile,g,gbase,m,n);
         }
         else if (outcode == readg_code)   writelast(outfile);
-	else if (digraph)             writed6(outfile,g,m,n);
+        else if (digraph)             writed6(outfile,g,m,n);
         else if (outcode == SPARSE6)  writes6(outfile,g,m,n);
         else if (outcode == DIGRAPH6) writed6(outfile,g,m,n);
         else                          writeg6(outfile,g,m,n);
@@ -282,7 +294,7 @@ main(int argc, char *argv[])
     if (!qswitch)
 #ifdef FILTER
 #ifdef SUMMARY
-	SUMMARY();
+        SUMMARY();
 #endif
         fprintf(stderr,">Z  " COUNTER_FMT " graphs read from %s, "
                               COUNTER_FMT " written to %s; %.2f sec\n",

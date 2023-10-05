@@ -157,10 +157,10 @@ degstats2(graph *g, boolean digraph, int m, int n,
     if (n == 0)
     {
         *edges = *loops = 0;
-	*minindeg = *minincount = *maxindeg = *maxincount = 0;
-	*minoutdeg = *minoutcount = *maxoutdeg = *maxoutcount = 0;
-	*eulerian = TRUE;
-	return;
+        *minindeg = *minincount = *maxindeg = *maxincount = 0;
+        *minoutdeg = *minoutcount = *maxoutdeg = *maxoutcount = 0;
+        *eulerian = TRUE;
+        return;
     }
 
 #if !MAXN
@@ -185,11 +185,11 @@ degstats2(graph *g, boolean digraph, int m, int n,
         for (i = 0; i < n; ++i)
         {
             d = 0;
-	    if (ISELEMENT(pg,i))
-	    {
-		++d;
-		++nloops;
-	    }
+            if (ISELEMENT(pg,i))
+            {
+                ++d;
+                ++nloops;
+            }
             for (j = 0; j < m; ++j, ++pg)
                 if (*pg) d += POPCOUNT(*pg);
 
@@ -223,29 +223,29 @@ degstats2(graph *g, boolean digraph, int m, int n,
     }
     else
     {
-	for (i = 0; i < n; ++i) indeg[i] = outdeg[i] = 0;
+        for (i = 0; i < n; ++i) indeg[i] = outdeg[i] = 0;
 
         nloops = 0;
-	ned = 0;
-	for (i = 0, pg = (setword*)g; i < n; ++i, pg += m)
-	{
-	    if (ISELEMENT(pg,i)) ++nloops;
-	    for (j = -1; (j = nextelement(pg,m,j)) >= 0;)
-	    {
-		++outdeg[i];
-		++indeg[j];
-	    }
-	    ned += outdeg[i];
-	}
-	*edges = ned;
-	*loops = nloops;
+        ned = 0;
+        for (i = 0, pg = (setword*)g; i < n; ++i, pg += m)
+        {
+            if (ISELEMENT(pg,i)) ++nloops;
+            for (j = -1; (j = nextelement(pg,m,j)) >= 0;)
+            {
+                ++outdeg[i];
+                ++indeg[j];
+            }
+            ned += outdeg[i];
+        }
+        *edges = ned;
+        *loops = nloops;
 
         mind = maxd = indeg[0];
         mindc = maxdc = 1;
 
-	for (i = 1; i < n; ++i)
-	{
-	    d = indeg[i];
+        for (i = 1; i < n; ++i)
+        {
+            d = indeg[i];
 
             if (d == mind)
                 ++mindc;
@@ -261,19 +261,19 @@ degstats2(graph *g, boolean digraph, int m, int n,
             {
                 maxd = d;
                 maxdc = 1;
-	    }
-	}
-	*minindeg = mind;
+            }
+        }
+        *minindeg = mind;
         *minincount = mindc;
-	*maxindeg = maxd;
+        *maxindeg = maxd;
         *maxincount = maxdc;
 
         mind = maxd = outdeg[0];
         mindc = maxdc = 1;
 
-	for (i = 1; i < n; ++i)
-	{
-	    d = outdeg[i];
+        for (i = 1; i < n; ++i)
+        {
+            d = outdeg[i];
 
             if (d == mind)
                 ++mindc;
@@ -289,17 +289,72 @@ degstats2(graph *g, boolean digraph, int m, int n,
             {
                 maxd = d;
                 maxdc = 1;
-	    }
-	}
-	*minoutdeg = mind;
+            }
+        }
+        *minoutdeg = mind;
         *minoutcount = mindc;
-	*maxoutdeg = maxd;
+        *maxoutdeg = maxd;
         *maxoutcount = maxdc;
 
-	for (i = 0; i < n; ++i)
-	    if (indeg[i] != outdeg[i]) break;
-	*eulerian = (i == n);
+        for (i = 0; i < n; ++i)
+            if (indeg[i] != outdeg[i]) break;
+        *eulerian = (i == n);
     }
+}
+
+/*********************************************************************/
+
+void
+sources_sinks(graph *g, int m, int n, int *sources, int *sinks)
+/* Count the sources and sinks. For an undirected graph, these
+   are just the isolated vertices. For a directed graph, they have
+   their usual meanings. A vertex with a loop is neither a source
+   nor a sink.
+*/
+{
+    setword rowor,wk;
+    int i,j,nsource,nsink;
+    set *gi;
+#if MAXM
+    setword work[MAXM+1];
+#else
+    DYNALLSTAT(setword,work,work_sz);
+    DYNALLOC1(setword,work,work_sz,m,"sources_sinks");
+#endif
+
+    if (n == 0) { *sources = *sinks = 0; return; }
+    
+    if (m == 1)
+    {
+        nsink = 0;
+        wk = 0;
+        for (i = 0; i < n; ++i)
+        {
+            if (g[i] == 0) ++nsink;
+            wk |= g[i];
+        }
+        *sinks = nsink;
+        *sources = n - POPCOUNT(wk);
+        return;
+    }
+
+    for (i = 0; i < m; ++i) work[i] = 0;
+    nsink = 0;
+    for (i = 0, gi = g; i < n; ++i, gi += m)
+    {
+        rowor = 0;
+        for (j = 0; j < m; ++j)
+        {
+            rowor |= gi[j];
+            work[j] |= gi[j];
+        }
+        if (rowor == 0) ++nsink;
+    }
+    *sinks = nsink;
+    nsource = n;
+    for (j = 0; j < m; ++j)
+        nsource -= POPCOUNT(work[j]);
+    *sources = nsource;
 }
 
 /*********************************************************************/
@@ -476,6 +531,7 @@ isbiconnected1(graph *g, int n)
         }
     }
 }
+
 /**********************************************************************/
  
 boolean
@@ -577,9 +633,9 @@ twocolouring(graph *g, int *colour, int m, int n)
                     w = queue[head++];
                     need = 1 - colour[w];
                     xg = g[w];
-		    while (xg)
+                    while (xg)
                     {
-			TAKEBIT(i,xg);
+                        TAKEBIT(i,xg);
                         if (colour[i] < 0)
                         {
                             colour[i] = need;
@@ -672,12 +728,12 @@ bipartiteside(graph *g, int m, int n)
     if (m == 1)
     {
         for (v = 0; v < n; ++v)
-	{
+        {
             if (colour[v] < 0)
             {
                 queue[0] = v;
                 colour[v] = 0;
-		col[0] = 1; col[1] = 0;
+                col[0] = 1; col[1] = 0;
     
                 head = 0;
                 tail = 1;
@@ -686,33 +742,33 @@ bipartiteside(graph *g, int m, int n)
                     w = queue[head++];
                     need = 1 - colour[w];
                     xg = g[w];
-		    while (xg)
+                    while (xg)
                     {
-			TAKEBIT(i,xg);
+                        TAKEBIT(i,xg);
                         if (colour[i] < 0)
                         {
                             colour[i] = need;
-			    ++col[need];
+                            ++col[need];
                             queue[tail++] = i;
                         }
                         else if (colour[i] != need)
                             return 0;
                     }
                 }
-		if (col[0] <= col[1]) ans += col[0];
+                if (col[0] <= col[1]) ans += col[0];
                 else                  ans += col[1];
             }
- 	}
+        }
     }
     else
     {
         for (v = 0; v < n; ++v)
-	{
+        {
             if (colour[v] < 0)
             {
                 queue[0] = v;
                 colour[v] = 0;
-		col[0] = 1; col[1] = 0;
+                col[0] = 1; col[1] = 0;
     
                 head = 0;
                 tail = 1;
@@ -726,17 +782,17 @@ bipartiteside(graph *g, int m, int n)
                         if (colour[i] < 0)
                         {
                             colour[i] = need;
-			    ++col[need];
+                            ++col[need];
                             queue[tail++] = i;
                         }
                         else if (colour[i] != need)
                             return 0;
                     }
                 }
-		if (col[0] <= col[1]) ans += col[0];
+                if (col[0] <= col[1]) ans += col[0];
                 else                  ans += col[1];
             }
-	}
+        }
      }
 
     return ans;
@@ -887,6 +943,86 @@ find_dist2(graph *g, int m, int n, int v, int w, int *dist)
 
 /**************************************************************************/
 
+int
+numcomponents1(graph *g, int n)
+/* Find number of components of undirected graph; case m=1 */
+{
+    setword notvisited,queue;
+    int nc,i;
+
+    nc = 0;
+    notvisited = ALLMASK(n);
+
+    while (notvisited)
+    {
+        ++nc;
+        queue = SWHIBIT(notvisited);
+        notvisited &= ~queue;
+        while (queue)
+        {
+            TAKEBIT(i,queue);
+            notvisited &= ~bit[i];
+            queue |= g[i] & notvisited;
+        }
+    }
+
+    return nc;
+}
+
+int
+numcomponents(graph *g, int m, int n)
+/* Find number of components of undirected graph */
+{
+    int i,nc,head,tail,v,w;
+    set *gw;
+#if MAXN
+    int queue[MAXN];
+    set notvisited[MAXM+1];  /* +1 to satisfy gcc12 on ARM */
+#else   
+    DYNALLSTAT(int,queue,queue_sz);
+    DYNALLSTAT(set,notvisited,notvisited_sz);
+#endif  
+
+    if (n == 0) return 0;
+    if (m == 1) return numcomponents1(g,n);
+    
+#if !MAXN
+    DYNALLOC1(int,queue,queue_sz,n,"numcomponents");
+    DYNALLOC1(set,notvisited,notvisited_sz,m,"numcomponents");
+#endif  
+ 
+    EMPTYSET(notvisited,m);
+    for (i = 0; i < n; ++i) ADDELEMENT(notvisited,i);
+
+    nc = 0;
+
+    for (v = -1; (v = nextelement(notvisited,m,v)) >= 0;)
+    {
+        ++nc;
+        queue[0] = v;
+
+        head = 0;
+        tail = 1;
+        while (head < tail)
+        {
+            w = queue[head++];
+            gw = GRAPHROW(g,w,m);
+            for (i = -1; (i = nextelement(gw,m,i)) >= 0;)
+            {
+                if (ISELEMENT(notvisited,i))
+                {
+                    DELELEMENT(notvisited,i);
+                    queue[tail++] = i;
+                }
+            }
+        }
+    }
+
+    return nc;
+}
+
+/**************************************************************************/
+
 void
 diamstats(graph *g, int m, int n, int *radius, int *diameter)
 /* Find the radius and diameter.  Both -1 if g is disconnected.
@@ -911,8 +1047,8 @@ diamstats(graph *g, int m, int n, int *radius, int *diameter)
 
     if (n == 0)
     {
-	*radius = *diameter = 0;
-	return;
+        *radius = *diameter = 0;
+        return;
     }
 
     diam = -1;
@@ -976,7 +1112,7 @@ maxclnode1(graph *g, setword cliq, setword cov, int maxv)
     while (w)
     {
         TAKEBIT(i,w);
-	ans += maxclnode1(g,cliq|bit[i],cov&g[i]&~bit[i],i);
+        ans += maxclnode1(g,cliq|bit[i],cov&g[i]&~bit[i],i);
     }
     return ans;
 }
@@ -993,13 +1129,13 @@ maxcliques(graph *g, int m, int n)
     if (m == 1)
     {
         ans = 0;
-	for (i = 0; i < n; ++i)
-	    ans += maxclnode1(g,bit[i],g[i],i);
+        for (i = 0; i < n; ++i)
+            ans += maxclnode1(g,bit[i],g[i],i);
     }
     else
     {
-	fprintf(stderr,">E maxcliques() is only implemented for m=1\n");
-	exit(1);
+        fprintf(stderr,">E maxcliques() is only implemented for m=1\n");
+        exit(1);
     }
 
     return ans;
@@ -1025,11 +1161,11 @@ maxcsnode1(int *best, graph *g, setword cliq, setword cov, int maxv)
     if (s + POPCOUNT(w) <= *best) return;
     if (w)
     {
-	if (s + 1 > *best) *best = s + 1;
+        if (s + 1 > *best) *best = s + 1;
         while (w)
         {
             TAKEBIT(i,w);
-	    maxcsnode1(best,g,cliq|bit[i],cov&g[i]&~bit[i],i);
+            maxcsnode1(best,g,cliq|bit[i],cov&g[i]&~bit[i],i);
         }
     }
 }
@@ -1045,13 +1181,13 @@ maxcliquesize(graph *g, int m, int n)
     if (m == 1)
     {
         best = 1;
-	for (i = 0; i < n; ++i)
-	    maxcsnode1(&best,g,bit[i],g[i],i);
+        for (i = 0; i < n; ++i)
+            maxcsnode1(&best,g,bit[i],g[i],i);
     }
     else
     {
-	fprintf(stderr,">E maxcliquesize() is only implemented for m=1\n");
-	exit(1);
+        fprintf(stderr,">E maxcliquesize() is only implemented for m=1\n");
+        exit(1);
     }
 
     return best;
@@ -1069,17 +1205,17 @@ maxindsetsize(graph *g, int m, int n)
 
     if (m == 1)
     {
-	all = ALLMASK(n);
-	for (i = 0; i < n; ++i) gc[i] = g[i] ^ all ^ bit[i];
+        all = ALLMASK(n);
+        for (i = 0; i < n; ++i) gc[i] = g[i] ^ all ^ bit[i];
 
         best = 1;
-	for (i = 0; i < n; ++i)
-	    maxcsnode1(&best,gc,bit[i],gc[i],i);
+        for (i = 0; i < n; ++i)
+            maxcsnode1(&best,gc,bit[i],gc[i],i);
     }
     else
     {
-	fprintf(stderr,">E maxindsetsize() is only implemented for m=1\n");
-	exit(1);
+        fprintf(stderr,">E maxindsetsize() is only implemented for m=1\n");
+        exit(1);
     }
 
     return best;

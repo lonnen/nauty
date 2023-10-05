@@ -26,7 +26,7 @@ numleaves(graph *g, boolean digraph, long Qlo, long Qhi, int m, int n)
 
     leaves = 0;
     for (i = 0, gi = g; i < n; ++i, gi += m)
-	if (setsize(gi,m) == 1) ++leaves;
+        if (setsize(gi,m) == 1) ++leaves;
 
     return leaves >= Qlo && (Qhi == NOLIMIT || leaves <= Qhi);
 }

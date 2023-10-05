@@ -39,14 +39,14 @@ main(int argc, char *argv[])
             structure point to arrays that are large enough.  This only
             works if the structure has been initialised. */
 
-            SG_ALLOC(sg,n,2*n,"malloc");
+            SG_ALLOC(sg,n,2UL*n,"malloc");
 
             sg.nv = n;              /* Number of vertices */
             sg.nde = 2*n;           /* Number of directed edges */
 
             for (i = 0; i < n; ++i)
             {
-                sg.v[i] = 2*i;
+                sg.v[i] = 2UL*i;
                 sg.d[i] = 2;
                 sg.e[2*i] = (i+n-1)%n;      /* edge i->i-1 */
                 sg.e[2*i+1] = (i+n+1)%n;    /* edge i->i+1 */

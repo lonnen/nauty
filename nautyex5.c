@@ -49,13 +49,13 @@ main(int argc, char *argv[])
 
          /* Now make the first graph */
 
-            SG_ALLOC(sg1,n,3*n,"malloc");
+            SG_ALLOC(sg1,n,3LU*n,"malloc");
             sg1.nv = n;              /* Number of vertices */
-            sg1.nde = 3*n;           /* Number of directed edges */
+            sg1.nde = 3LU*n;           /* Number of directed edges */
 
             for (i = 0; i < n; ++i)
             {
-                sg1.v[i] = 3*i;     /* Position of vertex i in v array */
+                sg1.v[i] = 3LU*i;     /* Position of vertex i in v array */
                 sg1.d[i] = 3;       /* Degree of vertex i */
             }
              
@@ -77,19 +77,19 @@ main(int argc, char *argv[])
                 
          /* Now make the second graph */
 
-            SG_ALLOC(sg2,n,3*n,"malloc");
+            SG_ALLOC(sg2,n,3LU*n,"malloc");
             sg2.nv = n;              /* Number of vertices */
-            sg2.nde = 3*n;           /* Number of directed edges */
+            sg2.nde = 3LU*n;           /* Number of directed edges */
 
             for (i = 0; i < n; ++i)
             {
-                sg2.v[i] = 3*i;
+                sg2.v[i] = 3LU*i;
                 sg2.d[i] = 3;
             }
 
             for (i = 0; i < n; ++i)
             {
-                sg2.v[i] = 3*i;
+                sg2.v[i] = 3LU*i;
                 sg2.d[i] = 3;
                 sg2.e[sg2.v[i]] = (i+1) % n;      /* Clockwise */
                 sg2.e[sg2.v[i]+1] = (i+n-1) % n;  /* Anti-clockwise */

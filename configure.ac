@@ -1,5 +1,5 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT
+AC_INIT([nauty],[2.8.7])
 AC_CONFIG_SRCDIR([nauty-h.in])
 
 # ======================================================================
@@ -99,6 +99,13 @@ AC_ARG_ENABLE([wordsize],
 AS_IF([test "x$enable_wordsize" = x16],[default_wordsize=16],[default_wordsize=0])
 AS_IF([test "x$enable_wordsize" = x32],[default_wordsize=32])
 AS_IF([test "x$enable_wordsize" = x64],[default_wordsize=64])
+AS_IF([test "x$enable_wordsize" = x128],[default_wordsize=128])
+
+dnl --disable-wordsize128 disables 128-bit components
+AC_ARG_ENABLE([wordsize128],
+   AS_HELP_STRING([--disable-wordsize128], [Disable 128-bit components]),
+   [enablearg=given], [enablearg=notgiven])
+AS_IF([test $enablearg = notgiven || test "x$enable_popcnt" = xyes],[allow_128=1],[allow_128=0])
 
 # ======================================================================
 # Next we get to work
@@ -112,6 +119,14 @@ case "$host" in
   *)
      is_powerpc=0 ;;
 esac
+
+case "$host" in
+  aarch64*)
+     is_ARM64=1 ;;
+  *)
+     is_ARM64=0 ;;
+esac
+AC_SUBST(is_ARM64)
 
 case "$build" in
   *cygwin*)
@@ -132,7 +147,7 @@ AC_SUBST(ac_cv_sys_file_offset_bits)
 
 AS_IF([test "x$user_cflags" = x || test "x$user_cflags" = x-m32],
 [
-  AS_IF([test "$CC" = "icc"],
+  AS_IF([test "$CC" = "icc" || test "$CC" = "icx"],
     [AC_TRY_CFLAGS([-O3],[CFLAGS="$CFLAGS -O3"]);
      AS_IF([test "x$ac_cv_try_cflags_ok" = xno],
         [AC_TRY_CFLAGS([-O2],[CFLAGS="$CFLAGS -O2"],[CFLAGS="$CFLAGS -O"])])],
@@ -175,16 +190,12 @@ CVT_YESNO(ac_cv_type_pid_t,have_pid_t)
 
 AC_CHECK_DECL([ftell],ftell_dec=1,ftell_dec=0)
 AC_SUBST(ftell_dec)
-
 AC_CHECK_DECL([popen],popen_dec=1,popen_dec=0)
 AC_SUBST(popen_dec)
-
 AC_CHECK_DECL([fdopen],fdopen_dec=1,fdopen_dec=0)
 AC_SUBST(fdopen_dec)
-
 AC_CHECK_DECL([putenv],putenv_dec=1,putenv_dec=0)
 AC_SUBST(putenv_dec)
-
 AC_CHECK_DECL([setenv],setenv_dec=1,setenv_dec=0)
 AC_SUBST(setenv_dec)
 
@@ -212,7 +223,10 @@ AC_EGREP_CPP(yes,
 AC_SUBST(has_math_inf)
 AC_MSG_RESULT($has_math_inf)
 
-dnl Checks for sizes of integer types; avoid 64-bit if necessary
+dnl Checks for sizes of integer types
+testprogs="dreadtest dreadtestS dreadtestS1 dreadtest4K"
+testprogs="$testprogs dreadtest1 dreadtestW dreadtestW1"
+testprogs="$testprogs dreadtestL dreadtestL1"
 AC_CHECK_SIZEOF([int])
 AC_SUBST(ac_cv_sizeof_int)
 AC_CHECK_SIZEOF([long])
@@ -221,22 +235,25 @@ AC_CHECK_SIZEOF([long long])
 AC_SUBST(ac_cv_sizeof_long_long)
 AC_CHECK_SIZEOF([void*])
 AC_SUBST(ac_cv_sizeof_voidp)
-AC_CHECK_SIZEOF([__int128])
-AC_SUBST(ac_cv_sizeof___int128)
-AC_CHECK_SIZEOF([__int128_t])
-AC_SUBST(ac_cv_sizeof___int128_t)
-lok=0
-testprogs="dreadtest dreadtestS dreadtestS1 dreadtest4K"
-testprogs="$testprogs dreadtest1 dreadtestW dreadtestW1"
-
-AS_IF([test $ac_cv_sizeof_long_long -eq 8],
-      [lok=1
-       testprogs="$testprogs dreadtestL1 dreadtestL"],
-      [AS_IF([test $ac_cv_sizeof_long -eq 8],
-             [lok=1])
-    ])
-AC_SUBST(lok)
+AS_IF([test $allow_128 -eq 1],
+ [AC_CHECK_SIZEOF([__uint128_t])
+  AC_CHECK_SIZEOF([unsigned __int128])],
+ [ac_cv_sizeof___uint128_t=0
+  ac_cv_sizeof_unsigned___int128=0])
+AS_IF([test $ac_cv_sizeof___uint128_t -eq 16 || test $ac_cv_sizeof_unsigned___int128 -eq 16],
+ [runonetestQ='runonetest "$1" "$2" "$3"'
+  Qlibs_or_null="nautyQ1.a nautyQ.a"
+  testprogs="$testprogs dreadtestQ dreadtestQ1"
+  nautests="nautest nautestS nautestW nautestL nautestQ"],
+ [runonetestQ=true
+  Qlibs_or_null=
+  nautests="nautest nautestS nautestW nautestL"]) 
+AC_SUBST(ac_cv_sizeof___uint128_t)
+AC_SUBST(ac_cv_sizeof_unsigned___int128)
+AC_SUBST(runonetestQ)
+AC_SUBST(Qlibs_or_null)
 AC_SUBST(testprogs)
+AC_SUBST(nautests)
 
 dnl Checks for library functions.
 AC_CHECK_FUNC(isatty,have_isatty=1,have_isatty=0)
@@ -245,6 +262,10 @@ AC_CHECK_FUNC(time,have_time=1,have_time=0)
 AC_SUBST(have_time)
 AC_CHECK_FUNC(gettimeofday,have_gettimeofday=1,have_gettimeofday=0)
 AC_SUBST(have_gettimeofday)
+AC_CHECK_FUNC(clock_gettime,have_clock_gettime=1,have_clock_gettime=0)
+AC_SUBST(have_clock_gettime)
+AC_CHECK_FUNC(clock,have_clock=1,have_clock=0)
+AC_SUBST(have_clock)
 AC_CHECK_FUNC(times,have_times=1,have_times=0)
 AC_SUBST(have_times)
 AC_CHECK_FUNC(getrusage,have_getrusage=1,have_getrusage=0)
@@ -280,7 +301,9 @@ AS_IF([test "$allow_popcnt" -eq 1],
       [have_hwpopcnt=$popsup
 test -f /proc/cpuinfo && grep -i popcnt /proc/cpuinfo >/dev/null && have_hwpopcnt=1 
 test $have_hwpopcnt -eq 0 && sysctl machdep.cpu.features 2>/dev/null | grep -i popcnt >/dev/null && have_hwpopcnt=1
-test $have_hwpopcnt -eq 0 && isainfo -x -v 2>/dev/null | grep -i popc >/dev/null && have_hwpopcnt=1 ],
+test $have_hwpopcnt -eq 0 && isainfo -x -v 2>/dev/null | grep -i popc >/dev/null && have_hwpopcnt=1
+test $have_hwpopcnt -eq 0 && test $is_ARM64 -eq 1 && have_hwpopcnt=1
+],
       [have_hwpopcnt=0
 ])
 # Some problems with popcnt on powerpc are not resolved yet
@@ -307,7 +330,7 @@ AS_IF([test $have_hwpopcnt -eq 1],
                    int main(){unsigned int x; x = _mm_popcnt_u64(x);}])],
                              [have_mmpop64=1], [have_mmpop64=0])
               AC_MSG_RESULT($have_mmpop64)],
-             [CFLAGS="$CFLAGS -mpopcnt"
+             [AS_IF([test "$is_ARM64" -eq 0], [CFLAGS="$CFLAGS -mpopcnt"])
               AC_MSG_CHECKING(if __builtin_popcount() is supported)
               AC_LINK_IFELSE([AC_LANG_SOURCE([int main(){unsigned int x; x = __builtin_popcount(x);}])],
                              [have_popcnt=1], [have_popcnt=0])
@@ -320,7 +343,8 @@ AS_IF([test $have_hwpopcnt -eq 1],
               AC_LINK_IFELSE([AC_LANG_SOURCE([int main(){unsigned long long x; x = __builtin_popcountll(x);}])],
                              [have_popcntll=1], [have_popcntll=0])
               AC_MSG_RESULT($have_popcntll)
-              AS_IF([test $have_popcnt -eq 1 || test $have_popcntl -eq 1 || test $have_popcntll -eq 1],
+              AS_IF([test $is_ARM64 -eq 1], [],
+                    [test $have_popcnt -eq 1 || test $have_popcntl -eq 1 || test $have_popcntll -eq 1],
                     [MORECFLAGS="$MORECFLAGS -mpopcnt"])
 ])])
 CFLAGS="$SAVE_CFLAGS"
@@ -340,6 +364,9 @@ case "$CFLAGS" in
 esac
 case "$CC" in
  *-march=* ) allow_native=0 ;;
+esac
+case "$build" in
+ *musl ) allow_native=0 ;;
 esac
 
 AS_IF([test "$allow_native" -eq 1],
@@ -375,9 +402,9 @@ AS_IF([test "$allow_clz" -eq 1],
 test -f /proc/cpuinfo && egrep -i "abm|bmi1" /proc/cpuinfo >/dev/null && have_hwlzcnt=1 
 test $have_hwlzcnt -eq 0 && sysctl machdep.cpu.features 2>/dev/null | egrep -i "bmi1|abm" >/dev/null && have_hwlzcnt=1
 test $have_hwlzcnt -eq 0 && sysctl machdep.cpu.extfeatures 2>/dev/null | egrep -i "lzcnt" >/dev/null && have_hwlzcnt=1
-test $have_hwlzcnt -eq 0 && isainfo -x -v 2>/dev/null | egrep -i "bmi1|abm" >/dev/null && have_hwlzcnt=1 ],
-      [have_hwlzcnt=0
-])
+test $have_hwlzcnt -eq 0 && isainfo -x -v 2>/dev/null | egrep -i "bmi1|abm" >/dev/null && have_hwlzcnt=1
+test $have_hwlzcnt -eq 0 && test $is_ARM64 -eq 1 && have_hwlzcnt=1 ],
+      [have_hwlzcnt=0])
 AC_MSG_RESULT($have_hwlzcnt)
 AC_SUBST(have_hwlzcnt)
 
@@ -415,6 +442,7 @@ AC_SUBST(shortg_or_null)
 
 AC_CHECK_FUNC(getc_unlocked,have_getc_unlocked=1,have_getc_unlocked=0)
 AC_CHECK_FUNC(flockfile,have_flockfile=1,have_flockfile=0)
+AC_SUBST(have_flockfile)
 AS_IF([test $have_getc_unlocked -eq 1 && test $have_flockfile -eq 1],
       [stdio_nolock=1],[stdio_nolock=0])
 AC_SUBST(stdio_nolock)
@@ -445,13 +473,24 @@ AS_IF([{ $sort_prog -k "2,3" </dev/null >/dev/null 2>&1 ; }],
 AC_SUBST(sort_newparams_ok)
 AC_MSG_RESULT($sort_newparams_ok)
 
+AC_MSG_CHECKING(if sort supports the -S switch)
+AS_IF([{ $sort_prog -S 1M </dev/null >/dev/null 2>&1 ; }],
+      [sort_size_ok=1], [sort_size_ok=0])
+AC_SUBST(sort_size_ok)
+AC_MSG_RESULT($sort_size_ok)
+
 edit_msg="++++++ This file is automatically generated, don't edit it by hand! ++++++"
 AC_SUBST(edit_msg)
 
 AC_PROG_MKDIR_P
 AC_PROG_INSTALL
 
+dnl Existence of gunzip program
+AC_CHECK_PROGS(gunzip_prog,[gunzip],none)
+AS_IF([test "$gunzip_prog" = "gunzip"],[have_gunzip=1],[have_gunzip=0])
+AC_SUBST(have_gunzip)
+
 AC_CONFIG_FILES([makefile:makefile.in nauty.h:nauty-h.in
     naututil.h:naututil-h.in gtools.h:gtools-h.in
-    nauty.pc:nauty.pc.in])
+    nauty.pc:nauty-pc.in runalltests:runalltests.in])
 AC_OUTPUT

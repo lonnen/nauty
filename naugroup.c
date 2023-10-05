@@ -28,28 +28,28 @@ same value of n. */
 
     if (freelist_n != n)
     {
-	while (freelist != NULL)
-	{
-	    p = freelist;
-	    freelist = freelist->ptr;
-	    free(p);
-	}
-	freelist_n = n;
+        while (freelist != NULL)
+        {
+            p = freelist;
+            freelist = freelist->ptr;
+            free(p);
+        }
+        freelist_n = n;
     }
 
     if (freelist != NULL)
     {
-	p = freelist;
-	freelist = freelist->ptr;
-	return p;
+        p = freelist;
+        freelist = freelist->ptr;
+        return p;
     }
 
     p = (permrec*) malloc(sizeof(permrec)+(freelist_n-2)*sizeof(int)); 
 
     if (p == NULL)
     {
-	fprintf(ERRFILE,">E malloc failed in newpermrec()\n");
-	exit(1);
+        fprintf(ERRFILE,">E malloc failed in newpermrec()\n");
+        exit(1);
     }
 
     return p;
@@ -67,13 +67,13 @@ freepermrec(permrec *p, int n)
 
     if (freelist_n != n)
     {
-	while (freelist)
-	{
-	    q = freelist;
-	    freelist = freelist->ptr;
-	    free(q);
-	}
-	freelist_n = n;
+        while (freelist)
+        {
+            q = freelist;
+            freelist = freelist->ptr;
+            free(q);
+        }
+        freelist_n = n;
     }
 
     p->ptr = freelist;
@@ -93,10 +93,10 @@ groupptr(boolean cutloose)
 
     if (cutloose)
     {
-	group = NULL;
-	group_depth = 0;
-	coset = NULL;
-	coset_sz = 0;
+        group = NULL;
+        group_depth = 0;
+        coset = NULL;
+        coset_sz = 0;
     }
 
     return p;
@@ -114,32 +114,32 @@ freegroup(grouprec *grp)
 
     for (i = 0; i < grp->depth; ++i)
     {
-	p = grp->levelinfo[i].replist;
-	if (p != NULL)
-	    for (j = grp->levelinfo[i].orbitsize; --j >= 0; )
-	    {
-		freepermrec(p[j].rep,grp->n);
-		p[j].rep = NULL;
-	    }
+        p = grp->levelinfo[i].replist;
+        if (p != NULL)
+            for (j = grp->levelinfo[i].orbitsize; --j >= 0; )
+            {
+                freepermrec(p[j].rep,grp->n);
+                p[j].rep = NULL;
+            }
     }
 
     if (grp->depth > 0)
     {
         p = grp->levelinfo[0].replist;
         if (p != NULL && p != coset)
-	{
-	    free(p);
-	    grp->levelinfo[0].replist = NULL;
-	}
+        {
+            free(p);
+            grp->levelinfo[0].replist = NULL;
+        }
 
         q = grp->levelinfo[0].gens;
         while (q != NULL)
         {
-	    qq = q;
-	    q = q->ptr;
-	    freepermrec(qq,grp->n);
+            qq = q;
+            q = q->ptr;
+            freepermrec(qq,grp->n);
         }
-	grp->levelinfo[0].gens = NULL;
+        grp->levelinfo[0].gens = NULL;
     }
 }
 
@@ -169,28 +169,28 @@ grouplevelproc(int *lab, int *ptn, int level, int *orbits, statsblk *stats,
 
     if (numcells == n)   /* first call */
     {
-	depth = level - 1;
+        depth = level - 1;
 
-	if (group) freegroup(group);
+        if (group) freegroup(group);
 
-	if (depth > group_depth || !group)
-	{
-	    if (depth <= 1) sz = sizeof(grouprec);
-	    else            sz = sizeof(grouprec) + (depth-1)*sizeof(levelrec);
-	    if (group) group = (grouprec*)realloc((void*)group,sz);
-	    else       group = (grouprec*)malloc(sz);
-	    if (group == NULL)
-	    {
-		fprintf(ERRFILE,">E malloc failed in grouplevelproc\n");
-		exit(1);
-	    }
-	    group_depth = depth;
-	}
+        if (depth > group_depth || !group)
+        {
+            if (depth <= 1) sz = sizeof(grouprec);
+            else            sz = sizeof(grouprec) + (depth-1)*sizeof(levelrec);
+            if (group) group = (grouprec*)realloc((void*)group,sz);
+            else       group = (grouprec*)malloc(sz);
+            if (group == NULL)
+            {
+                fprintf(ERRFILE,">E malloc failed in grouplevelproc\n");
+                exit(1);
+            }
+            group_depth = depth;
+        }
 
-	group->n = n;
-	group->depth = depth;
-	gens = NULL;
-	return;
+        group->n = n;
+        group->depth = depth;
+        gens = NULL;
+        return;
     }
 
     group->levelinfo[level-1].fixedpt = tv;
@@ -224,51 +224,51 @@ makecosetreps(grouprec *grp)
 
     j = 0;
     for (i = 0; i < depth; ++i)
-	j += grp->levelinfo[i].orbitsize;
+        j += grp->levelinfo[i].orbitsize;
 
     if (j > 0) DYNALLOC1(cosetrec,coset,coset_sz,j,"malloc");
 
     cr = coset;
     for (i = 0; i < depth; ++i)
     {
-	grp->levelinfo[i].replist = cr;
-	cr += grp->levelinfo[i].orbitsize;
+        grp->levelinfo[i].replist = cr;
+        cr += grp->levelinfo[i].orbitsize;
     }
 
     for (i = 0; i < depth; ++i)
     {
-	cr = grp->levelinfo[i].replist;
-	gen = grp->levelinfo[i].gens;
-	for (j = 0; j < n; ++j) lab[j] = -1;
-	queue[0] = grp->levelinfo[i].fixedpt;
-	lab[queue[0]] = 0;
-	cr[0].image = queue[0];
-	cr[0].rep = NULL;
-	head = 0;
-	tail = 1;
-	index = 0;
-	while (head < tail)
-	{
-	    j = queue[head++];
-	    p = (cr[lab[j]].rep ? cr[lab[j]].rep->p : NULL);
-	    for (g = gen; g != NULL; g = g->ptr)
-	    {
-		k = g->p[j];
-		if (lab[k] < 0)
-		{
-		    ++index;
-		    lab[k] = index;
-		    queue[tail++] = k;
-		    cr[index].image = k;
-		    cr[index].rep = newpermrec(n);
-		    q = cr[index].rep->p;
-		    if (p == NULL)
-			for (l = 0; l < n; ++l) q[l] = g->p[l];
-		    else
-			for (l = 0; l < n; ++l) q[l] = g->p[p[l]];
-		}
-	    }
-	}
+        cr = grp->levelinfo[i].replist;
+        gen = grp->levelinfo[i].gens;
+        for (j = 0; j < n; ++j) lab[j] = -1;
+        queue[0] = grp->levelinfo[i].fixedpt;
+        lab[queue[0]] = 0;
+        cr[0].image = queue[0];
+        cr[0].rep = NULL;
+        head = 0;
+        tail = 1;
+        index = 0;
+        while (head < tail)
+        {
+            j = queue[head++];
+            p = (cr[lab[j]].rep ? cr[lab[j]].rep->p : NULL);
+            for (g = gen; g != NULL; g = g->ptr)
+            {
+                k = g->p[j];
+                if (lab[k] < 0)
+                {
+                    ++index;
+                    lab[k] = index;
+                    queue[tail++] = k;
+                    cr[index].image = k;
+                    cr[index].rep = newpermrec(n);
+                    q = cr[index].rep->p;
+                    if (p == NULL)
+                        for (l = 0; l < n; ++l) q[l] = g->p[l];
+                    else
+                        for (l = 0; l < n; ++l) q[l] = g->p[p[l]];
+                }
+            }
+        }
     }
 }
 
@@ -289,25 +289,25 @@ permcycles(int *p, int n, int *len, boolean sort)
     nc = 0;
     for (i = 0; i < n; ++i)
         if (!ISELEMENT(workset,i))
-	{
-	    k = 1;
-	    for (j = p[i]; j != i; j = p[j]) 
-	    {
-		ADDELEMENT(workset,j);
-		++k;
-	    }
-	    len[nc++] = k;
-	}
+        {
+            k = 1;
+            for (j = p[i]; j != i; j = p[j]) 
+            {
+                ADDELEMENT(workset,j);
+                ++k;
+            }
+            len[nc++] = k;
+        }
 
     if (sort && nc > 1)
     {
-	j = nc / 3;
+        j = nc / 3;
         h = 1;
         do
             h = 3 * h + 1;
         while (h < j);
 
-	do
+        do
         {
             for (i = h; i < nc; ++i)
             {
@@ -343,21 +343,21 @@ groupelts(levelrec *lr, int n, int level, void (*action)(int*,int),
 
     for (j = 0; j < orbsize; ++j)
     {
-	cr = (coset[j].rep == NULL ? NULL : coset[j].rep->p);
-	if (before == NULL)
-	    p = cr;
-	else if (cr == NULL)
-	    p = before;
-	else
-	{
-	    p = after;
-	    for (i = 0; i < n; ++i) p[i] = cr[before[i]];
-	}
+        cr = (coset[j].rep == NULL ? NULL : coset[j].rep->p);
+        if (before == NULL)
+            p = cr;
+        else if (cr == NULL)
+            p = before;
+        else
+        {
+            p = after;
+            for (i = 0; i < n; ++i) p[i] = cr[before[i]];
+        }
 
-	if (level == 0) 
-	    (*action)((p == NULL ? id : p),n);
-	else
-	    groupelts(lr,n,level-1,action,p,after+n,id);
+        if (level == 0) 
+            (*action)((p == NULL ? id : p),n);
+        else
+            groupelts(lr,n,level-1,action,p,after+n,id);
     }
 }
 
@@ -378,8 +378,8 @@ allgroup(grouprec *grp, void (*action)(int*,int))
 
     if (depth == 0)
     {
-	(*action)(id,n);
-	return;
+        (*action)(id,n);
+        return;
     }
 
     DYNALLOC1(int,allp,allp_sz,n*depth,"malloc");
@@ -404,22 +404,22 @@ groupelts2(levelrec *lr, int n, int level,
 
     for (j = 0; j < orbsize; ++j)
     {
-	cr = (coset[j].rep == NULL ? NULL : coset[j].rep->p);
-	if (before == NULL)
-	    p = cr;
-	else if (cr == NULL)
-	    p = before;
-	else
-	{
-	    p = after;
-	    for (i = 0; i < n; ++i) p[i] = cr[before[i]];
-	}
+        cr = (coset[j].rep == NULL ? NULL : coset[j].rep->p);
+        if (before == NULL)
+            p = cr;
+        else if (cr == NULL)
+            p = before;
+        else
+        {
+            p = after;
+            for (i = 0; i < n; ++i) p[i] = cr[before[i]];
+        }
 
-	if (level == 0) 
-	    (*action)((p == NULL ? id : p),n,abort);
-	else
-	    groupelts2(lr,n,level-1,action,p,after+n,id,abort);
-	if (*abort) return;
+        if (level == 0) 
+            (*action)((p == NULL ? id : p),n,abort);
+        else
+            groupelts2(lr,n,level-1,action,p,after+n,id,abort);
+        if (*abort) return;
     }
 }
 
@@ -445,8 +445,8 @@ allgroup2(grouprec *grp, void (*action)(int*,int,int*))
     abort = 0;
     if (depth == 0)
     {
-	(*action)(id,n,&abort);
-	return abort;
+        (*action)(id,n,&abort);
+        return abort;
     }
 
     DYNALLOC1(int,allp,allp_sz,n*depth,"malloc");
@@ -473,22 +473,22 @@ groupelts3(levelrec *lr, int n, int level,
 
     for (j = 0; j < orbsize; ++j)
     {
-	cr = (coset[j].rep == NULL ? NULL : coset[j].rep->p);
-	if (before == NULL)
-	    p = cr;
-	else if (cr == NULL)
-	    p = before;
-	else
-	{
-	    p = after;
-	    for (i = 0; i < n; ++i) p[i] = cr[before[i]];
-	}
+        cr = (coset[j].rep == NULL ? NULL : coset[j].rep->p);
+        if (before == NULL)
+            p = cr;
+        else if (cr == NULL)
+            p = before;
+        else
+        {
+            p = after;
+            for (i = 0; i < n; ++i) p[i] = cr[before[i]];
+        }
 
-	if (level == 0) 
-	    (*action)((p == NULL ? id : p),n,abort,userptr);
-	else
-	    groupelts3(lr,n,level-1,action,p,after+n,id,abort,userptr);
-	if (*abort) return;
+        if (level == 0) 
+            (*action)((p == NULL ? id : p),n,abort,userptr);
+        else
+            groupelts3(lr,n,level-1,action,p,after+n,id,abort,userptr);
+        if (*abort) return;
     }
 }
 
@@ -515,8 +515,8 @@ allgroup3(grouprec *grp, void (*action)(int*,int,int*,void*), void *userptr)
     abort = 0;
     if (depth == 0)
     {
-	(*action)(id,n,&abort,userptr);
-	return abort;
+        (*action)(id,n,&abort,userptr);
+        return abort;
     }
 
     DYNALLOC1(int,allp,allp_sz,n*depth,"malloc");
@@ -525,4 +525,3 @@ allgroup3(grouprec *grp, void (*action)(int*,int,int*,void*), void *userptr)
 
     return abort;
 }
-

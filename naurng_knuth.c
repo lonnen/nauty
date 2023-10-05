@@ -1,11 +1,12 @@
-/* rng.c
+/* naurng.c
+ *
    This file contains the code for a high-quality random number
    generator written by Don Knuth.  The auxilliary routine
    ran_arr_cycle() has been modified slightly, and ran_init() is new.
 
    To use it:
 
-      0.  #include "rng.h" (or "naututil.h" if you are using nauty)
+      0.  #include "naurng.h" (or "naututil.h" if you are using nauty)
 
       1.  Call ran_init(seed), where seed is any long integer.
           This step is optional, but if you don't use it you
@@ -20,7 +21,7 @@
           variable var to a better random number from 0..k-1.
 
     Brendan McKay, July 2002.  Fixed Nov 2002 on advice of DEK.
-
+                   Nov 2022.  Added ran_init_time().
 */
 
 /*    This program by D E Knuth is in the public domain and freely copyable
@@ -40,20 +41,17 @@
 /************ see the book for explanations and caveats! *******************/
 /************ in particular, you need two's complement arithmetic **********/
 
+#include "naurng_knuth.h"
+
 #define KK 100                     /* the long lag */
 #define LL  37                     /* the short lag */
 #define MM (1L<<30)                 /* the modulus */
 #define mod_diff(x,y) (((x)-(y))&(MM-1)) /* subtraction mod MM */
 
-long ran_x[KK];                    /* the generator state */
+static TLS_ATTR long ran_x[KK];                    /* the generator state */
 
-#ifdef __STDC__
-void ran_array(long aa[],int n)
-#else
-void ran_array(aa,n)    /* put n new random numbers in aa */
-  long *aa;   /* destination */
-  int n;      /* array length (must be at least KK) */
-#endif
+static void
+ran_array(long aa[],int n)
 {
   int i,j;
   for (j=0;j<KK;j++) aa[j]=ran_x[j];
@@ -65,24 +63,22 @@ void ran_array(aa,n)    /* put n new random numbers in aa */
 /* the following routines are from exercise 3.6--15 */
 /* after calling ran_start, get new randoms by, e.g., "x=ran_arr_next()" */
 
-#define QUALITY 1009 /* recommended quality level for high-res use */
-static long ran_arr_buf[QUALITY];
-static long ran_arr_dummy=-1, ran_arr_started=-1;
-long *ran_arr_ptr=&ran_arr_dummy; /* the next random number, or -1 */
+#define RNG_QUALITY 1009 /* recommended quality level for high-res use */
+static TLS_ATTR long ran_arr_buf[RNG_QUALITY];
+static long ran_arr_dummy=-1;
+static long ran_arr_started=-1;
+static TLS_ATTR long *ran_arr_ptr = &ran_arr_dummy;
 
 #define TT  70   /* guaranteed separation between streams */
 #define is_odd(x)  ((x)&1)          /* units bit of x */
 
-#ifdef __STDC__
-void ran_start(long seed)
-#else
-void ran_start(seed)    /* do this before using ran_array */
-  long seed;            /* selector for different streams */
-#endif
+static void
+ran_start(long seed)
 {
   int t,j;
   long x[KK+KK-1];              /* the preparation buffer */
   long ss=(seed+2)&(MM-2);
+
   for (j=0;j<KK;j++) {
     x[j]=ss;                      /* bootstrap the buffer */
     ss<<=1; if (ss>=MM) ss-=MM-2; /* cyclic shift 29 bits */
@@ -107,15 +103,35 @@ void ran_start(seed)    /* do this before using ran_array */
 }
 
 void
-ran_init(long seed)    /* Added by BDM: use instead of ran_start. */
-                       /*  But this is less important with this version */
+ran_init(long seed)
+/* Added by BDM: use instead of ran_start. */
 {
     ran_start((unsigned long)seed % (MM-2));
 }
 
-#define ran_arr_next() (*ran_arr_ptr>=0? *ran_arr_ptr++: ran_arr_cycle())
-
 long
+ran_init_time(long extra)
+/* Added by BDM: use the real time and the argument to initialise.
+   Returns the value of the seed, so the same sequence can be
+   obtained again by calling ran_init(seed).
+*/
+{
+    double t;
+    nauty_counter ul;  /* 64-bit unsigned */
+    long seed;
+    REALTIMEDEFS
+
+    t = NAUTYREALTIME;
+    if (t > 1660000000.0) ul = (nauty_counter)(t*2100001.0);
+    else                  ul = (nauty_counter)(t+212300021.0);
+    ul ^= (nauty_counter)(extra) * 997;
+    seed = (long)ul;
+    ran_init(seed);
+
+    return seed;
+}
+
+static long
 ran_arr_cycle(void)
 /* Modified by BDM to automatically initialise 
    if no explicit initialisation has been done */
@@ -123,9 +139,15 @@ ran_arr_cycle(void)
    if (ran_arr_ptr==&ran_arr_dummy)
        ran_start(314159L); /* the user forgot to initialize */
 
-  ran_array(ran_arr_buf,QUALITY);
+  ran_array(ran_arr_buf,RNG_QUALITY);
 
   ran_arr_buf[KK]=-1;
   ran_arr_ptr=ran_arr_buf+1;
   return ran_arr_buf[0];
+}
+
+long
+ran_nextran(void)
+{
+    return (*ran_arr_ptr>=0 ? *ran_arr_ptr++ : ran_arr_cycle()); 
 }

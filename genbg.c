@@ -1,4 +1,4 @@
-/* genbg.c : version 2.6; B D McKay, 6 Oct 2019. */
+/* genbg.c : version 2.7; B D McKay, 13 June 2023. */
 
 /* TODO: consider colour swaps */
 
@@ -69,7 +69,7 @@ PRUNE feature.
       n1  = the number of vertices in the first colour class
             (same as the n1 parameter on the command line)
       n2  = the number of vertices in the second colour class
-	    (this will always be at least 1)
+            (this will always be at least 1)
       maxn2 = the value of n2 on the command line
    If n2=maxn2, the graph has the output size.
 
@@ -130,7 +130,7 @@ INSTRUMENT feature.
 
 **************************************************************************
 
-    Author:   B. D. McKay, Oct 1994.     bdm@cs.anu.edu.au
+    Author:   B. D. McKay, Oct 1994.     brendan.mckay@anu.edu.au
               Copyright  B. McKay (1994-2017).  All rights reserved.
               This software is subject to the conditions and waivers
               detailed in the file COPYRIGHT.
@@ -147,10 +147,12 @@ INSTRUMENT feature.
    20 Jan 2016 : changed bigint to nauty_counter
    14 Nov 2017 : added -Y switch
     6 Oct 2019 : declare PRUNE1 and PRUNE2
+   13 Jun 2023 : simulate -Z1 for trees
 
 **************************************************************************/
 
-#define NAUTY_PGM  2   /* 1 = geng, 2 = genbg, 3 = gentourng */
+  /* 1 = geng, 2 = genbg, 3 = genktreeg, 4 = gentreeg, 5 = genktreeg */
+#define NAUTY_PGM  2  
 #undef MAXN
 #define MAXN WORDSIZE
 
@@ -356,10 +358,7 @@ abcdefghijklmnopqrstuvwxyz!\"#$%&'()*-/:;<=>?@[\\]^_`{|}~";
     grestr[k++] = '\n';
     grestr[k] = '\0';
     if (fputs(grestr,f) == EOF || ferror(f))
-    {
-        fprintf(stderr,">E genbg : error on writing file\n");
-        gt_abort(NULL);
-    }
+        gt_abort(">E genbg : error on writing file\n");
 }
 
 /***********************************************************************/
@@ -1280,12 +1279,12 @@ genextend(graph *g, int n2, int *deg, int ne, boolean rigid, int xlb, int xub)
                 }
                 if (j >= 0) continue;
             }
-	    if (antichain)
-	    {
-		for (j = 0; j < n2; ++j)
-		    if ((xval[j] & ~x) == 0) break;
-		if (j < n2) continue;
-	    }
+            if (antichain)
+            {
+                for (j = 0; j < n2; ++j)
+                    if ((xval[j] & ~x) == 0) break;
+                if (j < n2) continue;
+            }
             if (footfree)
             {
                 y = x & (hideg | deg1);
@@ -1373,12 +1372,12 @@ genextend(graph *g, int n2, int *deg, int ne, boolean rigid, int xlb, int xub)
                 }
                 if (j >= 0) continue;
             }
-	    if (antichain)
-	    {
-		for (j = 0; j < n2; ++j)
-		    if ((xval[j] & ~x) == 0) break;
-		if (j < n2) continue;
-	    }
+            if (antichain)
+            {
+                for (j = 0; j < n2; ++j)
+                    if ((xval[j] & ~x) == 0) break;
+                if (j < n2) continue;
+            }
             xval[n2] = x;
 
             for (j = 0; j < n; ++j) degx[j] = deg[j];
@@ -1553,7 +1552,7 @@ PLUGIN_SWITCHES
         fprintf(stderr,
            ">E genbg: must have n1=1..%d, n1+n2=1..%d\n",MAXN1,MAXN);
 #if WORDSIZE==32
-	fprintf(stderr,"Try genbgL instead.\n");
+        fprintf(stderr,"Try genbgL instead.\n");
 #endif
         badargs = TRUE;
     }
@@ -1594,6 +1593,8 @@ PLUGIN_SWITCHES
 
     if (!gotZ) maxcommon = -1;
     if (!gotY) mincommon = -1;
+   
+    if (connec && maxe == n1 + maxn2 - 1) maxcommon = 1;
 
     if (!badargs && (mine > maxe || maxe < 0 || maxdeg1 < 0 || maxdeg2 < 0))
     {
@@ -1641,11 +1642,7 @@ PLUGIN_INIT
     }
     else if ((outfile = fopen(outfilename,
                     nautyformat ? "wb" : "w")) == NULL)
-    {
-        fprintf(stderr,
-              ">E genbg: can't open %s for writing\n",outfilename);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E genbg: can't open %s for writing\n",outfilename);
 
     if (!quiet)
     {

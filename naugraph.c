@@ -1,6 +1,6 @@
 /*****************************************************************************
 *                                                                            *
-*  Graph-specific auxiliary source file for version 2.7 of nauty.            *
+*  Graph-specific auxiliary source file for version 2.8 of nauty.            *
 *                                                                            *
 *   Copyright (1984-2019) Brendan McKay.  All rights reserved.               *
 *   Subject to waivers and disclaimers in nauty.h.                           *
@@ -18,6 +18,7 @@
 *       15-Jan-12 : add TLS_ATTR attributes                                  *
 *       23-Jan-13 : add some parens to make icc happy                        *
 *       15-Oct-19 : fix default size of dnwork[] to match densenauty()       *
+*        6-Apr-21 : increase work space in densenauty()                      *
 *                                                                            *
 *****************************************************************************/
 
@@ -525,7 +526,8 @@ cheapautom(int *ptn, int level, boolean digraph, int n)
 *****************************************************************************/
 
 static int
-bestcell(graph *g, int *lab, int *ptn, int level, int tc_level, int m, int n)
+bestcell(const graph *g, const int *lab, const int *ptn, int level,
+         int tc_level, int m, int n)
 {
     int i;
     set *gp;
@@ -615,8 +617,8 @@ bestcell(graph *g, int *lab, int *ptn, int level, int tc_level, int m, int n)
 *****************************************************************************/
 
 int
-targetcell(graph *g, int *lab, int *ptn, int level, int tc_level,
-       boolean digraph, int hint, int m, int n)
+targetcell(graph *g, int *lab, int *ptn, int level,
+       int tc_level, boolean digraph, int hint, int m, int n)
 {
     int i;
 
@@ -647,8 +649,8 @@ densenauty(graph *g, int *lab, int *ptn, int *orbits,
 {
     if (options->dispatch != &dispatch_graph)
     {
-	fprintf(ERRFILE,"Error: densenauty() needs standard options block\n");
-	exit(1);
+        fprintf(ERRFILE,"Error: densenauty() needs standard options block\n");
+        exit(1);
     }
 
 #if !MAXN

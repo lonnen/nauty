@@ -115,30 +115,30 @@ main(int argc, char *argv[])
 
     for (started = finished = 0; finished < THREADS; )
     {
-	if (started == THREADS || started-finished == ATONCE)
-	{
-	    if ((ret = pthread_join(thread[finished],NULL)) != 0)
-	    {
+        if (started == THREADS || started-finished == ATONCE)
+        {
+            if ((ret = pthread_join(thread[finished],NULL)) != 0)
+            {
                 fprintf(stderr,">E Thread joining failed, code=%d\n",ret);    
                 exit(1);
             }
-	    ++finished;
-	}
-	else
-	{
-		/* We vary the graph size a bit as it tests the
+            ++finished;
+        }
+        else
+        {
+                /* We vary the graph size a bit as it tests the
                    thread independence better. */
-	    par[started].n = GRAPHSIZE + (started % 17);
-	    par[started].writeautoms = FALSE;
+            par[started].n = GRAPHSIZE + (started % 17);
+            par[started].writeautoms = FALSE;
 
             if ((ret = pthread_create(&thread[started],NULL,
-					runit,&par[started])) != 0)
+                                        runit,&par[started])) != 0)
             {
                 fprintf(stderr,">E Thread creation failed, code=%d\n",ret);       
                 exit(1);
             }
-	    ++started;
-	}
+            ++started;
+        }
     }
 
     exit(0);
