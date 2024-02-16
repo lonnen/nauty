@@ -1,4 +1,4 @@
-/* genrang.c  version 2.5; B D McKay, October 22, 2022 */
+/* genrang.c  version 2.7; B D McKay, Sep 2023 */
 /* TODO:  Check allocs for no edges */
 
 #define USAGE \
@@ -22,9 +22,11 @@
            Bipartite version available.\n\
     -r# : Make regular of specified degree\n\
     -d# : Make regular of specified degree (pseudorandom)\n\
+          With -z, #-in #-out digraph without loops\n\
            Bipartite version: this is the degree on the first side.\n\
     -M# : In conjunction with -d, make the distribution more uniform\n\
-           by running a Markov chain starting at the pseudorandom graph.\n\
+           by running a Markov chain for #*n steps starting at the\n\
+           pseudorandom graph.\n\
     -R# : Make regular of specified degree but output\n\
           as vertex count, edge count, then list of edges\n\
     -l# : Maximum loop multiplicity (default 0)\n\
@@ -40,25 +42,9 @@
 /* This is also the limit for -r if MAXN > 0. */
 /* The limit for simple graphs is in naututil-h.in */
 
-/*************************************************************************
-
-   Oct 27, 2004 : corrected handling of -P values
-**************************************************************************/
+/*************************************************************************/
 
 #include "gtools.h"
-
-/* If KISS64 is defined at compile time, George Marsaglia's 64-bit KISS
-   algorithm is used in place of Don Knuth's method. Since it makes
-   64-bit unsigned quantities, using % mod for small mod has a negligible
-   bias due to rounding. */
-
-#ifdef KISS64
-#include "naukiss64.c"
-#else
-#define RAN_INIT ran_init
-#endif
-
-/*************************************************************************/
 
 static void
 perminvar(graph *g, int *perm, int m, int n)
@@ -381,7 +367,7 @@ makeranreg(int *cub, int degree, int multmax, int loopmax, int n)
     long i,j,k,v,w,nn,mult;
     boolean ok;
 #if MAXN
-    int deg[MAXN],p[MAXLREG*MAXN];
+    int deg[MAXN],p[MAXLREG*MAXN],loops[MAXN];
 #else
     DYNALLSTAT(int,deg,deg_sz);
     DYNALLSTAT(int,p,p_sz);
@@ -513,6 +499,76 @@ rundmodel(int *cub, int degree, int n)
 /**************************************************************************/
 
 static void
+rundirmodel(int *cub, int degree, int n)
+/* Make a random-ish regular directed graph in cub[] using the d-model.
+   Each consecutive degree entries of cub[] is set to the neighbours
+   of one vertex.  The length of cub had better be at least degree*n  */
+{
+    long fails;
+  /* long iters; */
+    size_t i,j,navail;
+    int *cubi,vi,vj,k;
+    boolean ok;
+    DYNALLSTAT(int,deg,deg_sz);
+    DYNALLSTAT(int,avail1,avail1_sz);
+    DYNALLSTAT(int,avail2,avail2_sz);
+
+    DYNALLOC1(int,deg,deg_sz,n,"genrang");
+    DYNALLOC2(int,avail1,avail1_sz,n,degree,"genrang");
+    DYNALLOC2(int,avail2,avail2_sz,n,degree,"genrang");
+
+    /* iters = 0; */
+    do
+    {
+        ok = TRUE;
+       /* ++iters; */
+
+        k = 0;
+        for (i = 0; i < n; ++i)
+        {
+            deg[i] = 0;
+            for (j = 0; j < degree; ++j)
+            {
+                avail1[k] = avail2[k] = i;
+                ++k;
+            }
+        }
+        navail = n*degree;
+
+        while (navail >= 1 && ok)
+        {
+            for (fails = 100 + navail; --fails >= 0;)
+            {
+                i = KRAN(navail);
+                j = KRAN(navail);
+                vi = avail1[i];
+                vj = avail2[j];
+                if (vi == vj) continue;
+                cubi = cub + vi*degree;
+                for (k = deg[vi]; --k >= 0; ) if (cubi[k] == vj) break;
+                if (k < 0) break;
+            }
+
+            if (fails >= 0)
+            {
+                cubi[deg[vi]++] = vj;
+
+                avail1[i] = avail1[navail-1];
+                avail2[j] = avail2[navail-1];
+                --navail;
+            }
+            else
+                ok = FALSE;
+        }
+        if (navail > 0) ok = FALSE;
+    } while (!ok);
+
+    /* fprintf(stderr,">C %ld iters\n",iters); */
+}
+
+/**************************************************************************/
+
+static void
 ranregR(FILE *f, int degree, int multmax, int loopmax, int n)
 /* Make a random regular graph of order n and degree d and write
    it in f, as number of vertices, number of edges, list of edges */
@@ -621,7 +677,7 @@ ranreglm_sg(int degree, sparsegraph *sg, int multmax, int loopmax, int n)
 /**************************************************************************/
 
 static void
-markov(int *cub, int degree, int n, long iters)
+markov(int *cub, int degree, int n, long iters, boolean digraph)
 /* Attempt n*iters times to perform a switching
    a--x, b--y  -->  a--y, b--x
    where a,b,x,y are distint and a,b < nstart.
@@ -658,12 +714,15 @@ markov(int *cub, int degree, int n, long iters)
         cub[ax] = y;
         cub[by] = x;
 
-        xx = degree * (long)x;
-        for (i = xx; i < xx+degree; ++i)
-            if (cub[i] == a) { cub[i] = b; break; }
-        yy = degree * (long)y;
-        for (i = yy; i < yy+degree; ++i)
-            if (cub[i] == b) { cub[i] = a; break; }
+        if (!digraph)
+        {
+            xx = degree * (long)x;
+            for (i = xx; i < xx+degree; ++i)
+                if (cub[i] == a) { cub[i] = b; break; }
+            yy = degree * (long)y;
+            for (i = yy; i < yy+degree; ++i)
+                if (cub[i] == b) { cub[i] = a; break; }
+        }
     }
 }
 
@@ -719,29 +778,24 @@ markov_bip(int *cub, int deg1, int deg2, int n1, int n2, long iters)
 /**************************************************************************/
 
 static void
-dmodel_sg(int degree, sparsegraph *sg, int n, long markoviters)
-/* Make a sparse random-ish regular graph of order n and degree d
+dmodel_sg(int degree, sparsegraph *sg, int n,
+                                boolean digraph, long markoviters)
+/* Make a sparse random-ish regular graph or digraph of order n and degree d
  * and return it in sg.  Run markov() for n*markoviters iterations. */
 {
     int i,j,k,deg,comdeg;
     long k0,nde;
-#if MAXN
-    int cub[MAXLREG*MAXN];
-    boolean adj[MAXN];
-#else
     DYNALLSTAT(int,cub,cub_sz);
     DYNALLSTAT(boolean,adj,adj_sz);
-#endif
 
     SG_ALLOC(*sg,n,degree*n,"dmodel_sg");
 
     if (degree <= n-degree-1)
     {
-#if !MAXN
         DYNALLOC1(int,cub,cub_sz,degree*n,"dmodel_sg");
-#endif
-        rundmodel(cub,degree,n);
-        if (markoviters) markov(cub,degree,n,markoviters);
+        if (digraph) rundirmodel(cub,degree,n);
+        else         rundmodel(cub,degree,n);
+        if (markoviters) markov(cub,degree,n,markoviters,digraph);
 
         sg->nv = n;
         j = nde = 0;
@@ -759,12 +813,11 @@ dmodel_sg(int degree, sparsegraph *sg, int n, long markoviters)
     else
     {
         comdeg = n - degree - 1;
-#if !MAXN
         DYNALLOC1(int,cub,cub_sz,comdeg*n,"dmodel_sg");
         DYNALLOC1(boolean,adj,adj_sz,n,"dmodel_sg");
-#endif
-        rundmodel(cub,comdeg,n);
-        if (markoviters) markov(cub,comdeg,n,markoviters);
+        if (digraph) rundirmodel(cub,comdeg,n);
+        else         rundmodel(cub,comdeg,n);
+        if (markoviters) markov(cub,comdeg,n,markoviters,digraph);
 
         sg->nv = n;
         j = nde = 0;
@@ -1079,11 +1132,12 @@ main(int argc, char *argv[])
     char *arg,sw;
     boolean badargs;
     boolean gswitch,sswitch,qswitch,Sswitch,Rswitch,lswitch,tswitch;
-    boolean aswitch,P1switch,P2switch,eswitch,rswitch,mswitch,dswitch;
+    boolean aswitch,Pswitch,eswitch,rswitch,mswitch,dswitch;
     boolean Tswitch,Mswitch;
     long numgraphs,nout,P1value,P2value,evalue,rvalue;
     nauty_counter ln,nc2;
-    int Svalue,loopmax,multmax;
+    int loopmax,multmax;
+    unsigned long long Svalue;
     long markoviters;
     static FILE *outfile;
     char *outfilename;
@@ -1101,7 +1155,7 @@ main(int argc, char *argv[])
     HELP; PUTVERSION;
 
     gswitch = sswitch = qswitch = Sswitch = Rswitch = FALSE;
-    aswitch = P1switch = P2switch = eswitch = rswitch = FALSE;
+    aswitch = Pswitch = eswitch = rswitch = FALSE;
     digraph = dswitch = tswitch = lswitch = mswitch = FALSE;
     Tswitch = Mswitch = FALSE;
     outfilename = NULL;
@@ -1125,14 +1179,13 @@ main(int argc, char *argv[])
                 else SWBOOLEAN('t',tswitch)
                 else SWBOOLEAN('T',Tswitch)
                 else SWBOOLEAN('q',qswitch)
-                else SWLONG('P',P1switch,P1value,"genrang -P")
-                else SWLONG('/',P2switch,P2value,"genrang -P")
+                else SWRANGE('P',"/",Pswitch,P1value,P2value,"genrang -P")
                 else SWLONG('e',eswitch,evalue,"genrang -e")
                 else SWLONG('d',dswitch,rvalue,"genrang -d")
                 else SWLONG('M',Mswitch,markoviters,"genrang -M")
                 else SWLONG('r',rswitch,rvalue,"genrang -r")
                 else SWLONG('R',Rswitch,rvalue,"genrang -R")
-                else SWINT('S',Sswitch,Svalue,"genrang -S")
+                else SWULL('S',Sswitch,Svalue,"genrang -S")
                 else SWINT('l',lswitch,loopmax,"genrang -l")
                 else SWINT('m',mswitch,multmax,"genrang -m")
                 else badargs = TRUE;
@@ -1176,21 +1229,20 @@ main(int argc, char *argv[])
     else if (digraph) codetype = DIGRAPH6;
     else              codetype = SPARSE6;
 
-    if (P1switch && !P2switch)
+    if (!Pswitch)
     {
-        P2value = P1value;
         P1value = 1;
+        P2value = 2;
     }
-    else if (P2switch && !P1switch)
+    else if (P1value == P2value)
     {
         P1value = 1;
-        P1switch = TRUE;
     }
 
-    if (P1switch && (P1value < 0 || P2value <= 0 || P1value > P2value))
+    if (P1value < 0 || P2value <= 0 || P1value > P2value)
         gt_abort(">E genrang: bad value for -P switch\n");
 
-    if ((P1switch!=0) + (eswitch!=0) + (rswitch!=0) + (dswitch!=0) 
+    if ((Pswitch!=0) + (eswitch!=0) + (rswitch!=0) + (dswitch!=0) 
            + (Tswitch!=0) + (Rswitch!=0) + (tswitch!=0) > 1)
         gt_abort(">E genrang: -PerRdtT are incompatible\n");
 
@@ -1202,9 +1254,10 @@ main(int argc, char *argv[])
 
     if (!lswitch) loopmax = 0;
     if (!mswitch) multmax = 1;
-    if (digraph &&
-           (Rswitch || multmax>1 || loopmax>1 || dswitch || tswitch))
-        gt_abort(">E genrang: -z is only compatible with -T, -P, -e and -l1\n");
+    if (digraph && ((dswitch && bipartite) || rswitch || 
+           Rswitch || multmax>1 || loopmax>1 || tswitch))
+        gt_abort(">E genrang: -z is only compatible with"
+                " -T, -P, -e, -l1 and non-bipartite -d\n");
 
     if (!digraph && (loopmax>1 || multmax>1)
                  && !(Rswitch || (rswitch && !gswitch)))
@@ -1224,10 +1277,10 @@ main(int argc, char *argv[])
 
     if (!Sswitch)
     {
-        INITRANBYTIME;
+        Svalue = INITRANBYTIME;
     }
     else
-        RAN_INIT(Svalue);
+        ran_init(Svalue);
 
     if (!outfilename || outfilename[0] == '-')
     {
@@ -1235,10 +1288,7 @@ main(int argc, char *argv[])
         outfile = stdout;
     }
     else if ((outfile = fopen(outfilename,"w")) == NULL)
-    {
-        fprintf(stderr,"Can't open output file %s\n",outfilename);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E Can't open output file %s\n",outfilename);
 
     m = (n + WORDSIZE + 1) / WORDSIZE;
     usesparse = tswitch || dswitch ||
@@ -1297,12 +1347,6 @@ main(int argc, char *argv[])
         exit(1);
     }
 
-    if (!P1switch)
-    {
-        P1value = 1;
-        P2value = 2;
-    }
-
     SG_INIT(sg);
 
     for (nout = 1; nout <= numgraphs; ++nout)
@@ -1327,7 +1371,7 @@ main(int argc, char *argv[])
             if (bipartite)
                 dmodel_bip_sg(rvalue,&sg,n1,n2,markoviters);
             else
-                dmodel_sg(rvalue,&sg,n,markoviters);
+                dmodel_sg(rvalue,&sg,n,digraph,markoviters); 
         }
         else if (Rswitch)
         {

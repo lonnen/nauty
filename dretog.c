@@ -109,10 +109,7 @@ main(int argc, char *argv[])
         infile = stdin;
     }
     else if ((infile = fopen(infilename,"r")) == NULL)
-    {
-        fprintf(stderr,"Can't open input file %s\n",infilename);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E Can't open input file %s\n",infilename);
 
     if (!outfilename || outfilename[0] == '-')
     {
@@ -120,10 +117,7 @@ main(int argc, char *argv[])
         outfile = stdout;
     }
     else if ((outfile = fopen(outfilename,"w")) == NULL)
-    {
-        fprintf(stderr,"Can't open output file %s\n",outfilename);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E Can't open output file %s\n",outfilename);
 
     if (sswitch)      outcode = SPARSE6;
     else if (zswitch) outcode = DIGRAPH6;
@@ -156,8 +150,7 @@ main(int argc, char *argv[])
                 ungetc(s[0],infile);
             if (fscanf(infile,"%d",&n) != 1)
             {
-                fprintf(stderr,">E dretog: invalid n=# command\n");
-                gt_abort(NULL);
+                gt_abort(">E dretog: invalid n=# command\n");
             }
             if (n <= 0)
                 gt_abort(">E dretog: n can't be <= 0\n");

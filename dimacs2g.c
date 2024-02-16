@@ -1,6 +1,7 @@
-/* dimacs2g.c  version 1.1; B D McKay, October 2022. */
+/* dimacs2g.c  version 1.2; B D McKay, August 2023. */
 
-#define USAGE "dimacs2g [-n#:#] [infile...]"
+#define USAGE \
+ "dimacs2g [-n#:#] [-a\"string\"] [-b\"string\"] [-d] -[c] [infile...]"
 
 #define HELPTEXT \
 " Read files of graphs in Dimacs format and write them to stdout.\n\
@@ -8,7 +9,7 @@
   -d     Use dreadnaut format (default is sparse6)\n\
   -n#:#  Specify a range of n values for output\n\
   -a\"string\"  A string to write before each graph.\n\
-  -b\"string\"  A string to write after eacg graph.\n\
+  -b\"string\"  A string to write after each graph.\n\
         -a and -b only operate for dreadnaut output;\n\
         and should be given in separate arguments.\n\
   -c     Don't copy \"c\" comments from the input.\n\
@@ -54,7 +55,6 @@ readdimacsgraph(FILE *f, sparsegraph *g)
     unsigned long ne,j;
     int haven;
     int i,v,w;
-    int haveptn;
     DYNALLSTAT(vpair,elist,elist_sz);
 
     commentlen = 0;
@@ -223,10 +223,9 @@ main(int argc, char *argv[])
                 sprintf(zcmd,"%s \"%s\"",GUNZIP,argv[j]);
                 if ((infile = popen(zcmd,"r")) == NULL)
                 {
-                    fprintf(stderr,
+                    gt_abort_1(
                        ">E dimacs2g: cannot open gunzip pipe for \"%s\"\n",
                        argv[j]);
-                    gt_abort(NULL);
                 }
                 iszip = TRUE;
 #else
@@ -237,8 +236,7 @@ main(int argc, char *argv[])
             {
                 if ((infile = fopen(argv[j],"r")) == NULL)
                 {
-                    fprintf(stderr,">E Can't open file %s\n",argv[j]);
-                    gt_abort(NULL);
+                    gt_abort_1(">E Can't open file %s\n",argv[j]);
                 }
                 iszip = FALSE;
             }
@@ -246,8 +244,7 @@ main(int argc, char *argv[])
 
         if (!readdimacsgraph(infile,&g))
         {
-            fprintf(stderr,">E Dimacs error in file %s\n",argv[j]);
-            gt_abort(NULL);
+            gt_abort_1(">E Dimacs error in file %s\n",argv[j]);
         }
         else if (g.nv >= nmin && g.nv <= nmax)
         {

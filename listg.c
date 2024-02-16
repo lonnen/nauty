@@ -441,7 +441,7 @@ static void
 putLaplacianMagma(FILE *outfile, graph *g, int linelength, boolean signless,
          int m, int n, long index)
 {
-    int i,j,j0,d,e;
+    int i,j,d,e;
     set *gi;
 
     if (signless) e = 1; else e = -1;
@@ -629,10 +629,7 @@ main(int argc, char *argv[])
         outfile = stdout;
     }
     else if ((outfile = fopen(outfilename,"w")) == NULL)
-    {
-        fprintf(stderr,"Can't open output file %s\n",outfilename);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E Can't open output file %s\n",outfilename);
 
     nin = 0;
     if (!pswitch || pval2 == NOLIMIT)

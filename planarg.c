@@ -103,10 +103,7 @@ write_planarcode(FILE *f, t_ver_sparse_rep *VR, t_adjl_sparse_rep *A,
     }
 
     if (fwrite((void*)buff,1,len,f) != len)
-    {
-        fprintf(stderr,">E write_planarcode : error on writing\n");
-        ABORT(">E write_planarcode");
-    }
+        gt_abort(">E write_planarcode : error on writing\n");
 }
 
 /*************************************************************************/
@@ -265,10 +262,7 @@ main(int argc, char *argv[])
             outfile = stdout;
         }
         else if ((outfile = fopen(outfilename,"w")) == NULL)
-        {
-            fprintf(stderr,"Can't open output file %s\n",outfilename);
-            gt_abort(NULL);
-        }
+            gt_abort_1(">E Can't open output file %s\n",outfilename);
 
         if (planarcode)            outcode = PLANARCODE;
         else if (codetype&SPARSE6) outcode = SPARSE6;

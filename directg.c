@@ -233,7 +233,7 @@ trythisone(grouprec *group, int ne, int m, int n)
 
 #ifdef GROUPTEST
         if (groupsize % newgroupsize != 0)
-                        gt_abort("group size error\n");
+                        gt_abort(">E group size error\n");
         totallab += groupsize/newgroupsize;
 #endif
 
@@ -317,7 +317,7 @@ updatetc1(graph *oldtc, graph *newtc, int v, int w, int n)
  * edge v->w, making newtc.  Loops are essential for this to work.
    Version for m=1. */
 {
-    int i,j;
+    int i;
     setword gw;
 
     for (i = 0; i < n; ++i) newtc[i] = oldtc[i];
@@ -886,10 +886,7 @@ main(int argc, char *argv[])
             outfile = stdout;
         }
         else if ((outfile = fopen(outfilename,"w")) == NULL)
-        {
-            fprintf(stderr,"Can't open output file %s\n",outfilename);
-            gt_abort(NULL);
-        }
+            gt_abort_1(">E Can't open output file %s\n",outfilename);
     }
 
     dg_nin = 0;

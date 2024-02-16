@@ -93,7 +93,7 @@ then try
 Making 32-bit executables on 64-bit Linux systems.
 
 (In bash or sh:)
-CFLAGS=-m32 CXXFLAGS=-m32 LDFLAGS=-m32 ./configure
+./configure CFLAGS=-m32 CXXFLAGS=-m32 LDFLAGS=-m32
 make clean; make
 
 This requires 32-bit libraries to be available.  On Ubuntu
@@ -103,5 +103,5 @@ they are called ia32-libs and libc6-dev-i386.
 
 RECENT CHANGES.
 
-See the file changes24-28.txt for a longer list.
+See the file changes24-28.txt for a list.
 See the file README_24 for a list of older changes.

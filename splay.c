@@ -21,7 +21,11 @@
    5. Declare INSERT_ARGS to be the additional arguments needed 
    for splay_insert(), including a leading comma.
 
-   6. Declare COMPARE(p) to compare INSERT_ARGS or LOOKUP_ARGS to the
+   6. Declare LOOKUP_ARGS to be the additional arguments needed
+   for splay_lookup(), including a leading comma.  The default
+   for LOOKUP_ARGS is to be the same as INSERT_ARGS.
+
+   7. Declare COMPARE(p) to compare INSERT_ARGS or LOOKUP_ARGS to the
    contents of node p.  <0, 0, >0 if INSERT_ARGS is greater, equal,
    less, than p.  This has to be an expression with a value, so you will
    need to make it a procedure call if the comparison is complicated.
@@ -29,11 +33,11 @@
    If you are using something like strcmp, the correct order is
    strcmp( INSERT_ARGS, p ).
 
-   7. Declare PRESENT(p) for what to do if INSERT_ARGS is already
+   8. Declare PRESENT(p) for what to do if INSERT_ARGS is already
    present, in node p.  There is a spare int variable i available.
    Typically, this might update some data in the node p.
 
-   8. Declare NOT_PRESENT(p) for what to do if INSERT_ARGS is not
+   9. Declare NOT_PRESENT(p) for what to do if INSERT_ARGS is not
    in the tree and p is a fresh node to hold it.  No need to set
    the left, right, and parent fields.  Use i here too if you like.
    Typically, this might initialise the data in node p.
@@ -46,10 +50,6 @@
         In the case of PRESENT(p), it is also legal to delete the
         node from the tree using SCAN_DELETE(to_root,p).  In that
         case you MUST return immediately afterwards.
-
-   9. Declare LOOKUP_ARGS to be the additional arguments needed
-   for splay_lookup(), including a leading comma.  The default
-   for LOOKUP_ARGS is to be the same as INSERT_ARGS.
 
   10. #include "splay.c"
 
@@ -89,6 +89,14 @@
   names SPLAY, SPLAY_SCAN, SPLAY_LOOKUP, SPLAY_INSERT, SPLAY_DELETE
   defined to distinct names.  You have to redefine them all even if
   you aren't using them all.
+
+  Threads:
+
+    You cannot use the same splay tree from different threads at the
+    same time. You need to use semaphores or other means to serialize
+    access. On the other hand, different splay trees are entirely
+    independent, so it is fine for different threads to use their
+    own private splay trees.
 */
 
 #define S_A 0
@@ -246,7 +254,7 @@ SPLAY_INSERT(SPLAYNODE **to_root  INSERT_ARGS)
    is at the root of the tree regardless of whether a new node
    needed to be created for it. */
 {
-    int i,cmp;
+    int i,cmp;   /* i is present for possible macros */
     SPLAYNODE *p,*ppar,*new_node;
 
     p = *to_root;
@@ -309,7 +317,8 @@ SPLAY_INSERT(SPLAYNODE **to_root  INSERT_ARGS)
 SPLAYNODE*
 SPLAY_LOOKUP(SPLAYNODE **to_root  LOOKUP_ARGS)
 /* Do a look-up operation.  If found, return a pointer to the
-   node containing it.  If not, return NULL. */
+   node containing it.  If not, return NULL.  The tree is not
+   modified. */
 {
     int i,cmp;   /* i is available for COMPARE */
     SPLAYNODE *p;

@@ -1,5 +1,5 @@
 /*****************************************************************************
-* This is the main header file for gtools.  nauty version 2.8.6
+* This is the main header file for gtools.  nauty version 2.8.8
 * Subject to the copyright notice in nauty.h.                                *
 * gtools.h.  Generated from gtools-h.in by configure.
 *****************************************************************************/
@@ -23,6 +23,7 @@ used, it is necessary to check they are correct.
 #define FDOPEN_DEC  1        /* fdopen() is declared */
 #define SORTPROG  "sort"         /* name of sort program */
 #define SORT_NEWKEY 1  /* if -k is supported */
+#define SORT_SIZE 1         /* if -S is supported */
 #define HAVE_PID_T 1    /* pid_t is defined */
 #define PUTENV_DEC 1   /* putenv() is declared */
 #define SETENV_DEC 1   /* setenv() is declared */
@@ -77,10 +78,17 @@ extern int errno;
 #endif
 
 #if HAVE_PERROR
-#define ABORT(msg) do {if (errno != 0) perror(msg); exit(1);} while(0)
+#define NAUTY_ABORT(msg) do {if (errno != 0) perror(msg); exit(1);} while(0)
 #else
-#define ABORT(msg) do {exit(1);} while(0)
+#define NAUTY_ABORT(msg) do {exit(1);} while(0)
 #endif
+
+#define gt_abort_1(fmt,x) \
+  { char msg_[257]; snprintf(msg_,256,fmt,x); gt_abort(msg_); }
+#define gt_abort_2(fmt,x,y) \
+  { char msg_[257]; snprintf(msg_,256,fmt,x,y); gt_abort(msg_); }
+#define gt_abort_3(fmt,x,y,z) \
+  { char msg_[257]; snprintf(msg_,256,fmt,x,y,z); gt_abort(msg_); }
 
 /* Here we set environment variables that determine the sorting order
    for the shortg program.  Older docs for sort say that it uses
@@ -173,6 +181,8 @@ int setenv(const char*,const char*,int);
         {boool=TRUE;arg_int(&arg,&val,id);}
 #define SWLONG(c,boool,val,id) if (sw==c) \
         {boool=TRUE;arg_long(&arg,&val,id);}
+#define SWULL(c,boool,val,id) if (sw==c) \
+        {boool=TRUE;arg_ull(&arg,&val,id);}
 #define SWRANGE(c,sep,boool,val1,val2,id) if (sw==c) \
         {boool=TRUE;arg_range(&arg,sep,&val1,&val2,id);}
 #define SWREAL(c,boool,val,id) if (sw==c) \
@@ -276,9 +286,11 @@ extern sparsegraph *readpc_sg(FILE*,sparsegraph*);
 extern sparsegraph *readpcle_sg(FILE*,sparsegraph*);
 extern char *getecline(FILE*);
 extern void writelast(FILE*);
-extern int longval(char**,long*);
+extern int longvalue(char**,long*);
+extern int ullvalue(char**,unsigned long long*);
 extern void arg_int(char**,int*,char*);
 extern void arg_long(char**,long*,char*);
+extern void arg_ull(char**,unsigned long long*,char*);
 extern void arg_range(char**,char*,long*,long*,char*);
 extern int doublevalue(char**,double*);
 extern void arg_double(char**,double*,char*);
@@ -287,7 +299,7 @@ extern void arg_sequence(char**,char*,long*,int,int*,char*);
 extern void arg_sequence_min(char**,char*,long*,int,int,int*,char*);
 
 extern void writerange(FILE*,int,long,long);
-extern void gt_abort(const char*);
+extern void NORET_ATTR gt_abort(const char*);
 extern char *stringcopy(char*);
 extern boolean strhaschar(char*,int);
 

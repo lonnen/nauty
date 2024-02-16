@@ -707,7 +707,12 @@ readgg(FILE *f, graph *g, int reqm, int *pm, int *pn, boolean *digraph)
 
     if ((s = showg_getline(f)) == NULL) return NULL;
 
-    if (s[0] == ':')
+    if (s[0] == ';')
+    {
+        gt_abort(
+        ">E readgg: sorry but showg doesn't understand incremental format\n");
+    }
+    else if (s[0] == ':')
     {
         *digraph = FALSE;
         p = s + 1;

@@ -1,6 +1,6 @@
-/* addptg.c   Version 1.0; B D McKay, Mar 2022. */
+/* addptg.c   Version 1.1; B D McKay, Oct 2023. */
 
-#define USAGE "addptg [-lq] [-n#] [-j#] [-ck] [-io] [infile [outfile]]"
+#define USAGE "addptg [-lq] [-n#] [-j#:#] [-e#:#] [-ck] [-io] [infile [outfile]]"
 
 #define HELPTEXT \
 " Add a specified number of new vertices\n\
@@ -11,8 +11,9 @@
     -c  join each new vertex to all the old vertices\n\
     -k  make a clique on the set of new vertices\n\
     -n# the number of new vertices (default 1)\n\
-    -j# join a new vertex to # old vertices in all possible ways\n\
-          (-j is incompatible with -n)\n\
+    -j# -j#:# join a new vertex to # old vertices in all possible ways\n\
+    -e# -e#:# use all joins that give the new graphs # edges\n\
+          (-j, -e are each incompatible with -n)\n\
     -i  for a digraph, edges go towards the old vertices\n\
     -o  for a digraph, edges go away from the old vertices\n\
           (-i is the default if neither -i nor -o is given)\n\
@@ -55,63 +56,63 @@ gotone(graph *g, int m, int n)
 /*************************************************************************/
 
 static void
-dojoins(graph *g, int lastedge, int togo, int m, int n)
+dojoins(graph *g, int lastedge, int togomin, int togomax, int m, int n)
 /* n is the new size */
 {
     int i;
     
-    if (togo == 0)
+    if (togomin <= 0)
     {
         gotone(g,m,n);
-        return;
+        if (togomax == 0) return;
     }
 
-    for (i = lastedge + 1; i < n - togo; ++i)
+    for (i = lastedge + 1; i < n - togomin && i < n-1; ++i)
     {
         ADDONEEDGE(g,i,n-1,m);
-        dojoins(g,i,togo-1,m,n);
+        dojoins(g,i,togomin-1,togomax-1,m,n);
         DELONEEDGE(g,i,n-1,m);
     }
 }
 
 
 static void
-dojoins_dir(graph *g, int lastedge, int togo,
+dojoins_dir(graph *g, int lastedge, int togomin, int togomax,
                         boolean in, boolean out, int m, int n)
 /* n is the new size */
 {
     int i;
     
-    if (togo == 0)
+    if (togomin <= 0)
     {
         gotone(g,m,n);
-        return;
+        if (togomax == 0) return;
     }
 
     if (in && out)
     {
-        for (i = lastedge + 1; i < n - togo; ++i)
+        for (i = lastedge + 1; i < n - togomin && i < n-1; ++i)
         {
             ADDONEEDGE(g,i,n-1,m);
-            dojoins_dir(g,i,togo-1,in,out,m,n);
+            dojoins_dir(g,i,togomin-1,togomax-1,in,out,m,n);
             DELONEEDGE(g,i,n-1,m);
         }
     }
     else if (in)
     {
-        for (i = lastedge + 1; i < n - togo; ++i)
+        for (i = lastedge + 1; i < n - togomin && i < n-1; ++i)
         {
             ADDONEARC(g,n-1,i,m);
-            dojoins_dir(g,i,togo-1,in,out,m,n);
+            dojoins_dir(g,i,togomin-1,togomax-1,in,out,m,n);
             DELONEARC(g,n-1,i,m);
         }
     }
     else
     {
-        for (i = lastedge + 1; i < n - togo; ++i)
+        for (i = lastedge + 1; i < n - togomin && i < n-1; ++i)
         {
             ADDONEARC(g,i,n-1,m);
-            dojoins_dir(g,i,togo-1,in,out,m,n);
+            dojoins_dir(g,i,togomin-1,togomax-1,in,out,m,n);
             DELONEARC(g,i,n-1,m);
         }
     }
@@ -175,20 +176,41 @@ addvertices_dir(graph *g, int extras, boolean in, boolean out,
 
 /*************************************************************************/
 
+static long
+edgenumber(graph *g, boolean digraph, int m, int n)
+/* Find the number of edges */
+{
+    long loops,count;
+    graph *gi;
+    int i,j;
+
+    loops = count = 0;
+    for (i = 0, gi = g; i < n; ++i, gi += m)
+    {
+        if (ISELEMENT(gi,i)) ++loops;
+        for (j = 0; j < m; ++j) count += POPCOUNT(gi[j]);
+    }
+
+    if (digraph) return count;
+    else         return (count + loops) / 2;
+}
+
+/*************************************************************************/
+
 int
 main(int argc, char *argv[])
 {
     char *infilename,*outfilename;
     FILE *infile;
     boolean badargs,quiet,in,out;
-    boolean cswitch,kswitch,nswitch,jswitch;
-    int extras,joinsize;
+    boolean cswitch,kswitch,nswitch,jswitch,eswitch;
+    int extras,dmin,dmax;
+    long joinmin,joinmax,emin,emax,ne;
     int i,j,m,n,m2,n2,argnum;
     int codetype;
     graph *g,*gi,*gpi;
     nauty_counter nin;
     char *arg,sw;
-    setword *gv,*gw;
     double t;
 #if MAXN
     graph gplus[MAXN*MAXM];
@@ -199,7 +221,7 @@ main(int argc, char *argv[])
     HELP; PUTVERSION;
 
     infilename = outfilename = NULL;
-    dolabel = quiet = nswitch = jswitch = cswitch = kswitch = FALSE;
+    dolabel = quiet = nswitch = jswitch = cswitch = kswitch = eswitch = FALSE;
     in = out = FALSE;
 
     argnum = 0;
@@ -220,7 +242,8 @@ main(int argc, char *argv[])
                 else SWBOOLEAN('i',in)
                 else SWBOOLEAN('o',out)
                 else SWINT('n',nswitch,extras,">E addptg -n")
-                else SWINT('j',jswitch,joinsize,">E addptg -j")
+                else SWRANGE('j',":-",jswitch,joinmin,joinmax,">E addptg -j")
+                else SWRANGE('e',":-",eswitch,emin,emax,">E addptg -e")
                 else badargs = TRUE;
             }
         }
@@ -241,18 +264,18 @@ main(int argc, char *argv[])
     }
 
     if (!nswitch) extras = 1;
-    if (extras > 1 && jswitch)
-        gt_abort(">E addptg: -n and -j are incompatible\n");
+    if (extras > 1 && (jswitch || eswitch))
+        gt_abort(">E addptg: -e and -j are incompatible with -n\n");
 
-    if (extras < 0 || (jswitch && joinsize < 0))
-        gt_abort(">E addptg: negative argument for -n or -j\n");
+    if (extras < 0) gt_abort(">E addptg: negative argument for -n\n");
 
     if (!quiet)
     {
         fprintf(stderr,">A addptg");
         if (dolabel) fprintf(stderr," -l");
         if (nswitch) fprintf(stderr," -n%d",extras);
-        if (jswitch) fprintf(stderr," -j%d",joinsize);
+        if (jswitch) fprintf(stderr," -j%ld:%ld",joinmin,joinmax);
+        if (eswitch) fprintf(stderr," -e%ld:%ld",emin,emax);
         if (cswitch || kswitch || in || out)
         {
             fprintf(stderr," -");
@@ -280,10 +303,7 @@ main(int argc, char *argv[])
         outfile = stdout;
     }
     else if ((outfile = fopen(outfilename,"w")) == NULL)
-    {
-        fprintf(stderr,"Can't open output file %s\n",outfilename);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E Can't open output file %s\n",outfilename);
 
     if (codetype&SPARSE6) outcode = SPARSE6;
     else                  outcode = GRAPH6;
@@ -315,12 +335,26 @@ main(int argc, char *argv[])
         for (i = 0, gi = g, gpi = gplus; i < n; ++i, gi += m, gpi += m2)
             for (j = 0; j < m; ++j) gpi[j] = gi[j];
 
-        if (jswitch)
+        if (eswitch || jswitch)
         {
+            dmin = 0; dmax = n;
+            if (jswitch)
+            {
+                dmin = (joinmin > dmin ? joinmin : dmin);
+                dmax = (joinmax < dmax ? joinmax : dmax);
+            }
+            if (eswitch)
+            {
+                ne = edgenumber(g,digraph,m,n);
+                dmin = (int)(emin-ne > dmin ? emin-ne : dmin);
+                dmax = (int)(emax-ne < dmax ? emax-ne : dmax);
+            }
+            if (dmin > dmax) continue;
+
             if (digraph)
-                dojoins_dir(gplus,-1,joinsize,in,out,m2,n2);
+                dojoins_dir(gplus,-1,dmin,dmax,in,out,m2,n2);
             else
-                dojoins(gplus,-1,joinsize,m2,n2);
+                dojoins(gplus,-1,dmin,dmax,m2,n2);
         }
         else
         {

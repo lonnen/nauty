@@ -5,7 +5,7 @@
 int
 main(int argc, char *argv[])
 {
-    int i,j,bad;
+    int i,j,n,bad,sz;
     setword w,ww;
     int curfile;
     FILE *f;
@@ -23,8 +23,8 @@ main(int argc, char *argv[])
             (int)sizeof(double),(int)sizeof(boolean),
             (int)sizeof(void*),(int)sizeof(setword));
     printf("CLZ=%d,%d,%d  POPCNT=%d,%d,%d;%d,%d",
-            HAVE_CLZ,HAVE_CLZL,HAVE_CLZLL,
-            HAVE_POPCNT,HAVE_POPCNTL,HAVE_POPCNTLL,HAVE_MMPOP32,HAVE_MMPOP64);
+            HAVE_CLZ,HAVE_CLZL,HAVE_CLZLL,HAVE_POPCNT,
+            HAVE_POPCNTL,HAVE_POPCNTLL,HAVE_MMPOP32,HAVE_MMPOP64);
     printf("  LONG_LONG_COUNTERS=%d  COUNTER_FMT=%s\n",
             LONG_LONG_COUNTERS,COUNTER_FMT);
 
@@ -41,11 +41,17 @@ main(int argc, char *argv[])
 #ifdef SYS_CRAY
     printf(" SYS_CRAY");
 #endif
+#ifdef IS_ARM64
+    printf(" IS_ARM64=%d",IS_ARM64);
+#endif
 #ifdef _MSC_VER
     printf(" _MSC_VER=%d",_MSC_VER);
 #endif
 #ifdef __INTEL_COMPILER
     printf(" __INTEL_COMPILER");
+#endif
+#ifdef __POPCNT__
+    printf(" __POPCNT__");
 #endif
 #ifdef SETWORD_SHORT
     printf(" SETWORD_SHORT");
@@ -59,11 +65,14 @@ main(int argc, char *argv[])
 #ifdef SETWORD_LONGLONG
     printf(" SETWORD_LONGLONG");
 #endif
-#if SIZEOF_INT128 > 0
-    printf(" __int128");
+#ifdef SETWORD_128
+    printf(" SETWORD_128");
 #endif
-#if SIZEOF_INT128_T > 0
-    printf(" __int128_t");
+#if SIZEOF_UNINT128 > 0
+    printf(" unsigned __int128");
+#endif
+#if SIZEOF_UINT128_T > 0
+    printf(" __uint128_t");
 #endif
     printf("\n");
 
@@ -123,29 +132,38 @@ main(int argc, char *argv[])
 
     if (sizeof(long) != SIZEOF_LONG)
     {
-        printf("\nSIZEOF_LONG is wrong (%d, should be %d)\n\n",
+        printf("\n ***** SIZEOF_LONG is wrong (%d, should be %d) ***** \n\n",
                     SIZEOF_LONG,(int)sizeof(long));
         ++bad;
     }
 
     if (sizeof(int) != SIZEOF_INT)
     {
-        printf("\nSIZEOF_INT is wrong (%d, should be %d)\n\n",
+        printf("\n ***** SIZEOF_INT is wrong (%d, should be %d) ***** \n\n",
                     SIZEOF_INT,(int)sizeof(int));
         ++bad;
     }
 
     if (sizeof(void*) != SIZEOF_POINTER)
     {
-        printf("\nSIZEOF_POINTER is wrong (%d, should be %d)\n\n",
+        printf("\n ***** SIZEOF_POINTER is wrong (%d, should be %d) ***** \n\n",
                     SIZEOF_POINTER,(int)sizeof(void*));
         ++bad;
     }
 
     if (8*sizeof(setword) != WORDSIZE)
     {
-        printf("\nWORDSIZE is not 8 times sizeof(setword)\n\n");
+        printf("\n ***** WORDSIZE is not 8 times sizeof(setword) ***** \n\n");
         ++bad;
+    }
+
+    for (i = 0; i < WORDSIZE; ++i)
+    {
+        if (!(BITT[i]&ALLBITS))
+        {
+            printf("\n ***** ALLBITS error %d *****\n\n",i);
+            ++bad;
+        }
     }
 
     for (i = 0; i <= WORDSIZE; ++i)
@@ -159,6 +177,17 @@ main(int argc, char *argv[])
         }
     }
 
+    for (i = 0; i <= WORDSIZE; ++i)
+    {
+        w = ALLMASK(i);
+        if (POPCOUNTMAC(w) != i)
+        {
+            printf("\n ***** POPCOUNTMAC(ALLMASK) error %d,%d *****\n\n",
+                    i,POPCOUNTMAC(w));
+            ++bad;
+        }
+    }
+
     for (i = 0; i < WORDSIZE; ++i)
     {
         w = BITMASK(i);
@@ -168,13 +197,6 @@ main(int argc, char *argv[])
             ++bad;
         }
     }
-
-    for (i = 0; i <= WORDSIZE; ++i)
-        if (POPCOUNT(ALLMASK(i)) != i)
-        {
-            printf("\n ***** POPCOUNT(ALLMASK(i)) error i=%d *****\n\n",i);
-            ++bad;
-        }
 
     for (i = 0; i < WORDSIZE; ++i)
         if (FIRSTBIT(BITT[i]) != i)
@@ -190,10 +212,23 @@ main(int argc, char *argv[])
         ++bad;
     }
     
+    if (FIRSTBITMAC((setword)0) != WORDSIZE)
+    {
+        printf("\n ***** FIRSTBITMAC(0) error *****\n\n");
+        ++bad;
+    }
+    
     for (i = 0; i < WORDSIZE; ++i)
         if (POPCOUNT(BITT[i]) != 1)
         {
             printf("\n ***** POPCOUNT(BITT) error %d *****\n\n",i);
+            ++bad;
+        }
+    
+    for (i = 0; i < WORDSIZE; ++i)
+        if (POPCOUNTMAC(BITT[i]) != 1)
+        {
+            printf("\n ***** POPCOUNTMAC(BITT) error %d *****\n\n",i);
             ++bad;
         }
 
@@ -217,9 +252,50 @@ main(int argc, char *argv[])
         ADDELEMENT(ss,i);
         if (!ISELEMENT(ss,i))
         {
-            printf("ISELEMENT failed\n");
+            printf("\n ***** ISELEMENT failed *****\n");
             ++bad;
             break;
+        }
+    }
+
+    for (n = 0; n <= 3*WORDSIZE; ++n)
+    {
+        ss[0] = ss[1] = ss[2] = ss[3] = 1;
+        FILLSET(ss,3,n);
+        if (ss[3] != 1)
+        {
+            printf("\n ***** FILLSET overfilled *****\n\n");
+            ++bad;
+        }
+        else
+        {
+            for (i = 0; i < 3*WORDSIZE; ++i)
+            {
+                if (ISELEMENT(ss,i))
+                {
+                    if (i >= n)
+                    {
+                        printf("\n ***** FILLSET overfilled *****\n\n");
+                        ++bad;
+                    }
+                    break;
+                }
+                else
+                {
+                    if (i < n)
+                    {
+                        printf("\n ***** FILLSET underfilled *****\n\n");
+                        ++bad;
+                    }
+                    break;
+                }
+            }
+        }
+        SETSIZE(sz,ss,3);
+        if (sz != n)
+        {
+            printf("\n ***** SETSIZE error *****\n\n");
+            ++bad;
         }
     }
 

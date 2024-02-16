@@ -14,7 +14,7 @@
         For digraphs, the out-degree is used.\n\
     -n# The number of vertices to delete (default 1).\n\
     -v# -v#:# Vertex number or numbers that it is allowed to delete\n\
-              (first vertex is number 0).\n\
+              (the first vertex is number 0).\n\
     -m# Lower bound on minimum degree of output graphs.\n\
     -r# Choose # random sets of points (not necessarily different)\n\
     -a  The deleted points must be adjacent.\n\
@@ -39,7 +39,7 @@ static boolean digraph,dolabel;
 static void
 writeone(graph *g, int m, int n, int *del, int ndel,
                              int outmindeg, boolean isolates)
-/* Delete the stated vertices and write it is mindeg is high enough.
+/* Delete the stated vertices and write it if mindeg is high enough.
  * The vertices to delete are del[0] < del[1] < ... < del[ndel-1]. */
 {
     int i,j,k,nx,mx,deg;
@@ -398,10 +398,7 @@ main(int argc, char *argv[])
         outfile = stdout;
     }
     else if ((outfile = fopen(outfilename,"w")) == NULL)
-    {
-        fprintf(stderr,"Can't open output file %s\n",outfilename);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E Can't open output file %s\n",outfilename);
 
     if (codetype&SPARSE6)       outcode = SPARSE6;
     else if (codetype&DIGRAPH6) outcode = DIGRAPH6;

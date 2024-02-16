@@ -147,7 +147,7 @@ main(int argc, char *argv[])
     {
         infilename = (nfiles == 0 ? NULL : filename[i]);
         infile = openfile_head(infilename,&head);
-        if (infile == NULL) ABORT("catg");
+        if (infile == NULL) gt_abort(">E catg");
 
         if (i == 0 && !xswitch) fprintf(stdout,"%s",head);
 
@@ -155,17 +155,11 @@ main(int argc, char *argv[])
         {
             fwrite(buff,1,nr,stdout);
             if (ferror(stdout))
-            {
-                fprintf(stderr,">E catg: error in writing to stdout\n");
-                ABORT("catg");
-            }
+                gt_abort(">E catg: error in writing to stdout\n");
         }
         if (ferror(infile))
-        {
-            fprintf(stderr,">E catg: error in reading from %s\n",
+            gt_abort_1(">E catg: error in reading from %s\n",
                     infilename == NULL ? "stdin" : infilename);
-            ABORT("catg");
-        }
         fclose(infile);
     }
 

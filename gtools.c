@@ -1,5 +1,5 @@
 /* gtools.c : Common routines for gtools programs. */
-/* Version 4.4, Nov 2022. */
+/* Version 4.5, Aug 2023. */
 
 /* Todo: size check if MAXN>0; option to free memory */
 
@@ -59,6 +59,7 @@ extern FILE *popen(const char*,const char*);
   Version 4.2: Fixes for null graphs; thanks to Kevin Ryde.
   Version 4.4: Use fgets for gtools_getline() as it is faster except for
                  very small graphs.
+  Version 4.5: Add arg_ull()
 */
 
 #define B(i) (1 << ((i)-1))
@@ -378,7 +379,6 @@ gtools_getline(FILE *f)     /* read a line with error checking */
 /* includes \n (if present) and \0.  Immediate EOF causes NULL return. */
 {
     DYNALLSTAT(char,s,s_sz);
-    int c;
     size_t i;
     boolean eof;
 
@@ -2487,6 +2487,8 @@ writelast(FILE *f)
 
 int
 longvalue(char **ps, long *l)
+/* Extract a long value starting at *ps, return it in *l
+   and reset *ps to point to the following character */
 {
     boolean neg,pos;
     long sofar,last;
@@ -2528,6 +2530,54 @@ longvalue(char **ps, long *l)
     return ARG_OK;
 }
     
+/**************************************************************************/
+
+int
+ullvalue(char **ps, unsigned long long *l)
+/* Extract an unsigned long long value starting at *ps, return it in *l
+   and reset *ps to point to the following character.
+   Negative signs cause a 2-s complement. */
+{
+    unsigned long long sofar,last;
+    boolean pos,neg;
+    char *s;
+
+    s = *ps;
+    pos = neg = FALSE;
+    if (*s == '-')
+    {
+        neg = TRUE;
+        ++s;
+    }
+    else if (*s == '+')
+    {
+        pos = TRUE;
+        ++s;
+    }
+
+    if (*s < '0' || *s > '9') 
+    {
+        *ps = s;
+        return (pos || neg) ? ARG_ILLEGAL : ARG_MISSING;
+    }
+
+    sofar = 0;
+
+    for (; *s >= '0' && *s <= '9'; ++s)
+    {
+        last = sofar;
+        sofar = sofar * 10 + (*s - '0');
+        if (last > 0 && sofar/last < 10)  /* overflow */
+        {
+            *ps = s;
+            return ARG_TOOBIG;
+        }
+    }
+    *ps = s;
+    *l = neg ? -sofar : sofar;
+    return ARG_OK;
+}
+
 /**************************************************************************/
 
 int
@@ -2585,15 +2635,23 @@ arg_long(char **ps, long *val, char *id)
 
     code = longvalue(ps,val);
     if (code == ARG_MISSING || code == ARG_ILLEGAL)
-    {
-        fprintf(stderr,">E %s: missing argument value\n",id);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E %s: missing argument value\n",id)
     else if (code == ARG_TOOBIG)
-    {
-        fprintf(stderr,">E %s: argument value too large\n",id);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E %s: argument value too large\n",id);
+}
+
+/*************************************************************************/
+
+void
+arg_ull(char **ps, unsigned long long *val, char *id)
+{
+    int code;
+
+    code = ullvalue(ps,val);
+    if (code == ARG_MISSING || code == ARG_ILLEGAL)
+        gt_abort_1(">E %s: missing argument value\n",id)
+    else if (code == ARG_TOOBIG)
+        gt_abort_1(">E %s: argument value too large\n",id);
 }
 
 /*************************************************************************/
@@ -2607,15 +2665,9 @@ arg_int(char **ps, int *val, char *id)
     code = longvalue(ps,&longval);
     *val = longval;
     if (code == ARG_MISSING || code == ARG_ILLEGAL)
-    {
-        fprintf(stderr,">E %s: missing argument value\n",id);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E %s: missing argument value\n",id)
     else if (code == ARG_TOOBIG || *val != longval)
-    {
-        fprintf(stderr,">E %s: argument value too large\n",id);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E %s: argument value too large\n",id);
 }
 
 /*************************************************************************/
@@ -2627,10 +2679,7 @@ arg_double(char **ps, double *val, char *id)
 
     code = doublevalue(ps,val);
     if (code == ARG_MISSING || code == ARG_ILLEGAL)
-    {
-        fprintf(stderr,">E %s: missing argument value\n",id);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E %s: missing argument value\n",id);
 }
 
 /************************************************************************/
@@ -2661,21 +2710,12 @@ arg_range(char **ps, char *sep, long *val1, long *val2, char *id)
     if (code != ARG_MISSING)
     {
         if (code == ARG_ILLEGAL)
-        {
-            fprintf(stderr,">E %s: bad range\n",id);
-            gt_abort(NULL);
-        }
+            gt_abort_1(">E %s: bad range\n",id)
         else if (code == ARG_TOOBIG)
-        {
-            fprintf(stderr,">E %s: value too big\n",id);
-            gt_abort(NULL);
-        }
+            gt_abort_1(">E %s: value too big\n",id)
     }
     else if (*s == '\0' || !strhaschar(sep,*s))
-    {
-        fprintf(stderr,">E %s: missing value\n",id);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E %s: missing value\n",id)
     else
         *val1 = -NOLIMIT;
 
@@ -2686,15 +2726,9 @@ arg_range(char **ps, char *sep, long *val1, long *val2, char *id)
         if (code == ARG_MISSING)
             *val2 = NOLIMIT;
         else if (code == ARG_TOOBIG)
-        {
-            fprintf(stderr,">E %s: value too big\n",id);
-            gt_abort(NULL);
-        }
+            gt_abort_1(">E %s: value too big\n",id)
         else if (code == ARG_ILLEGAL)
-        {
-            fprintf(stderr,">E %s: illegal range\n",id);
-            gt_abort(NULL);
-        }
+            gt_abort_1(">E %s: illegal range\n",id)
     }
     else
         *val2 = *val1;
@@ -2717,20 +2751,11 @@ arg_sequence(char **ps, char *sep,
     {
         code = longvalue(&s,&val[ival]);
         if (code == ARG_ILLEGAL)
-        {
-            fprintf(stderr,">E %s: illegal value\n",id);
-            gt_abort(NULL);
-        }
+            gt_abort_1(">E %s: illegal value\n",id)
         else if (code == ARG_TOOBIG)
-        {
-            fprintf(stderr,">E %s: value too big\n",id);
-            gt_abort(NULL);
-        }
+            gt_abort_1(">E %s: value too big\n",id)
         else if (code == ARG_MISSING)
-        {
-            fprintf(stderr,">E %s: value missing\n",id);
-            gt_abort(NULL);
-        }
+            gt_abort_1(">E %s: value missing\n",id)
 
         if (*s == '\0' || !strhaschar(sep,*s))
         {
@@ -2740,8 +2765,7 @@ arg_sequence(char **ps, char *sep,
         }
         ++s;
     }
-    fprintf(stderr,">E %s: too many values\n",id);
-    gt_abort(NULL);
+    gt_abort_1(">E %s: too many values\n",id);
 }
 
 /************************************************************************/
@@ -2759,36 +2783,24 @@ arg_sequence_min(char **ps, char *sep,
     {
         code = longvalue(&s,&val[ival]);
         if (code == ARG_ILLEGAL)
-        {
-            fprintf(stderr,">E %s: illegal value\n",id);
-            gt_abort(NULL);
-        }
+            gt_abort_1(">E %s: illegal value\n",id)
         else if (code == ARG_TOOBIG)
-        {
-            fprintf(stderr,">E %s: value too big\n",id);
-            gt_abort(NULL);
-        }
+            gt_abort_1(">E %s: value too big\n",id)
         else if (code == ARG_MISSING)
-        {
-            fprintf(stderr,">E %s: value missing\n",id);
-            gt_abort(NULL);
-        }
+            gt_abort_1(">E %s: value missing\n",id)
 
         if (*s == '\0' || !strhaschar(sep,*s))
         {
             *numvals = ival+1;
             *ps = s;
             if (*numvals < minvals)
-            {
-                fprintf(stderr,">E %s: too few values\n",id);
-                gt_abort(NULL);
-            }
+                gt_abort_1(">E %s: too few values\n",id);
+
             return;
         }
         ++s;
     }
-    fprintf(stderr,">E %s: too many values\n",id);
-    gt_abort(NULL);
+    gt_abort_1(">E %s: too many values\n",id);
 }
 
 /************************************************************************/
@@ -2804,16 +2816,10 @@ arg_doublerange(char **ps, char *sep, double *val1, double *val2, char *id)
     if (code != ARG_MISSING)
     {
         if (code == ARG_ILLEGAL)
-        {
-            fprintf(stderr,">E %s: bad range\n",id);
-            gt_abort(NULL);
-        }
+            gt_abort_1(">E %s: bad range\n",id)
     }
     else if (*s == '\0' || !strhaschar(sep,*s))
-    {
-        fprintf(stderr,">E %s: missing value\n",id);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E %s: missing value\n",id)
     else
         *val1 = -NOLIMIT;
 
@@ -2824,10 +2830,7 @@ arg_doublerange(char **ps, char *sep, double *val1, double *val2, char *id)
         if (code == ARG_MISSING)
             *val2 = NOLIMIT;
         else if (code == ARG_ILLEGAL)
-        {
-            fprintf(stderr,">E %s: illegal range\n",id);
-            gt_abort(NULL);
-        }
+            gt_abort_1(">E %s: illegal range\n",id)
     }
     else
         *val2 = *val1;
@@ -2851,11 +2854,16 @@ writerange(FILE *f, int c, long lo, long hi)    /* Write a range. */
 
 /************************************************************************/
 
-void
+NORET_ATTR void
 gt_abort(const char *msg)     /* Write message and halt. */
 {
     if (msg) fprintf(stderr,"%s",msg);
-    ABORT(">E gtools");
+#if HAVE_PERROR
+    NAUTY_ABORT(">E gtools\n");
+    exit(1);
+#else
+    exit(1);
+#endif
 }
 
 /************************************************************************/

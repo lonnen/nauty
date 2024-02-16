@@ -91,7 +91,7 @@ extern void SUMMARY(void);
 #define INFTY_UCHAR UCHAR_MAX
 typedef int BOOG[2];
 
-void nontrivlabels(), init_nauty_options();
+void nontrivlabels(BOOG*,int,int,BOOG*,int), init_nauty_options();
 
 BOOG edgelist[MAX_BOGEN+1]; /* de lijst van bogen */
 BOOG edgelist_final[MAX_BOGEN+1]; /* de lijst van bogen die nadat er eerst nontriviale automorphismen waren die dan 
@@ -243,9 +243,9 @@ int _colourmarks[CSIZE], _cmark=INT_MAX;
 #define MARK_COLOUR(a) {_colourmarks[a]=_cmark;}
 #define ISMARKED_COLOUR(a) (_colourmarks[a]==_cmark)
 
-void directorbit();
-graph* readg();
-void parallel_orbit_labelling();
+void directorbit(int*,int*,int,int,int,graph);
+graph* readg(FILE*,graph*,int,int*,int*);
+void parallel_orbit_labelling(BOOG*,int);
 
 //unsigned int waterclusteruse=0UL, water_v_use=0UL;
 

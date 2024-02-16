@@ -1,5 +1,5 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT([nauty],[2.8.6])
+AC_INIT([nauty],[2.8.8])
 AC_CONFIG_SRCDIR([nauty-h.in])
 
 # ======================================================================
@@ -30,11 +30,34 @@ else
 fi
 AC_SUBST($2)])
 
+dnl Check for noreturn attribute
+AC_DEFUN([AX_NORET], [
+  AC_MSG_CHECKING([for noreturn attribute])
+   for ax_noret_keyword in '_Noreturn' '__attribute__((noreturn))' none; do
+       AS_CASE([$ax_noret_keyword],
+          [none], [ac_cv_noret=none ; break],
+          [AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+              [[#include <stdlib.h>
+                $ax_noret_keyword void f() { exit(1); } ]],
+              [[f();]]
+            )],
+            [ac_cv_noret=$ax_noret_keyword ; break],
+            [ac_cv_noret=none]
+          )]
+        )
+    done 
+  AC_MSG_RESULT([$ac_cv_noret])
+
+  AS_IF([test "$ac_cv_noret" != "none"],
+    [AC_DEFINE_UNQUOTED([NORET],[$ac_cv_noret],[If the compiler supports a noreturn attribute, define it to that here])
+     m4_ifnblank([$1],[$1],[[:]])],
+    [m4_ifnblank([$2],[$2],[[:]])])
+])
+
 dnl Check for thread-local attribute
 AC_DEFUN([AX_TLS], [
   AC_MSG_CHECKING([for thread local storage (TLS) class])
-  AC_CACHE_VAL([ac_cv_tls],
-   [for ax_tls_keyword in thread_local _Thread_local __thread '__declspec(thread)' none; do
+   for ax_tls_keyword in thread_local _Thread_local __thread '__declspec(thread)' none; do
        AS_CASE([$ax_tls_keyword],
           [none], [ac_cv_tls=none ; break],
           [AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
@@ -45,8 +68,7 @@ AC_DEFUN([AX_TLS], [
             [ac_cv_tls=none]
           )]
         )
-    done ]
-  )
+    done
   AC_MSG_RESULT([$ac_cv_tls])
 
   AS_IF([test "$ac_cv_tls" != "none"],
@@ -99,6 +121,13 @@ AC_ARG_ENABLE([wordsize],
 AS_IF([test "x$enable_wordsize" = x16],[default_wordsize=16],[default_wordsize=0])
 AS_IF([test "x$enable_wordsize" = x32],[default_wordsize=32])
 AS_IF([test "x$enable_wordsize" = x64],[default_wordsize=64])
+AS_IF([test "x$enable_wordsize" = x128],[default_wordsize=128])
+
+dnl --disable-wordsize128 disables 128-bit components
+AC_ARG_ENABLE([wordsize128],
+   AS_HELP_STRING([--disable-wordsize128], [Disable 128-bit components]),
+   [enablearg=given], [enablearg=notgiven])
+AS_IF([test $enablearg = notgiven || test "x$enable_popcnt" = xyes],[allow_128=1],[allow_128=0])
 
 # ======================================================================
 # Next we get to work
@@ -140,7 +169,7 @@ AC_SUBST(ac_cv_sys_file_offset_bits)
 
 AS_IF([test "x$user_cflags" = x || test "x$user_cflags" = x-m32],
 [
-  AS_IF([test "$CC" = "icc"],
+  AS_IF([test "$CC" = "icc" || test "$CC" = "icx"],
     [AC_TRY_CFLAGS([-O3],[CFLAGS="$CFLAGS -O3"]);
      AS_IF([test "x$ac_cv_try_cflags_ok" = xno],
         [AC_TRY_CFLAGS([-O2],[CFLAGS="$CFLAGS -O2"],[CFLAGS="$CFLAGS -O"])])],
@@ -216,7 +245,10 @@ AC_EGREP_CPP(yes,
 AC_SUBST(has_math_inf)
 AC_MSG_RESULT($has_math_inf)
 
-dnl Checks for sizes of integer types; avoid 64-bit if necessary
+dnl Checks for sizes of integer types
+testprogs="dreadtest dreadtestS dreadtestS1 dreadtest4K"
+testprogs="$testprogs dreadtest1 dreadtestW dreadtestW1"
+testprogs="$testprogs dreadtestL dreadtestL1"
 AC_CHECK_SIZEOF([int])
 AC_SUBST(ac_cv_sizeof_int)
 AC_CHECK_SIZEOF([long])
@@ -225,22 +257,25 @@ AC_CHECK_SIZEOF([long long])
 AC_SUBST(ac_cv_sizeof_long_long)
 AC_CHECK_SIZEOF([void*])
 AC_SUBST(ac_cv_sizeof_voidp)
-AC_CHECK_SIZEOF([__int128])
-AC_SUBST(ac_cv_sizeof___int128)
-AC_CHECK_SIZEOF([__int128_t])
-AC_SUBST(ac_cv_sizeof___int128_t)
-lok=0
-testprogs="dreadtest dreadtestS dreadtestS1 dreadtest4K"
-testprogs="$testprogs dreadtest1 dreadtestW dreadtestW1"
-
-AS_IF([test $ac_cv_sizeof_long_long -eq 8],
-      [lok=1
-       testprogs="$testprogs dreadtestL1 dreadtestL"],
-      [AS_IF([test $ac_cv_sizeof_long -eq 8],
-             [lok=1])
-    ])
-AC_SUBST(lok)
+AS_IF([test $allow_128 -eq 1],
+ [AC_CHECK_SIZEOF([__uint128_t])
+  AC_CHECK_SIZEOF([unsigned __int128])],
+ [ac_cv_sizeof___uint128_t=0
+  ac_cv_sizeof_unsigned___int128=0])
+AS_IF([test $ac_cv_sizeof___uint128_t -eq 16 || test $ac_cv_sizeof_unsigned___int128 -eq 16],
+ [runonetestQ='runonetest "$1" "$2" "$3"'
+  Qlibs_or_null="nautyQ1.a nautyQ.a"
+  testprogs="$testprogs dreadtestQ dreadtestQ1"
+  nautests="nautest nautestS nautestW nautestL nautestQ"],
+ [runonetestQ=true
+  Qlibs_or_null=
+  nautests="nautest nautestS nautestW nautestL"]) 
+AC_SUBST(ac_cv_sizeof___uint128_t)
+AC_SUBST(ac_cv_sizeof_unsigned___int128)
+AC_SUBST(runonetestQ)
+AC_SUBST(Qlibs_or_null)
 AC_SUBST(testprogs)
+AC_SUBST(nautests)
 
 dnl Checks for library functions.
 AC_CHECK_FUNC(isatty,have_isatty=1,have_isatty=0)
@@ -434,6 +469,11 @@ AS_IF([test $have_getc_unlocked -eq 1 && test $have_flockfile -eq 1],
       [stdio_nolock=1],[stdio_nolock=0])
 AC_SUBST(stdio_nolock)
 
+dnl Set noreturn attribute
+AX_NORET([noret_supported=1],[noret_supported=0])
+AS_IF([test "$noret_supported" -eq 0],[ac_cv_noret=])
+AC_SUBST(ac_cv_noret)
+
 dnl Set thread-local variables
 AX_TLS([tls_supported=1],[tls_supported=0])
 AS_IF([test "$tls_supported" -eq 0],[ac_cv_tls=])
@@ -460,6 +500,12 @@ AS_IF([{ $sort_prog -k "2,3" </dev/null >/dev/null 2>&1 ; }],
 AC_SUBST(sort_newparams_ok)
 AC_MSG_RESULT($sort_newparams_ok)
 
+AC_MSG_CHECKING(if sort supports the -S switch)
+AS_IF([{ $sort_prog -S 1M </dev/null >/dev/null 2>&1 ; }],
+      [sort_size_ok=1], [sort_size_ok=0])
+AC_SUBST(sort_size_ok)
+AC_MSG_RESULT($sort_size_ok)
+
 edit_msg="++++++ This file is automatically generated, don't edit it by hand! ++++++"
 AC_SUBST(edit_msg)
 
@@ -473,5 +519,5 @@ AC_SUBST(have_gunzip)
 
 AC_CONFIG_FILES([makefile:makefile.in nauty.h:nauty-h.in
     naututil.h:naututil-h.in gtools.h:gtools-h.in
-    nauty.pc:nauty-pc.in])
+    nauty.pc:nauty-pc.in runalltests:runalltests.in])
 AC_OUTPUT

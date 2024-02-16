@@ -43,7 +43,7 @@ main(int argc, char *argv[])
     boolean badargs,quiet;
     boolean digraph;
     int j,m,n,argnum;
-    int codetype,outcode;
+    int codetype;
     graph *g;
     nauty_counter nin;
     char *arg,sw;
@@ -106,10 +106,7 @@ main(int argc, char *argv[])
         outfile = stdout;
     }
     else if ((outfile = fopen(outfilename,"w")) == NULL)
-    {
-        fprintf(stderr,"Can't open output file %s\n",outfilename);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E Can't open output file %s\n",outfilename);
 
     gtools_check(WORDSIZE,1,1,NAUTYVERSIONID);
 

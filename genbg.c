@@ -1,4 +1,4 @@
-/* genbg.c : version 2.6; B D McKay, 6 Oct 2019. */
+/* genbg.c : version 2.7; B D McKay, 13 June 2023. */
 
 /* TODO: consider colour swaps */
 
@@ -147,10 +147,12 @@ INSTRUMENT feature.
    20 Jan 2016 : changed bigint to nauty_counter
    14 Nov 2017 : added -Y switch
     6 Oct 2019 : declare PRUNE1 and PRUNE2
+   13 Jun 2023 : simulate -Z1 for trees
 
 **************************************************************************/
 
-#define NAUTY_PGM  2   /* 1 = geng, 2 = genbg, 3 = gentourng */
+  /* 1 = geng, 2 = genbg, 3 = genktreeg, 4 = gentreeg, 5 = genktreeg */
+#define NAUTY_PGM  2  
 #undef MAXN
 #define MAXN WORDSIZE
 
@@ -356,10 +358,7 @@ abcdefghijklmnopqrstuvwxyz!\"#$%&'()*-/:;<=>?@[\\]^_`{|}~";
     grestr[k++] = '\n';
     grestr[k] = '\0';
     if (fputs(grestr,f) == EOF || ferror(f))
-    {
-        fprintf(stderr,">E genbg : error on writing file\n");
-        gt_abort(NULL);
-    }
+        gt_abort(">E genbg : error on writing file\n");
 }
 
 /***********************************************************************/
@@ -1594,6 +1593,8 @@ PLUGIN_SWITCHES
 
     if (!gotZ) maxcommon = -1;
     if (!gotY) mincommon = -1;
+   
+    if (connec && maxe == n1 + maxn2 - 1) maxcommon = 1;
 
     if (!badargs && (mine > maxe || maxe < 0 || maxdeg1 < 0 || maxdeg2 < 0))
     {
@@ -1641,11 +1642,7 @@ PLUGIN_INIT
     }
     else if ((outfile = fopen(outfilename,
                     nautyformat ? "wb" : "w")) == NULL)
-    {
-        fprintf(stderr,
-              ">E genbg: can't open %s for writing\n",outfilename);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E genbg: can't open %s for writing\n",outfilename);
 
     if (!quiet)
     {

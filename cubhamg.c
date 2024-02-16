@@ -210,9 +210,8 @@ check_it(int index, cubgraph g, cubgraph eno, edgevec v1, edgevec v2,
          int stable)
 /* Check some things */
 {
-    int xdin[MAXN],xdout[MAXN],xnin,v,i,j,k,l,*gv,xin,xout,has1;
+    int xnin,v,i,j,k,l,*gv,xin,xout,has1;
 
-    for (i = 0; i < nv; ++i) xdin[i] = xdout[i] = 0;
     xnin = has1 = 0;
 
     for (v = 0; v < nv; ++v)
@@ -813,7 +812,7 @@ cubham_count(cubgraph g, cubgraph eno, edgevec initclass, edgevec v1, edgevec v2
        vertvec cycle, edgevec outclass, int nv, int ne) 
 /* external interface, counting version; returns number of cycles */
 {
-    int i,j,status,nin,v,w;
+    int i,status,nin,v,w;
 
     numhamcycs = 0;
 
@@ -1014,12 +1013,8 @@ numham(cubgraph cub,
    Force the yi[i]-th nbr of yy[i], for i=0..nyy-1 
      WARNING: vi[i]/yi[i] is numbered starting at 1  */
 {
-    int i,j,k;
-    int nmax,ch;
-    cubgraph cubcopy;
+    int i;
     edgevec v1,v2,initclass,outclass;
-    int perm[MAXN],pinv[MAXN];
-    double tmp;
 
     maxnodes = NO_LIMIT;
     nodecount = 0;
@@ -1389,7 +1384,7 @@ eplus(cubgraph acub, int n, int ne, int x, int y, int *pwhy)
 {
     cubgraph cub;
     edgevec v1,v2,initclass;
-    int i,a,b,c,d,xy,why;
+    int i,b,c,d,xy,why;
 
     if (3*n != 2*ne)
     {
@@ -2117,11 +2112,8 @@ main(int argc, char *argv[])
     {
         msgfile = stdout;
         if ((outfile = fopen(outfilename,"w")) == NULL)
-        {
-            fprintf(stderr,
+            gt_abort_1(
                 ">E cubhamg: can't open %s for writing\n",outfilename);
-            ABORT(">E cubhamg");
-        }
     }
 
     if (triconn) biconn = FALSE;

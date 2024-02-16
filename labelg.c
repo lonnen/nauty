@@ -116,15 +116,10 @@ main(int argc, char *argv[])
     int ii,secret,loops;
     DEFAULTOPTIONS_TRACES(traces_opts);
     TracesStats traces_stats;
-#if MAXN
-    graph h[MAXN*MAXM];
-    int lab[MAXN],ptn[MAXN],orbits[MAXN];
-#else
     DYNALLSTAT(graph,h,h_sz);
     DYNALLSTAT(int,lab,lab_sz);
     DYNALLSTAT(int,ptn,ptn_sz);
     DYNALLSTAT(int,orbits,orbits_sz);
-#endif
     DYNALLSTAT(nauty_counter,tab,tab_sz);
 
     HELP; PUTVERSION;
@@ -268,10 +263,7 @@ main(int argc, char *argv[])
         outfile = stdout;
     }
     else if ((outfile = fopen(outfilename,"w")) == NULL)
-    {
-        fprintf(stderr,"Can't open output file %s\n",outfilename);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E Can't open output file %s\n",outfilename);
 
     if (uswitch)
         outcode = 0;
@@ -359,6 +351,10 @@ main(int argc, char *argv[])
             if (read_sgg_loops(infile,&sg,&loops,&digraph) == NULL) break;
             if (loops > 0 || digraph)
                 gt_abort(">E Traces does not allow loops or directed edges\n");
+#if MAXN
+            if (sg.nv > MAXN)
+                gt_abort(">E shortg: graph larger than MAXN read\n");
+#endif
             ++nin;
             n = sg.nv;
             DYNALLOC1(int,lab,lab_sz,n,"traces@labelg");
@@ -394,10 +390,12 @@ main(int argc, char *argv[])
         while (TRUE)
         {
             if ((g = readgg(infile,NULL,0,&m,&n,&digraph)) == NULL) break;
+#if MAXN
+            if (n > MAXN)
+                gt_abort(">E shortg: graph larger than MAXN read\n");
+#endif      
             ++nin;
-#if !MAXN
             DYNALLOC2(graph,h,h_sz,n,m,"labelg");
-#endif
             loops = loopcount(g,m,n);
             for (ii = 0; ii < secret; ++ii)
                 fcanonise_inv(g,m,n,h,fmt,invarproc[inv].entrypoint,

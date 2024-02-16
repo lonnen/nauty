@@ -14,7 +14,7 @@ DYNALLSTAT(int,work2,work2_sz);
 /*****************************************************************************
 *                                                                            *
 *  diameter_sg(*sg, *v1, *v2)                                                *
-*  For a connected graph, return the diamater, and if v1,v2!=NULL give an    *
+*  For a connected graph, return the diameter, and if v1,v2!=NULL give an    *
 *  example of two vertices at that distance.  For a disconnected graph,      *
 *  give that information for a component of maximum diameter.                *
 *                                                                            *

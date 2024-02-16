@@ -106,7 +106,8 @@ Counts for n=1..45:
                       Check MAXOUTLEN if more than 1000 */
 #include "gtools.h"
 
-#define NAUTY_PGM  4   /* 1 = geng, 2 = genbg, 3 = gentourng, 4 = gentreeg */
+  /* 1 = geng, 2 = genbg, 3 = gentourng, 4 = gentreeg, 5 = genktreeg */
+#define NAUTY_PGM  4 
 
 /*****************************************************************
 
@@ -494,7 +495,6 @@ main(int argc, char *argv[])
     long Z1,Z2,Z1arg,Z2arg;
     char *outfilename,sw;
     int i,j,argnum;
-    int splitlevinc;
     int minnv,maxnv;
     double t1,t2;
     int maxdegarg;
@@ -507,8 +507,6 @@ main(int argc, char *argv[])
     qswitch = Dswitch = gotmr = gotf = irred = FALSE;
     outfilename = NULL;
 
-    splitlevinc = 0;
-    
     argnum = 0;
     for (j = 1; !badargs && j < argc; ++j)
     {
@@ -628,11 +626,7 @@ PLUGIN_INIT
         outfile = stdout;
     }
     else if ((outfile = fopen(outfilename,"w")) == NULL)
-    {
-        fprintf(stderr,
-              ">E gentree: can't open %s for writing\n",outfilename);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E gentree: can't open %s for writing\n",outfilename);
 
     if (!qswitch)
     {

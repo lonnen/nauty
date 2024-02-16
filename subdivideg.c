@@ -41,7 +41,7 @@ subdivisiongraph(sparsegraph *g, int k, sparsegraph *h)
     DYNALLOC1(size_t,eno,eno_sz,gnde,"subdivideg");
 
     hnv = gnv + k*(gnde/2);
-    if ((hnv > 0 && hnv <= 0)
+    if ((gnv > 0 && hnv <= 0)
              || (gnde > 0 && ((size_t)(hnv-gnv))/(gnde/2) != k))
         gt_abort(">E subdivideg: output graph too large\n");
     hnde = gnde * (k+1);
@@ -126,7 +126,6 @@ subdivisiondigraph(sparsegraph *g, int k, sparsegraph *h)
     size_t *gv,*hv,hvend;
     int gnv,hnv;
     size_t i,j,l,t,v,gnde,hnde;
-    size_t hi,lo,mid,w;
 
     sortlists_sg(g);
     if (k == 0)
@@ -250,10 +249,7 @@ main(int argc, char *argv[])
         outfile = stdout;
     }
     else if ((outfile = fopen(outfilename,"w")) == NULL)
-    {
-        fprintf(stderr,"Can't open output file %s\n",outfilename);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E Can't open output file %s\n",outfilename);
 
     if (codetype&SPARSE6) outcode = SPARSE6;
     else                  outcode = GRAPH6;

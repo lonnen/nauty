@@ -1,4 +1,4 @@
-/* assembleg.c  version 1.1; B D McKay, Sep 2018. */
+/* assembleg.c  version 1.2; B D McKay, Nov 2023. */
 
 #define USAGE "assembleg -n#|-n#:# [-i#|i#:#] [-L] [-q] [infile [outfile]]"
 
@@ -22,18 +22,20 @@
          where maxn is the largest size specified by -n.\n\
          This can greatly reduce memory consumption.\n\
     -c  Also write graphs consisting of a single input\n\
+    -u  Generate the graphs but don't write them\n\
     -q  Suppress auxiliary information.\n"
 
 /*************************************************************************/
 
 #include "gtools.h" 
 
-static int ninputs;             /* Number of inputs */
-static nauty_counter nout;      /* Number of outputs */
+static int ninputs;              /* Number of used inputs */
+static nauty_counter nin,nout;   /* Number of inputs and outputs */
 typedef graph *graphptr;
 static graphptr *gin;           /* Their contents */
 static int *size;               /* Their sizes */
 static int outcode;
+static boolean nooutput;        /* -u */
 
 /**************************************************************************/
 
@@ -100,6 +102,7 @@ readinputs(FILE *f, int imin, int imax)
     while (TRUE)
     {
         if ((g = readgg(f,NULL,0,&m,&n,&digraph)) == NULL) break;
+        ++nin;
         if (digraph) outcode = DIGRAPH6;
         if (n < imin || n > imax) continue;
 
@@ -142,6 +145,7 @@ readsomeinputs(FILE *f, int imin, int imax, int maxsize,
     while (TRUE)
     {
         if ((*g = readgg(f,NULL,0,&m,n,&digraph)) == NULL) break;
+        ++nin;
         if (digraph) outcode = DIGRAPH6;
         if (*n > maxsize) break;
 
@@ -184,12 +188,15 @@ assemble(graph *g, int nmin, int nmax, int sofar, int lastpos,
         insertg(g,sofar,gin[pos],size[pos],nmax);
         if (newsize >= nmin && (sofar > 0 || writeconn))
         {
-            if (outcode == DIGRAPH6)
-                writed6(outfile,g,SETWORDSNEEDED(nmax),newsize);
-            else if (outcode == GRAPH6)
-                writeg6(outfile,g,SETWORDSNEEDED(nmax),newsize);
-            else
-                writes6(outfile,g,SETWORDSNEEDED(nmax),newsize);
+            if (!nooutput)
+            {
+                if (outcode == DIGRAPH6)
+                    writed6(outfile,g,SETWORDSNEEDED(nmax),newsize);
+                else if (outcode == GRAPH6)
+                    writeg6(outfile,g,SETWORDSNEEDED(nmax),newsize);
+                else
+                    writes6(outfile,g,SETWORDSNEEDED(nmax),newsize);
+            }
             ++nout;
         }
         assemble(g,nmin,nmax,newsize,pos,writeconn,outfile);
@@ -218,7 +225,7 @@ main(int argc, char *argv[])
 
     infilename = outfilename = NULL;
     badargs = FALSE;
-    iswitch = nswitch = cswitch = quiet = Lswitch = FALSE;
+    nooutput = iswitch = nswitch = cswitch = quiet = Lswitch = FALSE;
 
     argnum = 0;
     badargs = FALSE;
@@ -234,6 +241,7 @@ main(int argc, char *argv[])
                      SWBOOLEAN('q',quiet)
                 else SWBOOLEAN('c',cswitch)
                 else SWBOOLEAN('L',Lswitch)
+                else SWBOOLEAN('u',nooutput)
                 else SWRANGE('n',":-",nswitch,nmin,nmax,"assembleg -n")
                 else SWRANGE('i',":-",iswitch,imin,imax,"assembleg -i")
                 else badargs = TRUE;
@@ -287,20 +295,20 @@ main(int argc, char *argv[])
     if (!infile) exit(1);
     if (!infilename) infilename = "stdin";
 
-    if (!outfilename || outfilename[0] == '-')
+    if (!nooutput)
     {
-        outfilename = "stdout";
-        outfile = stdout;
-    }
-    else if ((outfile = fopen(outfilename,"w")) == NULL)
-    {
-        fprintf(stderr,"Can't open output file %s\n",outfilename);
-        gt_abort(NULL);
-    }
+        if (!outfilename || outfilename[0] == '-')
+        {
+            outfilename = "stdout";
+            outfile = stdout;
+        }
+        else if ((outfile = fopen(outfilename,"w")) == NULL)
+            gt_abort_1(">E Can't open output file %s\n",outfilename);
 
-    if      (codetype&SPARSE6)  outcode = SPARSE6;
-    else if (codetype&DIGRAPH6) outcode = DIGRAPH6;
-    else                        outcode = GRAPH6;
+        if      (codetype&SPARSE6)  outcode = SPARSE6;
+        else if (codetype&DIGRAPH6) outcode = DIGRAPH6;
+        else                        outcode = GRAPH6;
+    }
 
     gtools_check(WORDSIZE,1,1,NAUTYVERSIONID);
 
@@ -329,12 +337,15 @@ main(int argc, char *argv[])
     
                 if (n >= nmin && n <= nmax && cswitch)
                 {
-                    if (outcode == DIGRAPH6)
-                        writed6(outfile,gout,mmax,n);
-                    else if (outcode == GRAPH6)
-                        writeg6(outfile,gout,mmax,n);
-                    else
-                        writes6(outfile,gout,mmax,n);
+                    if (!nooutput)
+                    {
+                        if (outcode == DIGRAPH6)
+                            writed6(outfile,gout,mmax,n);
+                        else if (outcode == GRAPH6)
+                            writeg6(outfile,gout,mmax,n);
+                        else
+                            writes6(outfile,gout,mmax,n);
+                    }
                     ++nout;
                 }
 
@@ -343,6 +354,7 @@ main(int argc, char *argv[])
             FREES(gread);
 
             if ((gread = readgg(infile,NULL,0,&mm,&n,&digraph)) == NULL) break;
+            ++nin;
             if (digraph) outcode = DIGRAPH6;
             if (n <= nmax/2) gt_abort(">E assembleg -L : inputs in bad order\n");
         }
@@ -358,9 +370,18 @@ main(int argc, char *argv[])
     t = CPUTIME - t;
 
     if (!quiet)
-        fprintf(stderr,">Z %d graphs read from %s; " COUNTER_FMT 
-                " graphs written to %s in %3.2f sec.\n",
-                ninputs,infilename,nout,outfilename,t);
+    {
+        if (nooutput)
+            fprintf(stderr,">Z " COUNTER_FMT " graphs read from %s;"
+                   " %d used; " COUNTER_FMT " graphs generated;"
+                   " %.2f sec.\n",
+                   nin,infilename,ninputs,nout,t);
+        else
+            fprintf(stderr,">Z " COUNTER_FMT " graphs read from %s;"
+                   " %d used; " COUNTER_FMT " graphs written to %s;"
+                   " %.2f sec.\n",
+                   nin,infilename,ninputs,nout,outfilename,t);
+    }
 
     exit(0);
 }

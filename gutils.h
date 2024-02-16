@@ -52,9 +52,12 @@ extern long numdirtriangles(graph*,int,int);
 extern long numdirtriangles1(graph*,int);
 extern long numsquares(graph*,int,int);
 extern long numdiamonds(graph*,int,int);
+extern long numpentagons(graph*,int,int);
 extern void delete1(graph*,graph*,int,int);
 extern int conncontent(graph*,int,int);
 extern boolean stronglyconnected(graph*,int,int);
+extern int ktreeness1(graph*,int);
+extern int ktreeness(graph*,int,int);
 
 /* extern int diameter_sg(sparsegraph*,int*,int*); */
 

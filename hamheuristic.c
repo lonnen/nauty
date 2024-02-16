@@ -1,4 +1,6 @@
-/* hamheuristic.c  */
+/* hamheuristic.c
+   Version 1.1  July 2023.  Brendan McKay
+*/
 
 #define USAGE "hamheuristic [-sgu] [-vq] [-L#] [-t#] [infile [outfile]]"
 
@@ -32,8 +34,6 @@
 #define YES 1
 #define TIMEOUT 2
 
-static long seed = 314159265;
-
 /**************************************************************************/
 
 static int
@@ -47,24 +47,31 @@ hamheur(sparsegraph *sg, boolean pathok, unsigned long limit, int *cyc)
     int end0,end1,v0,v1;
     size_t *v;
     int n,*e,*d,len,d0,*e0,d1,*e1,dx,*ex;
-    int i,ix,x,j,w,vext,exts;
+    int i,ix,x,j,w,vext,exts,numleaves;
     unsigned long count;
     boolean left,cycle;
     long ran;
  
     SG_VDE(sg,v,d,e);
     n = sg->nv;
-    if (n < 3) return NO;
+    if (n < 3 && !pathok) return NO;
 
     DYNALLOC1(int,path,path_sz,2*n+4,"malloc");
     DYNALLOC1(int,pos,pos_sz,n,"malloc");
     DYNALLOC1(int,work,work_sz,n,"malloc");
 
+    numleaves = 0;
     for (i = 0; i < n; ++i)
     {
-        if (d[i] < 2) return NO;
+        if (d[i] == 0 && n > 1) return NO;
+        else if (d[i] == 1)
+        {
+            if (!pathok) return NO;
+            ++numleaves;
+        }
         pos[i] = -1;
     }
+    if (numleaves > 2) return NO;
     count = 0;
  
     v0 = KRAN(n);
@@ -318,7 +325,8 @@ main(int argc, char *argv[])
     if (!qswitch)
     {
         fprintf(stderr,">A hamheuristic");
-        if (pswitch || sswitch || gswitch || vswitch || tswitch || Lswitch)
+        if (pswitch || sswitch || gswitch || vswitch 
+                    || uswitch || tswitch || Lswitch)
             fprintf(stderr," -");
         if (sswitch) fprintf(stderr,"s");
         if (gswitch) fprintf(stderr,"g");
@@ -348,10 +356,7 @@ main(int argc, char *argv[])
             outfile = stdout;
         }
         else if ((outfile = fopen(outfilename,"w")) == NULL)
-        {
-            fprintf(stderr,"Can't open output file %s\n",outfilename);
-            gt_abort(NULL);
-        }
+            gt_abort_1(">E Can't open output file %s\n",outfilename);
 
         if (sswitch || (!gswitch && (codetype&SPARSE6)))
             outcode = SPARSE6;
@@ -403,7 +408,7 @@ main(int argc, char *argv[])
             if (status == TIMEOUT)
                 fprintf(stderr," timed out\n");
             else if (status == NO)
-                    fprintf(stderr," disconnected or low degree\n");
+                fprintf(stderr," disconnected or low degree\n");
             else
             {
                 for (i = 0; i < n; ++i) fprintf(stderr," %d",cyc[i]);

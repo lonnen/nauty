@@ -219,7 +219,7 @@ fcanonise(graph *g, int m, int n, graph *h, char *fmt, boolean digraph)
     if (n > MAXN || m > MAXM)
     {
         fprintf(stderr,">E fcanonise: m or n too large\n");
-        ABORT(">E fcanonise");
+        NAUTY_ABORT(">E fcanonise");
     }
 #else
     DYNALLOC1(int,lab,lab_sz,n,"fcanonise");
@@ -300,7 +300,7 @@ fcanonise_inv(graph *g, int m, int n, graph *h, char *fmt,
     if (n > MAXN || m > MAXM)
     {
         fprintf(stderr,">E fcanonise: m or n too large\n");
-        ABORT(">E fcanonise");
+        NAUTY_ABORT(">E fcanonise");
     }
 #else
     DYNALLOC1(int,lab,lab_sz,n,"fcanonise");
@@ -391,7 +391,7 @@ fcanonise_inv_sg(sparsegraph *g, int m, int n, sparsegraph *h, char *fmt,
     if (n > MAXN || m > MAXM)
     {
         fprintf(stderr,">E fcanonise: m or n too large\n");
-        ABORT(">E fcanonise");
+        NAUTY_ABORT(">E fcanonise");
     }
 #else
     DYNALLOC1(int,lab,lab_sz,n,"fcanonise");
@@ -476,7 +476,7 @@ fgroup(graph *g, int m, int n, char *fmt, int *orbits, int *numorbits)
     if (n > MAXN || m > MAXM)
     {
         fprintf(stderr,">E fcanonise: m or n too large\n");
-        ABORT(">E fcanonise");
+        NAUTY_ABORT(">E fcanonise");
     }
 #else
     DYNALLOC1(int,lab,lab_sz,n,"fcanonise");
@@ -576,7 +576,7 @@ fgroup_inv(graph *g, int m, int n, char *fmt, int *orbits, int *numorbits,
     if (n > MAXN || m > MAXM)
     {
         fprintf(stderr,">E fcanonise: m or n too large\n");
-        ABORT(">E fcanonise");
+        NAUTY_ABORT(">E fcanonise");
     }
 #else
     DYNALLOC1(int,lab,lab_sz,n,"fcanonise");
@@ -687,8 +687,6 @@ istransitive(graph *g, int m, int n, graph *h)
     static DEFAULTOPTIONS_GRAPH(options);
 #if MAXN
     int lab[MAXN],ptn[MAXN],orbits[MAXN];
-    long x[MAXN];
-    int count[MAXN];
     setword workspace[24*MAXM];
     set workset[MAXM];
     set sofar[MAXM],frontier[MAXM];
@@ -696,7 +694,6 @@ istransitive(graph *g, int m, int n, graph *h)
     DYNALLSTAT(int,lab,lab_sz);
     DYNALLSTAT(int,ptn,ptn_sz);
     DYNALLSTAT(int,orbits,orbits_sz);
-    DYNALLSTAT(int,count,count_sz);
     DYNALLSTAT(setword,workspace,workspace_sz);
     DYNALLSTAT(set,workset,workset_sz);
     DYNALLSTAT(set,sofar,sofar_sz);
@@ -716,7 +713,6 @@ istransitive(graph *g, int m, int n, graph *h)
     DYNALLOC1(int,lab,lab_sz,n,"istransitive");
     DYNALLOC1(int,ptn,ptn_sz,n,"istransitive");
     DYNALLOC1(int,orbits,orbits_sz,n,"istransitive");
-    DYNALLOC1(int,count,count_sz,n,"istransitive");
     DYNALLOC1(setword,workspace,workspace_sz,24*m,"istransitive");
     DYNALLOC1(set,workset,workset_sz,m,"istransitive");
     DYNALLOC1(set,sofar,sofar_sz,m,"istransitive");
@@ -797,7 +793,7 @@ tg_canonise(graph *g, graph *h, int m, int n)
     if (n > MAXN || m > MAXM)
     {
         fprintf(stderr,">E tg_canonise: m or n too large\n");
-        ABORT(">E tg_canonise");
+        NAUTY_ABORT(">E tg_canonise");
     }
 #else
     DYNALLOC1(int,lab,lab_sz,n,"tg_canonise");

@@ -1,7 +1,7 @@
 /*****************************************************************************
 *                                                                            *
-* This is the main file for dreadnaut() version 2.7, which is a test-bed     *
-*   for nauty() version 2.7 and traces version 2.2.                          *
+* This is the main file for dreadnaut() version 2.8, which is a test-bed     *
+*   for nauty() version 2.8 and traces version 2.2.                          *
 *                                                                            *
 *   Subject to the copyright notice in the file COPYRIGHT.                   *
 *                                                                            *
@@ -103,6 +103,7 @@
 *       22-Jan-16 - commands with short arguments must be all on one line    *
 *                 - most errors cause rest of input line to be skipped       *
 *       19-Feb-16 - make R command induce a partition if one is defined      *
+*       17-Feb-23 - increase WORKSIZE                                        *
 *                                                                            *
 *****************************************************************************/
 
@@ -121,12 +122,13 @@
                 a,c,d,m,p,l,G,P,w,y,$,A,V,M\n\
                 The effect is the same as if these commands are entered\n\
                 at the beginning of the standard input.\n\
-  For help within dreadnaut, use the h command.\n"
+  For help within dreadnaut, use the h and H commands.\n"
 
 #define PM(x) ((x) ? '+' : '-')
 #define SS(n,sing,plur)  (n),((n)==1?(sing):(plur))
-#define WORKSIZE 60
-#define FLUSHANDPROMPT do { flushline(INFILE); if (prompt) fprintf(PROMPTFILE,"> "); } while (0)
+#define WORKSIZE 120
+#define FLUSHANDPROMPT \
+   do { flushline(INFILE); if (prompt) fprintf(PROMPTFILE,"> "); } while (0)
 
 #define SORT_OF_SORT 2
 #define SORT_NAME sort2ints
@@ -400,15 +402,19 @@ main(int argc, char *argv[])
 
     HELP; PUTVERSION;
 
-    if (argc == 3 && strcmp(argv[1],"-o") == 0)
+    parameters = NULL;
+    if (argc == 1)
+        parameters = "";
+    else if (argc == 2 && strncmp(argv[1],"-o",2) == 0)
+        parameters = argv[1] + 2;
+    else if (argc == 3 && strncmp(argv[1],"-o",2) == 0 && argv[1][2] == '\0')
         parameters = argv[2];
-    else if (argc != 1)
+
+    if (parameters == NULL)
     {
-        fprintf(ERRFILE,USAGE);
+        fprintf(ERRFILE,"Usage: %s\n",USAGE);
         exit(1);
     }
-    else
-        parameters = "";
  
     mode = DENSE_MODE;
     curfile = 0;
@@ -453,7 +459,7 @@ main(int argc, char *argv[])
     seed = 1;
     ran_init(seed);
 #else
-    seed = ran_init_time(0);
+    seed = INITRANBYTIME;
 #endif
 
     umask = 0;
@@ -1410,7 +1416,7 @@ main(int argc, char *argv[])
 #endif
             break;
 
-        case 'x':   /* execute nauty */
+        case 'x':   /* execute nauty or Traces */
             minus = FALSE;
             if (mode == TRACES_MODE)
             {

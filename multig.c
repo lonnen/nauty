@@ -1,4 +1,5 @@
 /* multig.c version 2.1; B D McKay, March 4, 2022 */
+/* TODO: allow colours in -V input to count against -e */
 
 #define USAGE \
 "multig [-q] [-V] [-u|-T|-G|-A|-B] [-e#|-e#:#] \n" \
@@ -17,11 +18,11 @@
     -r# make regular of specified degree (incompatible with -l, -D, -e)\n\
     -l# make regular multigraphs with multiloops, degree #\n\
                  (incompatible with -r, -D, -e)\n\
+    -f# Use the group that fixes the first # vertices setwise\n\
     -V  read the T format as produced by vcolg and obey the vertex colours\n\
         in computing the automorphism group. If -T or -G is used as the\n\
         output format, a list of the input colours is included.\n\
     Either -l, -r, -D, -e or -m with a finite maximum must be given\n\
-    -f# Use the group that fixes the first # vertices setwise\n\
     -T  use a simple text output format (nv ne {v1 v2 mult})\n\
     -G  like -T but includes group size as third item (if less than 10^10)\n\
           The group size does not include exchange of isolated vertices.\n\
@@ -277,7 +278,7 @@ trythisone(grouprec *group,
     {
 #ifdef GROUPTEST
         if (groupsize % newgroupsize != 0)
-                    gt_abort("group size error\n");
+                    gt_abort(">E group size error\n");
         totallab += groupsize/newgroupsize;
 #endif
 
@@ -841,7 +842,7 @@ readvcol(FILE *f, int *m, int *n, int *ne, graph *g)
    Return FALSE iff the input is empty.
 */
 {
-    int i,j,nn,nne,mm,x,y;
+    int i,j,nn,nne,mm;
     
     if (fscanf(f,"%d",&nn) != 1) return FALSE;
     if (nn > MAXNV) gt_abort(">E multig : too many vertices\n");
@@ -1063,10 +1064,7 @@ main(int argc, char *argv[])
             outfile = stdout;
         }
         else if ((outfile = fopen(outfilename,"w")) == NULL)
-        {
-            fprintf(stderr,"Can't open output file %s\n",outfilename);
-            gt_abort(NULL);
-        }
+            gt_abort_1(">E Can't open output file %s\n",outfilename);
     }
 
     mg_nin = mg_nout = mg_skipped = 0;

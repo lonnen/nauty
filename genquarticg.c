@@ -1442,11 +1442,7 @@ int main(int argc, char *argv[])
         outfile = stdout;
     }
     else if ((outfile = fopen(outfilename, "w")) == NULL)
-    {
-        fprintf(stderr,
-                ">E quarticgen: can't open %s for writing\n",outfilename);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E quarticgen: can't open %s for writing\n",outfilename);
 
     if (!quiet)
     {

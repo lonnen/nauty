@@ -118,10 +118,7 @@ main(int argc, char *argv[])
         infile = stdin;
     }
     else if ((infile = fopen(infilename,"r")) == NULL)
-    {
-        fprintf(stderr,"Can't open input file %s\n",infilename);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E amtog: Can't open input file %s\n",infilename);
 
     if (!outfilename || outfilename[0] == '-')
     {
@@ -129,10 +126,7 @@ main(int argc, char *argv[])
         outfile = stdout;
     }
     else if ((outfile = fopen(outfilename,"w")) == NULL)
-    {
-        fprintf(stderr,"Can't open output file %s\n",outfilename);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E amtog: Can't open output file %s\n",outfilename);
 
     if (sswitch)      outcode = SPARSE6;
     else if (zswitch) outcode = DIGRAPH6;
@@ -147,10 +141,7 @@ main(int argc, char *argv[])
 
 #if MAXN
     if (nswitch && n > MAXN)
-    {
         gt_abort(">E amtog: value of -n too large\n");
-        exit(2);
-    }
 #else
     if (nswitch)
     {
@@ -168,10 +159,7 @@ main(int argc, char *argv[])
         if (s[0] == 'n')
         {
             if (fscanf(infile,"=%d",&n) != 1)
-            {
                 gt_abort(">E amtog: invalid n=# command\n");
-                exit(2);
-            }
             m = (n + WORDSIZE - 1) / WORDSIZE;
 #if MAXN
             if (n < 1 || n > MAXN || m > MAXM)
@@ -188,7 +176,6 @@ main(int argc, char *argv[])
             {
                 fprintf(stderr,
                     ">E amtog: matrix found before n is defined\n");
-                exit(2);
             }
             if (isdigit(s[0])) ungetc(s[0],infile);
             m = (n + WORDSIZE - 1) / WORDSIZE;
@@ -205,10 +192,8 @@ main(int argc, char *argv[])
             for (j = (triangle ? i+1 : 0); j < n; ++j)
             {
                 if (fscanf(infile,"%1s",s) != 1)
-                {
-                    fprintf(stderr,">E amtog: incomplete matrix\n");
-                    ABORT(">E amtog");
-                }
+                    gt_abort(">E amtog: incomplete matrix\n");
+ 
                 if (s[0] == '0' || s[0] == '1'
                       || (oswitch && isdigit(s[0])))
                 {
@@ -247,16 +232,15 @@ main(int argc, char *argv[])
                 }
                 else
                 {
-                    fprintf(stderr,
+                    gt_abort_1(
                       ">E amtog: illegal character in matrix: \"%c\"\n",
                       s[0]);
-                    gt_abort(NULL);
                 }
             }
 
             if ((tournament || unsymm) && outcode != DIGRAPH6)
                 fprintf(stderr,">W amtog: warning, graph "
-                          COUNTER_FMT " is unsymmetric (%d,%d)\n",nin,unsym0,unsym1);
+                    COUNTER_FMT " is unsymmetric (%d,%d)\n",nin,unsym0,unsym1);
     
             if (outcode == DIGRAPH6)     writed6(outfile,g,m,n);
             else if (outcode == SPARSE6) writes6(outfile,g,m,n);
@@ -268,10 +252,7 @@ main(int argc, char *argv[])
             exit(0);
         }
         else
-        {
-            fprintf(stderr,">E amtog: invalid command \"%c\"\n",s[0]);
-            gt_abort(NULL);
-        }
+            gt_abort_1(">E amtog: invalid command \"%c\"\n",s[0]);
     }
 
     if (warn && !nowarn) fprintf(stderr,">Z amtog: loops were lost (%d)\n",loop0);

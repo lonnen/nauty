@@ -1,4 +1,5 @@
 /* productg.c  version 1.2; B D McKay, October 2022. */
+/* TODO:  Rooted product */
 
 #define USAGE "productg [-c|-l|-L|-k|-t|-a#] [infile [outfile]]"
 
@@ -104,15 +105,9 @@ arg_oct(char **ps, int *val, char *id)
     code = longoctvalue(ps,&longval);
     *val = longval;
     if (code == ARG_MISSING || code == ARG_ILLEGAL)
-    {
-        fprintf(stderr,">E %s: missing argument value\n",id);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E %s: missing argument value\n",id)
     else if (code == ARG_TOOBIG || *val != longval)
-    {
-        fprintf(stderr,">E %s: argument value too large\n",id);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E %s: argument value too large\n",id);
 }
 
 /************************************************************************/
@@ -138,7 +133,7 @@ main(int argc, char *argv[])
     aswitch = cswitch = lswitch = Lswitch = tswitch = kswitch = FALSE;
     dreadnaut = FALSE;
 
-    HELP;
+    HELP; PUTVERSION;
 
     infilename = outfilename = NULL;
     badargs = FALSE;
@@ -206,10 +201,7 @@ main(int argc, char *argv[])
         outfile = stdout;
     }
     else if ((outfile = fopen(outfilename,"w")) == NULL)
-    {
-        fprintf(stderr,"Can't open output file %s\n",outfilename);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E Can't open output file %s\n",outfilename);
 
     if ((g1 = readgg(infile,NULL,0,&m1,&n1,&digraph)) == NULL)
         gt_abort(">E first graph not found\n");

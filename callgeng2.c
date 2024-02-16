@@ -19,6 +19,9 @@
  * a single thread do all the writing (use the hook OUTPROC, see callgeng.c).
  * Meanwhile, if you just want to count and not write, you don't need to worry
  * about that.
+ *
+ * The res/mod argument of geng is used to distribute the work between the
+ * threads, so if you use it yourself things won't work.  This is fixable.
  */
 
 #include "gtools.h"

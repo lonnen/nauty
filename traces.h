@@ -40,9 +40,9 @@ typedef struct TracesOptions {
 	int strategy;    /* Only the value 0 is supported in this version. */
 	int verbosity;
 	permnode **generators;
-    void (*userautomproc)(int,int*,int);
-    int  (*usercanonproc)(graph*,int*,graph*,int,int,int,int);
-    boolean weighted;
+	void (*userautomproc)(int,int*,int);
+	void  *reserved;
+	boolean weighted;
 } TracesOptions;
 
 #define DEFAULTOPTIONS_TRACES(opts) TracesOptions opts \

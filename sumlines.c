@@ -1,5 +1,5 @@
 /* sumlines.c - total the numbers appearing in various input lines. */
-/* B. D. McKay.  Version of March 30, 2017. */
+/* B. D. McKay.  Version of May 12, 2023. */
 
 #ifndef GMP
 #define GMP 1  /* Non-zero if gmp multi-precise integers are allowed.
@@ -29,7 +29,8 @@
 \n\
    Each format occupies exactly two lines.  The first line gives a\n\
    list of flags (DEFAULT FINAL ERROR UNIQUE COUNT CONTINUE NUMERIC\n\
-   SILENT ENDFILE P=# separated by spaces, commas or |s).\n\
+   SILENT ENDFILE P=# NOPREFIX BEFORE/.../ AFTER/.../ separated by\n\
+   spaces, commas or |s).\n\
    The second line gives the format itself.\n\
 \n\
    Example.  This totals the summary lines of autoson runs:\n\
@@ -45,15 +46,18 @@
    -n don't write the number of matching lines for each format.\n\
    -v produces a list of all the formats.\n"
 
-#define DEFAULT   0  /* No special flags */
-#define FINAL     1  /* At least one of these must be in each input file */
-#define ERROR     2  /* Must be none of these */
-#define UNIQUE    4  /* The %s and %c parts must be unique over all inputs */
-#define COUNT     8  /* The output only states how many lines matched */
-#define CONTINUE 16  /* Try to match later formats too */
-#define NUMERIC  32  /* Use numerical comparison (see numstrcmp() below) */
-#define SILENT   64  /* Don't report, just check */
-#define ENDFILE 128  /* Usually appears at end of output */
+#define DEFAULT    0  /* No special flags */
+#define FINAL      1  /* At least one of these must be in each input file */
+#define ERROR      2  /* Must be none of these */
+#define UNIQUE     4  /* The %s and %c parts must be unique over all inputs */
+#define COUNT      8  /* The output only states how many lines matched */
+#define CONTINUE  16  /* Try to match later formats too */
+#define NUMERIC   32  /* Use numerical comparison (see numstrcmp() below) */
+#define SILENT    64  /* Don't report, just check */
+#define ENDFILE  128  /* Usually appears at end of output */
+#define NOPREFIX 256  /* Print without prefix >X, where X is a letter */
+#define BEFORE   512  /* Output a string or blank line before these lines */
+#define AFTER   1024  /* Output a string or blank line after these lines */
 
 /* The formats are tried against each input line one at a time, and the
    first one that matches is accepted.  The entire line must match.
@@ -72,6 +76,16 @@
    If a format has the UNIQUE flag, no two input lines may match with the
    same values of the %s and %c controls present.  Otherwise a warning
    message is written for each duplicate match.
+
+   If a format starts with >X, where X is a letter, the flag NOPREFIX causes
+   the summary to be written without that prefix.
+
+   The BEFORE flag followed by white space (including end of line) causes a
+   blank line to appear in the output before lines associated with this
+   format. If a non-alphanumeric character c other than '=' follows BEFORE
+   immediately, everything after the c and before the next c or end of line
+   is written. AFTER is similar, written after lines associated with this
+   format.
 
    The sequence P=# where # is an integer value defines the base for the
    %p directive.  There can be no spaces in the sequence "P=#".  The
@@ -109,6 +123,12 @@
          sequence of case numbers.)  At most one %# may appear in each format.
    %l  - matches a list of arbitrarily many (%d sized) integers
 
+  The %d, %x, %n, %p, %f, %v, and %X controls can have a numerical field
+  width after the %, for example %10d. This has no effect on matching
+  input lines but causes the output number to be written in a minimum
+  of that many characters, with space padding.  A negative field width
+  indicates left-adjustment within the field.
+
   At least one FINAL format must match in each file or a warning is given
   (unless -w is used, in which case no warning is given).
 
@@ -132,28 +152,12 @@
 #include <gmp.h>
 #endif
 
-#if defined(__alpha)
-typedef long integer;
-#define DOUT "%ld"       /* Format used to output %d/%x/%n/%p quantities */
-#define FOUT "%.2f"      /* Format used to output %f/%X quantities */
-#define VOUT "%.4f"      /* Format used to output %v quantities */
-#define HMSOUT1 "%ld:%ld:%ld"
-#define HMSOUT2 "%ld:%ld:%.2f"
-#elif defined(__sun) || defined(__GNUC__) || (__STDC_VERSION__ > 199900L)
 typedef long long integer;
-#define DOUT "%lld"   
-#define FOUT "%.2f"
-#define VOUT "%.4f"
+#define DOUT "%*lld"   
+#define FOUT "%*.2f"
+#define VOUT "%*.4f"
 #define HMSOUT1 "%lld:%lld:%lld"
 #define HMSOUT2 "%lld:%lld:%.2f"
-#else
-typedef long long integer;
-#define DOUT "%Ld"   
-#define FOUT "%.2f"
-#define VOUT "%.4f"
-#define HMSOUT1 "%Ld:%Ld:%Ld"
-#define HMSOUT2 "%Ld:%Ld:%.2f"
-#endif
 
 static char *dout,*fout,*Xout,*vout,*hmsout1,*hmsout2;
 static integer maxint;   /* set by find_maxint() */
@@ -207,6 +211,7 @@ static struct fmt_st
    integer pmod;
    int flags;
    char *fmt;
+   char *before,*after;
 } format[MAXFORMATS];
 
 typedef struct countrec
@@ -325,6 +330,36 @@ numstrcmp(char *s1, char *s2)
 
 /****************************************************************************/
 
+static int
+readwidth(char **p)
+/* Read an integer that starts at *p.  Leave *p pointing
+ * to the character immediately following the integer. */
+{
+    int ans;
+    char *s;
+    boolean neg;
+
+    s = *p;
+    ans = 0;
+    neg = FALSE;
+    if (*s == '-')
+    {
+	neg = TRUE;
+	++s;
+    }
+    
+    while (isdigit(*s))
+    {
+	ans = 10*ans + (*s - '0');
+	++s;
+    }
+
+    *p = s;
+    return (neg ? -ans : ans);
+}
+
+/****************************************************************************/
+
 static void
 writeline(char *outf, number *val, unsigned long count)
 /* Write an output line with the given format and values */
@@ -333,6 +368,7 @@ writeline(char *outf, number *val, unsigned long count)
     integer mins,nsecs;
     double secs,hms;
     boolean neg;
+    int width;
 
     n = 0;
 
@@ -341,17 +377,21 @@ writeline(char *outf, number *val, unsigned long count)
         if (*outf == '%')
         {
             ++outf;
+	    if (*outf == '-' || isdigit(*outf))
+		width = readwidth(&outf);
+	    else
+		width = 1;
             if (*outf == '%' || *outf == '#')
                 putchar(*outf);
             else if (*outf == 'd' || *outf == 'x'
                            || *outf == 'n' || *outf == 'p')
-                printf(dout,val[n++].d);
+                printf(dout,width,val[n++].d);
             else if (*outf == 'f')
-                printf(fout,val[n++].f);
+                printf(fout,width,val[n++].f);
             else if (*outf == 'v')
-                printf(vout,val[n++].f/count);
+                printf(vout,width,val[n++].f/count);
             else if (*outf == 'X')
-                printf(Xout,val[n++].f);
+                printf(Xout,width,val[n++].f);
             else if (*outf == 'h')
             {
                 if (val[n].f < 0)
@@ -379,7 +419,7 @@ writeline(char *outf, number *val, unsigned long count)
                 for (i = 0; i < val[n].l->nvals; ++i)
                 {
                     if (i > 0) printf(" ");
-                    printf(dout,val[n].l->val[i]);
+                    printf(dout,width,val[n].l->val[i]);
                 }
                 ++n;
             }
@@ -401,11 +441,12 @@ writeline(char *outf, number *val, unsigned long count)
 /*********************************************************************/
 
 static void
-print_counts(countnode *root, boolean printcounts)
+print_counts(countnode *root, boolean prefix, boolean printcounts)
 /* Use a non-recursive inorder traversal to print the tree */
 {
     int code;
     countnode *p;
+    char *fmt;
 
     p = root;
     code = A;
@@ -422,7 +463,12 @@ print_counts(countnode *root, boolean printcounts)
             }
          case L:
             if (printcounts) printf("%5lu: ",p->count);
-            writeline(p->fmt,p->total,p->count);
+            fmt = p->fmt;
+            if (prefix && fmt[0] == '>'
+                && ((fmt[1] >= 'a' && fmt[1] <= 'z')
+                 || (fmt[1] >= 'A' && fmt[1] <= 'Z')))
+                fmt += 2;
+            writeline(fmt,p->total,p->count);
             if (p->right)
             {
                 p = p->right;
@@ -441,12 +487,12 @@ print_counts(countnode *root, boolean printcounts)
 /*********************************************************************/
 
 static void
-print_common(countnode *root)
+print_common(countnode *root, boolean prefix)
 /* Print the common ends of the formats in the tree */
 {
     int code;
     countnode *p;
-    char *s0,*s1,*t0,*t1;
+    char *s0,*s1,*t0,*t1,*fmt;
     int i,comm0,comm1,minlen,maxlen;
 
     if (root == NULL) return;
@@ -454,7 +500,12 @@ print_common(countnode *root)
     p = root;
     code = A;
 
-    s0 = s1 = p->fmt;
+    fmt = p->fmt;
+    if (prefix && fmt[0] == '>'
+        && ((fmt[1] >= 'a' && fmt[1] <= 'z')
+         || (fmt[1] >= 'A' && fmt[1] <= 'Z')))
+        fmt += 2;
+    s0 = s1 = fmt;
     while (*s1 != '\0') ++s1;
     comm0 = comm1 = minlen = maxlen = s1-s0;
 
@@ -469,7 +520,12 @@ print_common(countnode *root)
                 break;
             }
          case L:
-            t0 = t1 = p->fmt;
+            fmt = p->fmt;
+            if (prefix && fmt[0] == '>'
+                && ((fmt[1] >= 'a' && fmt[1] <= 'z')
+                 || (fmt[1] >= 'A' && fmt[1] <= 'Z')))
+                fmt += 2;
+            t0 = t1 = fmt;
             for (i = 0; i < comm0; ++i)
                 if (s0[i] != t0[i]) break;
             comm0 = i;
@@ -750,7 +806,7 @@ scanline(char *s, char *f, number *val, int *valtype,
     static boolean gmp_warning = FALSE;
     integer *ilist;
     size_t ilist_sz;
-    int nilist;
+    int nilist,width;
 #if GMP
     char mp_line[MAXLINELEN+1],*mp;
 #endif
@@ -771,6 +827,11 @@ scanline(char *s, char *f, number *val, int *valtype,
             }
             else
                 doass = TRUE;
+
+	    if (*f == '-' || isdigit(*f))
+		width = readwidth(&f);
+	    else
+		width = 0;
 
             if (*f == '%')
             {
@@ -855,6 +916,12 @@ scanline(char *s, char *f, number *val, int *valtype,
                 if (doass)
                 {
                     *outf++ = '%';
+		    if (width != 0)
+		    {
+			sprintf(outf,"%d",width);
+			while (*outf != '\0') ++outf;
+		    }
+
                     if (*f == 'd' || *f == 'm')
                     {
                         *outf++ = 'd';
@@ -935,6 +1002,11 @@ scanline(char *s, char *f, number *val, int *valtype,
                     val[n].l->val = ilist;
                     ++n;
                     *outf++ = '%';
+		    if (width != 0)
+		    {
+			sprintf(outf,"%d",width);
+			while (*outf != '\0') ++outf;
+		    }
                     *outf++ = 'l';
                 }
                 else
@@ -1017,6 +1089,11 @@ scanline(char *s, char *f, number *val, int *valtype,
                     valtype[n] = (*f == 'f' ? F : (*f == 'v' ? V : FX));
                     val[n++].f = (neg ? -dval : dval);
                     *outf++ = '%';
+		    if (width != 0)
+		    {
+			sprintf(outf,"%d",width);
+			while (*outf != '\0') ++outf;
+		    }
                     *outf++ = *f;
                 }
                 else
@@ -1177,13 +1254,15 @@ read_formats(char *filename, int *numformatsp, boolean mustexist)
 /* Read formats from the given file. */
 {
     FILE *f;
-    int i,c,flags,ignore;  
+    int i,c,flags,ignore,delim;  
     char flagname[52];
     char line[MAXLINELEN+3];
     integer pmod;
-    char *s;
+    char *s,*before,*after;
     boolean oflow,badpmod;
     int digit;
+#define BEFORELEN 255
+    char str[BEFORELEN+2];
 
     if (strcmp(filename,"-") == 0)
         f = stdin;
@@ -1216,6 +1295,7 @@ read_formats(char *filename, int *numformatsp, boolean mustexist)
         ungetc(c,f);
 
         flags = 0;
+        before = after = NULL;
         pmod = 2;
         for (;;)
         {
@@ -1241,6 +1321,51 @@ read_formats(char *filename, int *numformatsp, boolean mustexist)
             else if (strcmp(flagname,"NUMERIC") == 0)  flags |= NUMERIC;
             else if (strcmp(flagname,"SILENT") == 0)   flags |= SILENT;
             else if (strcmp(flagname,"ENDFILE") == 0)  flags |= ENDFILE;
+            else if (strcmp(flagname,"NOPREFIX") == 0)  flags |= NOPREFIX;
+            else if (strcmp(flagname,"BEFORE") == 0)
+            {
+                flags |= BEFORE;
+                before = NULL;
+                delim = fgetc(f);
+                if (delim != ' ' && delim != '\n'
+                                 && delim != '\t' && delim != EOF)
+                { 
+                    i = 0;
+                    for (;;)
+                    {
+                        c = fgetc(f);
+                        if (c == delim || c == EOF || c == '\n') break;
+                        if (i < BEFORELEN) str[i] = c;
+                        ++i;
+                    }
+                    str[i] = '\0';
+                    if (c == '\n') ungetc(c,f);
+                    before = strdup(str);
+                }
+                if (delim == '\n') ungetc(delim,f);
+            }
+            else if (strcmp(flagname,"AFTER") == 0)
+            {
+                flags |= AFTER;
+                after = NULL;
+                delim = fgetc(f);
+                if (delim != ' ' && delim != '\n'
+                                 && delim != '\t' && delim != EOF)
+                { 
+                    i = 0;
+                    for (;;)
+                    {
+                        c = fgetc(f);
+                        if (c == delim || c == EOF || c == '\n') break;
+                        if (i < BEFORELEN) str[i] = c;
+                        ++i;
+                    }
+                    str[i] = '\0';
+                    if (c == '\n') ungetc(c,f);
+                    after = strdup(str);
+                }
+                if (delim == '\n') ungetc(delim,f);
+            }
             else if (flagname[0] == 'P' && flagname[1] == '=')
             {
                 pmod = 0;
@@ -1304,6 +1429,8 @@ read_formats(char *filename, int *numformatsp, boolean mustexist)
             fprintf(stderr,">E malloc() failed in read_formats()\n");
             exit(1);
         }
+        format[*numformatsp].before = before;
+        format[*numformatsp].after = after;
         strcpy(format[*numformatsp].fmt,line);
         ++*numformatsp;
     }
@@ -1317,7 +1444,7 @@ static void
 read_local_formats(int *numformatsp)
 /* Read formats from sumlines.fmt in current directory */
 {
-        read_formats("sumlines.fmt",numformatsp,FALSE);
+    read_formats("sumlines.fmt",numformatsp,FALSE);
 }
 
 /****************************************************************************/
@@ -1610,21 +1737,21 @@ main(int argc, char *argv[])
                             if (seq == lastseq[i])
                             {   
                                 printf(" ");
-                                printf(dout,seq);
+                                printf(dout,1,seq);
                                 printf(" is repeated.\n");
                             }
                             else if (seq != lastseq[i]+2)
                             {
                                 printf("s ");
-                                printf(dout,lastseq[i]+1);
+                                printf(dout,1,lastseq[i]+1);
                                 printf("-");
-                                printf(dout,seq-1);
+                                printf(dout,1,seq-1);
                                 printf(" are missing.\n");
                             }
                             else
                             {
                                 printf("  ");
-                                printf(dout,seq-1);
+                                printf(dout,1,seq-1);
                                 printf(" is missing.\n");
                             }
                         }
@@ -1661,11 +1788,38 @@ main(int argc, char *argv[])
         if (HAS(i,COUNT))
         {
             if (matching_lines[i] > 0)
+            {
+                if (HAS(i,BEFORE))
+                {
+                    if (format[i].before) printf("%s\n",format[i].before);
+                    else                  printf("\n");
+                }
                 printf("%5lu lines matched ",matching_lines[i]);
-            print_common(count_root[i]);
+                print_common(count_root[i],HAS(i,NOPREFIX));
+                if (HAS(i,AFTER))
+                {
+                    if (format[i].after) printf("%s\n",format[i].after);
+                    else                 printf("\n");
+                }
+            }
         }
         else
-            print_counts(count_root[i],printcounts);
+        {
+            if (count_root[i])
+            {
+                if (HAS(i,BEFORE))
+                {
+                    if (format[i].before) printf("%s\n",format[i].before);
+                    else                  printf("\n");
+                }
+                print_counts(count_root[i],HAS(i,NOPREFIX),printcounts);
+                if (HAS(i,AFTER))
+                {
+                    if (format[i].after) printf("%s\n",format[i].after);
+                    else                 printf("\n");
+                }
+            }
+        }
     }
 
     if (unmatched > 0)

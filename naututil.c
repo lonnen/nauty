@@ -3,7 +3,7 @@
 * miscellaneous utilities for use with nauty 2.8.                            *
 * None of these procedures are needed by nauty, but all are by dreadnaut.    *
 *                                                                            *
-*   Copyright (1984-2022) Brendan McKay.  All rights reserved.               *
+*   Copyright (1984-2023) Brendan McKay.  All rights reserved.               *
 *   Subject to waivers and disclaimers in nauty.h.                           *
 *                                                                            *
 *   CHANGE HISTORY                                                           *
@@ -77,6 +77,7 @@
 *       22-Jan-16 : add readintger_sl() and getint_sl()                      *
 *       29-Feb-16 : add subpartition()                                       *
 *        6-Apr-16 : add countcells(), make subpartition return a count       *
+*       13-Jun-23 : simplify sethash() without changing the value            *
 *                                                                            *
 *****************************************************************************/
 
@@ -161,7 +162,6 @@ int
 setsize(set *set1, int m)
 {
     int count,i;
-    setword x;
 
     if (m == 1) return POPCOUNT(*set1);
 
@@ -2003,8 +2003,10 @@ fixit(int *lab, int *ptn, int *numcells, int fixedvertex, int n)
 
 long
 sethash(set *s, int n, long seed, int key)
+/* Long hashcode for a set. Some care is needed to make
+   it independent of WORDSIZE. */
 {
-    int i,j,lsh,rsh;
+    int i,j,sh,lsh,rsh;
     unsigned long l,res,lshmask,salt;
     setword si;
 
@@ -2015,33 +2017,17 @@ sethash(set *s, int n, long seed, int key)
     lshmask = (1UL << lsh) - 1;
 
     j = 0;
-    for (i = 0; ; ++i)
+    for (i = 0; j < n; ++i)
     {
         si = s[i];
-        l = SWCHUNK0(si);
-        res = (((res << lsh) ^ ((res >> rsh) & lshmask) ^ l) + salt) 
+        for (sh = WORDSIZE-16; sh >= 0; sh -= 16)
+        {
+            l = (unsigned long)((si >> sh) & 0xFFFF);
+            res = (((res << lsh) ^ ((res >> rsh) & lshmask) ^ l) + salt)
                                                             & 0x7FFFFFFFUL;
-        res = FUZZ1(res);
-        if ((j += 16) >= n) break;
-#if WORDSIZE > 16
-        l = SWCHUNK1(si);
-        res = (((res << lsh) ^ ((res >> rsh) & lshmask) ^ l) + salt) 
-                                                           & 0x7FFFFFFFUL;
-        res = FUZZ1(res);
-        if ((j += 16) >= n) break;
-#if WORDSIZE == 64    
-        l = SWCHUNK2(si);
-        res = (((res << lsh) ^ ((res >> rsh) & lshmask) ^ l) + salt) 
-                                                            & 0x7FFFFFFFUL;
-        res = FUZZ1(res);
-        if ((j += 16) >= n) break;
-        l = SWCHUNK3(si);
-        res = (((res << lsh) ^ ((res >> rsh) & lshmask) ^ l) + salt) 
-                                                            & 0x7FFFFFFFUL;
-        res = FUZZ1(res);
-        if ((j += 16) >= n) break;
-#endif
-#endif
+            res = FUZZ1(res);
+            if ((j += 16) >= n) break;
+        }
     }
 
     return res;

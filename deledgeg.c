@@ -1,6 +1,6 @@
-/* deledgeg.c  version 1.4; B D McKay, Jan 2015. */
+/* deledgeg.c  version 1.6; B D McKay, Jan 2023. */
 
-#define USAGE "deledgeg [-lq] [-d#] [-z] [infile [outfile]]"
+#define USAGE "deledgeg [-lq] [-v#] [-d#] [-z] [infile [outfile]]"
 
 #define HELPTEXT \
 " For each edge e, output G-e\n\
@@ -9,6 +9,7 @@
 \n\
     -z  Consider as digraph and delete directed edges\n\
     -l  Canonically label outputs\n\
+    -v# Only delete edges incident to this vertex (as head for digraph)\n\
     -d# Specify a lower bound on the minimum out-degree of the output\n\
     -q  Suppress auxiliary information\n"
 
@@ -23,7 +24,7 @@ main(int argc, char *argv[])
 {
     char *infilename,*outfilename;
     FILE *infile,*outfile;
-    boolean badargs,dolabel,quiet,dswitch;
+    boolean badargs,dolabel,quiet,dswitch,vswitch;
     boolean digraph;
     int i,j,m,n,v,w,argnum;
     int codetype,outcode;
@@ -31,7 +32,7 @@ main(int argc, char *argv[])
     nauty_counter nin,nout;
     char *arg,sw;
     setword *gv,*gw;
-    int mindeg,actmindeg,degv;
+    int mindeg,actmindeg,degv,delvert,minv,maxv;
     boolean zswitch;
     double t;
 #if MAXN
@@ -46,7 +47,7 @@ main(int argc, char *argv[])
 
     infilename = outfilename = NULL;
     badargs = FALSE;
-    zswitch = dswitch = dolabel = quiet = FALSE;
+    zswitch = dswitch = vswitch = dolabel = quiet = FALSE;
 
     argnum = 0;
     badargs = FALSE;
@@ -62,6 +63,7 @@ main(int argc, char *argv[])
                      SWBOOLEAN('l',dolabel)
                 else SWBOOLEAN('z',zswitch)
                 else SWBOOLEAN('q',quiet)
+                else SWINT('v',vswitch,delvert,">E deledgeg -v")
                 else SWINT('d',dswitch,mindeg,">E deledgeg -d")
                 else badargs = TRUE;
             }
@@ -89,6 +91,7 @@ main(int argc, char *argv[])
         if (dolabel) fprintf(stderr,"l");
         if (zswitch) fprintf(stderr,"z");
         if (dswitch) fprintf(stderr," -d%d",mindeg);
+        if (vswitch) fprintf(stderr," -v%d",delvert);
         if (argnum > 0) fprintf(stderr," %s",infilename);
         if (argnum > 1) fprintf(stderr," %s",outfilename);
         fprintf(stderr,"\n");
@@ -106,10 +109,7 @@ main(int argc, char *argv[])
         outfile = stdout;
     }
     else if ((outfile = fopen(outfilename,"w")) == NULL)
-    {
-        fprintf(stderr,"Can't open output file %s\n",outfilename);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E Can't open output file %s\n",outfilename);
 
     if      (codetype&SPARSE6)  outcode = SPARSE6;
     else if (codetype&DIGRAPH6) outcode = DIGRAPH6;
@@ -122,8 +122,9 @@ main(int argc, char *argv[])
         else                          writeline(outfile,GRAPH6_HEADER);
     }
     if (!dswitch) mindeg = 0;
+    if (!vswitch) delvert = -1;
 
-    if (dolabel) nauty_check(WORDSIZE,1,1,NAUTYVERSIONID);
+    nauty_check(WORDSIZE,1,1,NAUTYVERSIONID);
 
     nin = nout = 0;
     t = CPUTIME;
@@ -147,10 +148,19 @@ main(int argc, char *argv[])
         }
 
         if (actmindeg < mindeg) continue;
+        if (delvert >= 0 && delvert >= n) { FREES(g) ; continue; }
+
+        if (delvert >= 0) 
+            minv = maxv = delvert;
+        else
+        {
+            minv = 0;
+            maxv = n-1;
+        }
 
         if (zswitch || digraph)
         {
-            for (v = 0, gv = g; v < n; ++v, gv += m)
+            for (v = minv, gv = GRAPHROW(g,minv,m); v <= maxv; ++v, gv += m)
             {
                 if (deg[v] <= mindeg) continue;
     
@@ -175,11 +185,11 @@ main(int argc, char *argv[])
         }
         else
         {
-            for (v = 0, gv = g; v < n; ++v, gv += m)
+            for (v = minv, gv = GRAPHROW(g,minv,m); v <= maxv; ++v, gv += m)
             {
                 if (deg[v] <= mindeg) continue;
     
-                for (w = v-1; (w = nextelement(gv,m,w)) >= 0; )
+                for (w = (delvert >= 0 ? -1 : v-1); (w = nextelement(gv,m,w)) >= 0; )
                 {
                     if (deg[w] <= mindeg || (w == v && deg[w] <= mindeg+1)) continue;
     

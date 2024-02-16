@@ -1,12 +1,12 @@
 /* TODO:
  *        add complements for ordinary graphs
- *        add 5-cycle rejection
+ *        rigid + unique point = rigid
  */
 
 /* geng.c  version 3.6; B D McKay, October 2022. */
 
 #define USAGE \
-"geng [-cCmtfkbd#D#] [-uygsnh] [-lvq] \n\
+"geng [-cCmtfkbd#D#] [-kTSPF] [-uygsnh] [-lvq] \n\
               [-x#X#] n [mine[:maxe]] [res/mod] [file]"
 
 #define HELPTEXT \
@@ -21,6 +21,7 @@
      -C    : only write biconnected graphs\n\
      -t    : only generate triangle-free graphs\n\
      -f    : only generate 4-cycle-free graphs\n\
+     -p    : only generate 5-cycle-free graphs\n\
      -k    : only generate K4-free graphs\n\
      -T    : only generate chordal graphs\n\
      -S    : only generate split graphs\n\
@@ -404,7 +405,8 @@ efficient to use the res/mod feature than to split by numbers of edges.
 
 **************************************************************************/
 
-#define NAUTY_PGM  1   /* 1 = geng, 2 = genbg, 3 = gentourng, 4 = gentreeg */
+  /* 1 = geng, 2 = genbg, 3 = gentourng, 4 = gentreeg, 5 = genktreeg */
+#define NAUTY_PGM  1
 
 #ifndef MAXN
 #define MAXN WORDSIZE         /* not more than WORDSIZE */
@@ -432,6 +434,7 @@ static TLS_ATTR int connec;              /* 1 for -c, 2 for -C, 0 for neither */
 static TLS_ATTR boolean bipartite;       /* presence of -b */
 static TLS_ATTR boolean trianglefree;    /* presence of -t */
 static TLS_ATTR boolean squarefree;      /* presence of -f */
+static TLS_ATTR boolean pentagonfree;    /* presence of -p */
 static TLS_ATTR boolean k4free;          /* presence of -k */
 static TLS_ATTR boolean splitgraph;      /* presence of -S */
 static TLS_ATTR boolean chordal;         /* presence of -T */
@@ -488,24 +491,48 @@ static TLS_ATTR nauty_counter a2calls,a2nauty,a2uniq,a2succs;
    which is done by the procedure findmaxe().
 */
 
-static TLS_ATTR int maxeb[65] =     /* max edges for -b */
+static TLS_ATTR int maxeb[66] =     /* max edges for -b */
  {0,0,1,2,4, -1};
-static TLS_ATTR int maxet[65] =     /* max edges for -t */
+static TLS_ATTR int maxet[66] =     /* max edges for -t */
  {0,0,1,2,4, -1};
-static TLS_ATTR int maxef[65] =     /* max edges for -f */
+static TLS_ATTR int maxef[66] =     /* max edges for -f */
  {0,0,1,3,4, 6,7,9,11,13,
   16,18,21,24,27, 30,33,36,39,42,
   46,50,52,56,59, 63,67,71,76,80,
   85,90,92,96,102, 106,110,113,117,122,
   127, -1};
-static TLS_ATTR int maxeft[65] =    /* max edges for -ft */
+static TLS_ATTR int maxep[66] =    /* max edges for -p */
+ {0,0,1,3,6, 7,9,12,16,20,
+  25,30,36,42,49, 56,64,72,81,90,
+  100,110,121,132,144, 156,169,182,196,210,
+  225,240,256, -1};
+static TLS_ATTR int maxeft[66] =    /* max edges for -ft */
  {0,0,1,2,3, 5,6,8,10,12,
   15,16,18,21,23, 26,28,31,34,38,
   41,44,47,50,54, 57,61,65,68,72,
   76,80,85,87,90, 95,99,104,109,114,
   120,124,129,134,139, 145,150,156,162,168,
   175,176,178, -1};
-static TLS_ATTR int maxebf[65] =    /* max edges for -bf */
+static TLS_ATTR int maxept[66] =    /* max edges for -pt */
+ {0,0,1,2,4, 6,9,12,16,20,
+  25,30,36,42,49, 56,64,72,81,90,
+  100,110,121,132,144, 156,169,182,196,210,
+  225,240,256,-1};
+static TLS_ATTR int maxepf[66] =    /* max edges for -pf */
+ {0,0,1,3,4, 6,7,9,10,12,
+  14,16,18,20,23, 25,28,30,33,35,
+  38,42,43,45,48, 50,53,55,58,62,
+  65,67,70,73,77, 79,82,86,89,93,
+  96,100,105,107, -1};
+static TLS_ATTR int maxepft[66] =    /* max edges for -pft */
+ {0,0,1,2,3, 4,6,7,9,10,
+  12,14,16,18,21, 22,24,26,29,31,
+  34,36,39,42,45, 48,52,53,56,58,
+  61,64,67,70,74, 77,81,84,88,92,
+  96,100,105,106,108, 110,115,118,122,126,
+  130,134,138,142,147, 151,156,160,165,170,
+  175,180,186,187,189, -1};
+static TLS_ATTR int maxebf[66] =    /* max edges for -bf */
   {0,0,1,2,3, 4,6,7,9,10,
   12,14,16,18,21, 22,24,26,29,31,
   34,36,39,42,45, 48,52,53,56,58,
@@ -757,7 +784,7 @@ distinvar(graph *g, int *invar, int n)
 /**************************************************************************/
 
 static void
-makexgraph(graph *g, xword *h, int n)
+maketgraph(graph *g, xword *h, int n)
 /* make x-format graph from nauty format graph */
 {
     setword gi;
@@ -894,7 +921,7 @@ makeb6graph(graph *g, xword *h, int n)
 /**************************************************************************/
  
 static void
-makesgraph(graph *g, xword *h, int n)
+makefgraph(graph *g, xword *h, int n)
 /* make x-format square graph */
 {
     setword w,x;
@@ -926,7 +953,7 @@ makesgraph(graph *g, xword *h, int n)
 /**************************************************************************/ 
  
 static void 
-makeg5graph(graph *g, xword *h, int n)
+makeftgraph(graph *g, xword *h, int n)
 /* make x-format girth-5 graph */
 {
     setword w,x; 
@@ -954,6 +981,80 @@ makeg5graph(graph *g, xword *h, int n)
         h[i] = hi; 
     } 
 } 
+
+/**************************************************************************/ 
+ 
+static void 
+makeplus5graph(graph *g, xword *h, int n, setword mask)
+/* Make x-format graph for cycle lengths in mask plus 5-cycles */
+{
+    int v0,v3,v4,v5;
+    setword w3,w4,w5;
+    xword x,x3,x4;
+
+    x3 = x4 = 0;
+    if ((bit[3] & mask)) x3 = ~x3;
+    if ((bit[4] & mask)) x4 = ~x4;
+    for (v0 = 0; v0 < n; ++v0)
+    {
+        x = 0;
+        w3 = g[v0];
+        while (w3)
+        {
+            TAKEBIT(v3,w3);
+            x |= (x3 & XBIT(v3));
+            w4 = g[v3] & ~bit[v0];
+            while (w4)
+            {
+                TAKEBIT(v4,w4);
+                x |= (x4 & XBIT(v4));
+                w5 = g[v4] & ~bit[v0] & ~bit[v3];
+                while (w5)
+                {
+                    TAKEBIT(v5,w5);
+                    x |= XBIT(v5);
+                }
+            }
+        }
+        h[v0] = x;
+    }
+}
+
+/**************************************************************************/ 
+ 
+static void 
+makepgraph(graph *g, xword *h, int n)
+/* Make x-format graph for 5-cycles */
+{
+    makeplus5graph(g,h,n,0);
+}
+
+/**************************************************************************/ 
+ 
+static void 
+makeptgraph(graph *g, xword *h, int n)
+/* Make x-format graph for 3-cycles and 5-cycles */
+{
+    makeplus5graph(g,h,n,bit[3]);
+}
+
+/**************************************************************************/ 
+ 
+static void 
+makepfgraph(graph *g, xword *h, int n)
+/* Make x-format graph for 4-cycles and 5-cycles */
+{
+    makeplus5graph(g,h,n,bit[4]);
+}
+
+/**************************************************************************/ 
+ 
+static void 
+makepftgraph(graph *g, xword *h, int n)
+/* Make x-format graph for girth at least 6 */
+{
+    makeplus5graph(g,h,n,bit[3]|bit[4]);
+}
 
 /**************************************************************************/  
 
@@ -1442,7 +1543,7 @@ notchordal(graph *g, int n, int maxn)
    chordless cycle of length at least 4 that includes
    the last vertex. */
 {
-    setword all,gn,w,gs;
+    setword all,gn,gs;
     int v,s;
 
     all = ALLMASK(n);
@@ -1509,7 +1610,7 @@ oddchordless(graph *g, int n, int maxn)
    chordless cycle of odd length at least 5 that includes
    the last vertex. */
 {
-    setword all,gn,w,gs;
+    setword all,gn,gs;
     int v,s;
 
     all = ALLMASK(n);
@@ -2293,7 +2394,7 @@ main(int argc, char *argv[])
     nauty_check(WORDSIZE,1,MAXN,NAUTYVERSIONID);
 
     badargs = FALSE;
-    trianglefree = bipartite = squarefree = FALSE;
+    trianglefree = bipartite = squarefree = pentagonfree = FALSE;
     k4free = splitgraph = chordal = perfect = clawfree = FALSE;
     verbose = quiet = FALSE;
     nautyformat = graph6 = sparse6 = nooutput = FALSE;
@@ -2323,6 +2424,7 @@ main(int argc, char *argv[])
                 else SWBOOLEAN('s',sparse6)
                 else SWBOOLEAN('t',trianglefree)
                 else SWBOOLEAN('f',squarefree)
+                else SWBOOLEAN('p',pentagonfree)
                 else SWBOOLEAN('k',k4free)
                 else SWBOOLEAN('S',splitgraph)
                 else SWBOOLEAN('T',chordal)
@@ -2497,20 +2599,31 @@ PLUGIN_INIT
     }
     else if ((outfile = fopen(outfilename,
                     nautyformat ? "wb" : "w")) == NULL)
-    {
-        fprintf(stderr,
-              ">E geng: can't open %s for writing\n",outfilename);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E geng: can't open %s for writing\n",outfilename);
 
     if (bipartite)
+    {
         if (squarefree)  tmaxe = findmaxe(maxebf,maxn);
         else             tmaxe = findmaxe(maxeb,maxn);
+    }
     else if (trianglefree)
-        if (squarefree)  tmaxe = findmaxe(maxeft,maxn);
-        else             tmaxe = findmaxe(maxet,maxn);
-    else if (squarefree) tmaxe = findmaxe(maxef,maxn);
-    else                 tmaxe = (maxn*maxn - maxn) / 2;
+    {
+        if (squarefree)
+            if (pentagonfree) tmaxe = findmaxe(maxepft,maxn);
+            else              tmaxe = findmaxe(maxeft,maxn);
+        else
+            if (pentagonfree) tmaxe = findmaxe(maxept,maxn);
+            else              tmaxe = findmaxe(maxet,maxn);
+    }
+    else if (squarefree)
+    {
+        if (pentagonfree) tmaxe = findmaxe(maxepf,maxn);
+        else              tmaxe = findmaxe(maxef,maxn);
+    }
+    else if (pentagonfree)
+        tmaxe = findmaxe(maxep,maxn);
+    else 
+        tmaxe = (maxn*maxn - maxn) / 2;
 
     if (safe) ++tmaxe;
 
@@ -2538,10 +2651,11 @@ PLUGIN_INIT
         else
             CATMSG1(">A %s",argv[0]);
        
-        CATMSG7(" -%s%s%s%s%s%s%s",
+        CATMSG8(" -%s%s%s%s%s%s%s%s",
             connec2      ? "C" : connec1 ? "c" : "",
             trianglefree ? "t" : "",
             squarefree   ? "f" : "",
+            pentagonfree ? "p" : "",
             k4free       ? "k" : "",
             bipartite    ? "b" : "",
             canonise     ? "l" : "",
@@ -2565,7 +2679,8 @@ PLUGIN_INIT
     g[0] = 0;
     deg[0] = 0;
 
-    sparse = bipartite || squarefree || trianglefree || savemem;
+    sparse = bipartite || squarefree || trianglefree
+                       || pentagonfree || savemem;
 
     t1 = CPUTIME;
 
@@ -2623,22 +2738,49 @@ PLUGIN_INIT
             }
 
             if (bipartite)
+            {
                 if (squarefree)
                     spaextend(g,1,deg,0,TRUE,
                                     data[1].xlb,data[1].xub,makeb6graph);
                 else
                     spaextend(g,1,deg,0,TRUE,
                                     data[1].xlb,data[1].xub,makebgraph);
+            }
             else if (trianglefree)
+            {
                 if (squarefree)
+                {
+                    if (pentagonfree)
+                        spaextend(g,1,deg,0,TRUE,
+                                    data[1].xlb,data[1].xub,makepftgraph);
+                    else
+                        spaextend(g,1,deg,0,TRUE,
+                                    data[1].xlb,data[1].xub,makeftgraph);
+                }
+                else
+                {
+                    if (pentagonfree)
+                        spaextend(g,1,deg,0,TRUE,
+                                    data[1].xlb,data[1].xub,makeptgraph);
+                    else
+                        spaextend(g,1,deg,0,TRUE,
+                                    data[1].xlb,data[1].xub,maketgraph);
+                }
+            }
+            else if (squarefree)
+            {
+                if (pentagonfree)
                     spaextend(g,1,deg,0,TRUE,
-                                    data[1].xlb,data[1].xub,makeg5graph);
+                                    data[1].xlb,data[1].xub,makepfgraph);
                 else
                     spaextend(g,1,deg,0,TRUE,
-                                    data[1].xlb,data[1].xub,makexgraph);
-            else if (squarefree)
-                spaextend(g,1,deg,0,TRUE,
-                                    data[1].xlb,data[1].xub,makesgraph);
+                                    data[1].xlb,data[1].xub,makefgraph);
+            }
+            else if (pentagonfree)
+            {
+                    spaextend(g,1,deg,0,TRUE,
+                                    data[1].xlb,data[1].xub,makepgraph);
+            }
             else if (savemem)
                 spaextend(g,1,deg,0,TRUE,
                                     data[1].xlb,data[1].xub,make0graph);

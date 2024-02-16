@@ -51,8 +51,6 @@ typedef struct addrval_struct
     int value;
 } addrval;
 
-static long seed = 314159265;
-
 /* valstack is a stack to save and restore degrees, farends, and colours */
 DYNALLSTAT(addrval,valstack,valstack_sz);
 static addrval *valstacktop;
@@ -132,6 +130,7 @@ makeprism_sg(sparsegraph *sg, sparsegraph *sh)
 
 /**************************************************************************/
 
+#if DEBUG > 0
 static void
 dumpdata(int id, int nblue, int nred, int n)
 {
@@ -140,16 +139,19 @@ dumpdata(int id, int nblue, int nred, int n)
     printf("%d: nblue=%d nred=%d -------------------------\n",id,nblue,nred);
 
 #if DEBUG > 1
-    for (i = 0; i < n; ++i)
     {
-        printf("%2d: ",i);
-        for (j = 0; j < 4; ++j)
-            printf(" %2d%c",eno[4*i+j],"wbr"[colour[eno[4*i+j]]]);
-        printf("   b=%d r=%d bfe=%d rfe=%d\n",
-            bluedeg[i],reddeg[i],bluefarend[i],redfarend[i]);
+        for (i = 0; i < n; ++i)
+        {
+            printf("%2d: ",i);
+            for (j = 0; j < 4; ++j)
+                printf(" %2d%c",eno[4*i+j],"wbr"[colour[eno[4*i+j]]]);
+            printf("   b=%d r=%d bfe=%d rfe=%d\n",
+                bluedeg[i],reddeg[i],bluefarend[i],redfarend[i]);
+        }
     }
 #endif
 }
+#endif
 
 /**************************************************************************/
 

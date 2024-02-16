@@ -1,7 +1,7 @@
 Description of graph6, sparse6 and digraph6 encodings
 -----------------------------------------------------
 Brendan McKay, brendan.mckay@anu.edu.au
-Updated Jun 2015, Apr 2022.
+Updated Jun 2015, Apr 2022, Aud 2023.
 
 General principles:
 
@@ -220,3 +220,8 @@ Example:
    Then N(n) = 68 and
    R(x) = R(00101 00000 00000 01001 00000) = 73  63  65  79  63.
    So, the graph is  38 68 73  63  65  79  63.
+
+Note:
+   SageMath has a format also called "digraph6" that is different
+   from this one. The leading "&" is omitted and the direction of
+   every edge is reversed.

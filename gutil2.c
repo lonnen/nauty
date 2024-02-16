@@ -286,6 +286,7 @@ numtriangles(graph *g, int m, int n)
 
 long
 numdirtriangles1(graph *g, int n)
+/* Number of directed triangles; m=1 only. */
 {
     long total;
     int i,j,k;
@@ -467,7 +468,7 @@ conncontent(graph *g, int m, int n)
     int minv,mindeg,deg,goodv;
     long ne;
     
-    if (m > 1) ABORT("conncontent only implemented for m=1");
+    if (m > 1) NAUTY_ABORT("conncontent only implemented for m=1");
 
  /* First handle tiny graphs */
 
@@ -638,6 +639,7 @@ stronglyconnected(graph *g, int m, int n)
     lowlink[0] = 0;
     numvis = 1;
     sp = 0;
+    stack[0] = 0;
     v = 0;
     vc = -1;
     gv = (set*)g;
@@ -677,7 +679,7 @@ long
 numsquares(graph *g, int m, int n)
 /* Number of 4-cycles. Undirected graphs only, loops ok. */
 {
-    setword w,bitij;
+    setword w;
     int i,j,k;
     graph *gi,*gj;
     unsigned long total,t;
@@ -759,4 +761,178 @@ numdiamonds(graph *g, int m, int n)
     }
 
     return ans;
+}
+
+long
+numpentagons(graph *g, int m, int n)
+/* Number of pentagons (undirected only, no loops) */
+{
+    int i,j,k,s;
+    set *gi,*gj,*gs;
+    setword wgi;
+    unsigned long count,wsi,wsj,wsij;
+
+    count = 0;
+
+    if (m == 1)
+    {
+        for (i = 0; i < n; ++i)
+        {
+            wgi = g[i] & BITMASK(i);
+            while (wgi)
+            {
+                TAKEBIT(j,wgi);
+                for (s = 0; s < n; ++s)
+                if (s != i && s != j)
+                {
+                    wsi = POPCOUNT(g[s]&g[i]&~bit[j]);
+                    wsj = POPCOUNT(g[s]&g[j]&~bit[i]);
+                    count += wsi*wsj - POPCOUNT(g[s]&g[i]&g[j]);
+                }
+            }
+        }
+    }
+    else
+    {
+        for (i = 0, gi = g; i < n-1; ++i, gi += m)
+        for (j = i; (j = nextelement(gi,m,j)) >= 0; )
+        {
+            gj = g + j*(size_t)m;
+
+            for (s = 0, gs = g; s < n; ++s, gs += m)
+            if (s != i && s != j)
+            {
+                wsi = wsj = wsij = 0;
+                for (k = 0; k < m; ++k)
+                {
+                    wsi += POPCOUNT(gi[k]&gs[k]);
+                    wsj += POPCOUNT(gj[k]&gs[k]);
+                    wsij += POPCOUNT(gi[k]&gj[k]&gs[k]);
+                }
+                if (ISELEMENT(gs,j)) --wsi;
+                if (ISELEMENT(gs,i)) --wsj;
+                count += wsi*wsj - wsij;
+            }
+        }
+    }
+
+    return (long)(count/5);
+}
+
+/**************************************************************************/
+
+int
+ktreeness1(graph *g, int n)
+/* Version of ktreeness() for m=1. */
+{
+    int i,v,k,deg[WORDSIZE];
+    setword left,degk,w;
+
+    k = n+1;
+    for (i = 0; i < n; ++i)
+    {
+        deg[i] = POPCOUNT(g[i]);
+        if (deg[i] < k)
+        {
+            k = deg[i];
+            degk = bit[i];
+        }
+        else if (deg[i] == k)
+            degk |= bit[i];
+    }
+
+    if (k == n-1) return n;
+    if (k == 0) return 0;
+
+    left = ALLMASK(n);
+
+    while (degk != left && degk != 0)
+    {
+        TAKEBIT(v,degk);
+        if ((g[v] & degk)) return 0;
+        left &= ~bit[v];
+        w = g[v] & left;
+        while (w)
+        {
+            TAKEBIT(i,w);
+            if ((g[i] & w) != w) return 0;
+            --deg[i];
+            if (deg[i] == k) degk |= bit[i];
+        }
+    }
+
+    if (degk == 0)                  return 0;
+    else if (POPCOUNT(left) == k+1) return k;
+    else                            return 0;
+}
+
+int
+ktreeness(graph *g, int m, int n)
+/* Largest k for which g is a k-tree. The complete graph K_n
+   is both an (n-1)-tree and an n-tree. This function returns n. */
+{
+    int i,j,v,k,ndegk,nleft;
+    graph *gi;
+    DYNALLSTAT(int,deg,deg_sz);
+    DYNALLSTAT(set,degk,degk_sz);
+    DYNALLSTAT(set,left,left_sz);
+    DYNALLSTAT(set,w,w_sz);
+
+    if (m == 1) return ktreeness1(g,n);
+
+    DYNALLOC1(int,deg,deg_sz,n,"ktreeness");
+    DYNALLOC1(set,degk,degk_sz,m,"ktreeness");
+    DYNALLOC1(set,left,left_sz,m,"ktreeness");
+    DYNALLOC1(set,w,w_sz,m,"ktreeness");
+
+    k = n+1;
+    for (i = 0, gi = g; i < n; ++i, gi += m)
+    {
+        SETSIZE(deg[i],gi,m);
+        if (deg[i] < k)
+        {
+            k = deg[i];
+            EMPTYSET(degk,m);        
+            ADDELEMENT(degk,i);
+            ndegk = 1; 
+        }
+        else if (deg[i] == k)
+        {
+            ADDELEMENT(degk,i);
+            ++ndegk;
+        }
+    }
+
+    if (k == n-1) return n;
+    if (k == 0) return 0;
+
+    FILLSET(left,m,n);
+    nleft = n;
+
+    while (ndegk != nleft && ndegk > 0)
+    {
+        v = nextelement(degk,m,-1);
+        DELELEMENT(degk,v);
+        --ndegk;
+        gi = g + m*v;
+        for (i = 0; i < m; ++i)
+           if ((gi[i] & degk[i])) return 0;
+        DELELEMENT(left,v);
+        --nleft;
+        for (i = 0; i < m; ++i) w[i] = gi[i] & left[i];
+
+        for (i = -1; (i = nextelement(w,m,i)) >= 0; )
+        {
+            DELELEMENT(w,i);
+            gi = g + m*i;
+            for (j = 0; j < m; ++j)
+                if ((gi[j] & w[j]) != w[j]) return 0;
+            --deg[i];
+            if (deg[i] == k) { ADDELEMENT(degk,i); ++ndegk; }
+        }
+    }
+
+    if (ndegk == 0)        return 0;
+    else if (nleft == k+1) return k;
+    else                   return 0;
 }

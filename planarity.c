@@ -5908,7 +5908,7 @@ embedg_obstruction (
     /*
       this is magma code - must be removed
     */
-    float      sttime, time_to_now;
+    // float      sttime, time_to_now;
  
  IF_CPU(
     sttime = time_current_user();
@@ -8633,7 +8633,7 @@ embedg_is_embed_valid (t_ver_edge *embed_graph, int n, int nbr_comp,
 
     */
 {
-    int         v, f;
+    int         f;
 
     f = embedg_nbr_faces(embed_graph, n, edge_pos, ver_orient, nbr_e_embed);
 
@@ -8716,7 +8716,7 @@ embedg_VES_get_succ_on_ext_face (t_ver_edge *embed_graph, int n, int v,
     */
 {
     int        e, twin;
-    int        vout, ein, eout, tout;
+    int        vout, tout;
 
     ASSERT(embedg_VES_is_vertex(n, v)
            || embedg_VES_is_virtual_vertex(n, v));
@@ -8765,8 +8765,7 @@ embedg_VES_get_succ_on_ext_face (t_ver_edge *embed_graph, int n, int v,
       find which of twin's link links a vertex
     */
     tout = embedg_VES_is_vertex(n, embed_graph[twin].link[0])
-        || embedg_VES_is_virtual_vertex(n,
-                                                   embed_graph[twin].link[0])
+        || embedg_VES_is_virtual_vertex(n, embed_graph[twin].link[0])
         ?
         0 : 1;
 
@@ -9498,7 +9497,7 @@ embedg_mark_minor_B (t_dlcl **dfs_tree, t_dlcl **back_edges,
         t_ver_edge *embed_graph, int n, int *edge_pos, int v,
         int c, int x, int y, int w)
 {
-    int          vv, u_x, u_y, vz, u_z, u_max, u_min;
+    int          vv, u_x, u_y, u_z, u_max, u_min;
 
     vv = c + n;
 
@@ -9631,7 +9630,7 @@ embedg_mark_minor_D (t_dlcl **dfs_tree, t_dlcl **back_edges,
         int c, int x, int y, int w, int *path_v, int *path_e,
         int nbr_v, int entry_in_path_e)
 {
-    int          i, vv, p_x, p_y, u_x, u_y, u;
+    int          vv, p_x, p_y, u_x, u_y, u;
 
     vv = c + n;
     p_x = path_v[0];

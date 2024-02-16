@@ -65,7 +65,7 @@ main(int argc, char *argv[])
     graph *g,*gq;
     nauty_counter nin;
     char *arg,sw;
-    setword *gv,*gi;
+    setword *gv;
     long mindeg,maxdeg;
     long minvert,maxvert;
     int degv,msub,nsub;
@@ -164,10 +164,7 @@ main(int argc, char *argv[])
         outfile = stdout;
     }
     else if ((outfile = fopen(outfilename,"w")) == NULL)
-    {
-        fprintf(stderr,"Can't open output file %s\n",outfilename);
-        gt_abort(NULL);
-    }
+        gt_abort_1(">E Can't open output file %s\n",outfilename);
 
     if (codetype&SPARSE6)       outcode = SPARSE6;
     else if (codetype&DIGRAPH6) outcode = DIGRAPH6;

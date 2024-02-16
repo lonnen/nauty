@@ -539,7 +539,7 @@ Changes from nauty 2.7 to nauty 2.8
     most utilities for reading graphs, is now faster except for
     for very small graphs.
 
-* A new version of Traces is included, that fixes a bug reported
+* A new version of Traces is included that fixes a bug reported
   by Aleksandr Krotov and makes other improvements. A side-effect
   is that the canonical labelling made by Traces has changed.
 
@@ -547,3 +547,134 @@ Changes from nauty 2.7 to nauty 2.8
   2.8.6. Corrections will be made to the most recent version only.
 
 ----- Now 2.8.6
+
+* Fixed gentreeg output for n=2, also corrected the table of counts
+  in the source file, which was shifted by 1. Also gentourng -c 2.
+  Thanks to Gonne Kretschmer for reporting these.
+
+* deledgeg has a new option -v for removing only edges incident
+  to a particular vertex.
+
+* countneg is a new utility for counting graphs by their number
+  of edges and/or vertices. It is faster and more space-efficient
+  than countg for this purpose, but it does not support incremental
+  sparse6 input or some options like -p and -f that countg supports.
+
+* genspecialg has a new option -X which can select one of 126 named
+  graphs. Use "genspecialg --Xhelp" for a list. Proposals for
+  additional graphs are welcome, but note that this is for
+  individual important graphs and not substantial families.
+
+  genspecialg -Y# makes Paley graphs, where # is an odd prime power.
+  They are undirected if #=1 (mod 4), and directed if #=3 (mod 4).
+
+  genspecialg -K#,#,# makes generalized Kneser graphs. K(n,k,t)
+  is the graph of k-subsets of an n-set with subsets adjacent if
+  their intersection has size t.  If t is omitted, t=0 is assumed.
+
+  genspecialg -D#,# makes de Bruijn graphs and digraphs. With -z
+  D(k,t) is the de Bruijn digraph formed by strings of length t
+  over an alphabet of size k. Without -z, the underlying
+  undirected graph (which is not usually regular) is made.
+
+  genpsecial -Q#,# is an extension of -Q# (hypercube of dimension #).
+  The second parameter, if present, is the hamming distance that
+  defines edges (normally 1).
+
+  genspecialg -m#,#,... makes complete multipartite graphs
+  genspecialg -a#  makes an antiprism (to make a prism use -G-2,#).
+  genspecialg -w#  makes a wheel with # spokes
+  genspecialg -l#  makes a moebius ladder with # vertices
+  genspecialg -A#  makes an antiregular graph with # vertices
+  genspecialg -L#  makes a triangular graph L(K_#)
+
+* New features for countg/pickg:
+  (1) The chromatic number is selected by -N and the chromatic index by -NN.
+  Thanks to Gordon Royle for code that formed the basis of these functions.
+  There is also -A for the class (chromatic index - maximum degree + 1).
+  In this context, a loop adds 1 to the degree of a vertex.
+  At most WORDSIZE colours are allowed.
+
+  (2) Connectivity is selected by -G and the edge-connectivity by -GG.
+  Digraphs are allowed.  The connectivity of a digraph is defined by:
+  n-1 for K_n, otherwise the minimum size of a vertex separator between
+  a and b minimized over a,b such that there is no edge a->b. This is
+  the same as the maximum number of internally-vertex-disjoint directed
+  paths from a to b, minimized over distinct a,b. Thus, 1-connectivity
+  is equivalent to strong connectivity. 
+  The older switch -c is still available with the old meaning: only valid
+  for undirected graphs, and the value 2 means "2 or more".
+
+  (3) The functions -I and -J were replaced by -ii and -jj to make room 
+  for future features.
+
+  (4) Some sort keys have boolean variants with parameters:
+   --N#  #-colourable (i.e. chromatic number <= #)
+   --NN#  #-edge colourable
+   --G#  #-connected (i.e. connectivity >= #)
+   --GG# #-edge connected
+
+  (5) Pentagons are counted by -P, undirected only.
+
+  (6) -kk determines the k such that the graph is a k-tree, or 0 if
+  the graph is not a k-tree for any k. Since the complete graph on
+  n vertices is annoyingly both an (n-1)-tree and an n-tree, it is
+  tabulated as an n-tree but matches either n-1 or n.
+
+* The function stronglyconnected() in gutils2.c, which is used by
+  pickg/countg -C, had an uninitialized variable that could cause a crash.
+
+* genbg got faster for trees
+
+* addptg -j was generalized and addptg -e was added, see addptg --help.
+
+* Don Knuth's 30-bit random number generator has been replaced by George
+  Marsaglia's 64-bit random number generator. The interface remains the
+  same except that seeds and values now have type unsigned long long and
+  there is a new function ran_init_2(seed1,seed2) that allows 128 bits
+  of initialization.  All bits are random and the period is greater than
+  10^47.  If naurng.c is compiled with -DUSE_TLS, each thread has its own
+  sequence of random numbers if they are initialized with different seeds.
+  The old generator is still available in naurng_knuth.[hc].
+
+* genktreeg is a new generator for making k-trees. Thanks to
+  Licheng Zhang for the idea and helping with the testing.
+
+* ransubg is a new tool that extracts a random subgraph/subdigraph from
+  an input graph. It can make random orientations.
+
+* genrang with -d and -z makes pseudo-random regular loop-free digraphs.
+
+* assembleg has -u and a changed summary line.
+
+* If your sort program has a -S (memory allocation) option, then shortg
+  provides it via the -Z switch (-S means use sparse format).  Valid
+  arguments to -Z, assuming sort supports them, are a number followed by
+  K, M, G, or %. Use of this argument on large tasks can give a
+  significant speed-up if you have a lot of memory.
+
+* Traces had an error when there was a non-trivial initial colouring.
+  Thanks to Julius Kunze for reporting the error. This and a very rare
+  bug are now fixed. The canonical labelling may have changed.  Traces is
+  now entirely independent of the WORDSIZE, so only one version of traces.o
+  is needed. Builds that use tracesS.o, tracesW.o or tracesL.o should use
+  traces.o instead.
+
+* Version 2.8.8 introduces support for WORDSIZE=128, if your compiler
+  supports it. Note that no mainstream processor at the moment has native
+  support for operations on 128-integers, so those operations rely on
+  compiler emulation. This means that you aren't going to get efficiency
+  gains from using this facility, though the efficiency loss is not so
+  bad if you use aggressive optimization.  Mostly this is a convenience
+  if you want code written for n <= WORDSIZE to work up to a larger size.
+  The makefile has targets for libraries nautyQ.a (arbitrary n) and
+  nautyQ1.a (n <= 128) which are built if the configure script decides that
+  128-bit support is available.
+
+* geng -p will exclude graphs with 5-cycles.
+  An example plugin for geng is no4holes.c and is explained in the guide.
+
+* You can make thread-safe libraries with "make TLSlibs" and install them
+  with "make TLSinstall".
+
+----- Now 2.8.8
